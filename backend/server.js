@@ -21,6 +21,8 @@ const movementRoutes = require('./src/routes/movement.routes');
 const dashboardRoutes = require('./src/routes/dashboard.routes');
 const productionRoutes = require('./src/routes/production.routes');
 
+const usersRoutes = require('./src/routes/users.routes');
+
 const app = express();
 const httpServer = http.createServer(app);
 
@@ -96,7 +98,7 @@ app.use('/api/pallets', palletRoutes);
 app.use('/api/movements', movementRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/production', productionRoutes);
-
+app.use('/api/users', usersRoutes);
 // =====================
 // Error handler
 // =====================

@@ -8,12 +8,13 @@ export function AuthProvider({ children }) {
     try { return JSON.parse(localStorage.getItem('user') || 'null') } catch { return null }
   })
 
-  const login = ({ token, user }) => {
-    setToken(token)
-    setUser(user)
-    localStorage.setItem('token', token)
-    localStorage.setItem('user', JSON.stringify(user))
-  }
+  const login = (token, user) => {
+  setToken(token)
+  setUser(user)
+  localStorage.setItem('token', token)
+  localStorage.setItem('user', JSON.stringify(user))
+}
+
 
   const logout = () => {
     setToken('')

@@ -11,21 +11,13 @@ import Button from '@mui/material/Button'
 import Alert from '@mui/material/Alert'
 import Stack from '@mui/material/Stack'
 import Link from '@mui/material/Link'
-import InputAdornment from '@mui/material/InputAdornment'
-import IconButton from '@mui/material/IconButton'
-import Visibility from '@mui/icons-material/Visibility'
-import VisibilityOff from '@mui/icons-material/VisibilityOff'
 
 export default function LoginPage() {
   const nav = useNavigate()
   const { login } = useAuth()
 
-  // ✅ sin datos automáticos
   const [employeeNumber, setEmployeeNumber] = useState('')
-  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [showPass, setShowPass] = useState(false)
-
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -34,11 +26,9 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      const res = await api().post('/api/auth/login', { employeeNumber, email, password })
-
-      // ✅ tu AuthProvider espera login({token,user})
-      login({ token: res.data.token, user: res.data.user })
-
+      const res = await api().post('/api/auth/login', { employeeNumber, password })
+      // ⚠️ tu auth.jsx debe aceptar (token, user)
+      login(res.data.token, res.data.user)
       nav('/')
     } catch (err) {
       setError(err?.response?.data?.message || 'Error al iniciar sesión')
@@ -47,14 +37,11 @@ export default function LoginPage() {
     }
   }
 
-  // ✅ estilo para que SIEMPRE se vea lo que escribes (texto, label, borde)
-  const fieldSx = {
-    '& .MuiInputBase-input': { color: 'rgba(15,23,42,0.92)' },
-    '& .MuiInputLabel-root': { color: 'rgba(15,23,42,0.70)' },
-    '& .MuiInputLabel-root.Mui-focused': { color: 'rgba(15,23,42,0.85)' },
-    '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(15,23,42,0.18)' },
-    '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(15,23,42,0.30)' },
-    '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(30,91,184,0.65)' }
+  const tfSx = {
+    '& .MuiInputBase-root': { background: 'rgba(255,255,255,0.98)' },
+    '& input': { color: '#0f172a', fontWeight: 700 },
+    '& label': { color: 'rgba(15,23,42,0.75)', fontWeight: 700 },
+    '& label.Mui-focused': { color: '#0f172a' }
   }
 
   return (
@@ -86,10 +73,10 @@ export default function LoginPage() {
           border: '1px solid rgba(15, 23, 42, 0.10)'
         }}
       >
-        <Typography variant="h5" sx={{ fontWeight: 900, mb: 0.5, textAlign: 'center', color: 'rgba(15,23,42,0.92)' }}>
+        <Typography variant="h5" sx={{ fontWeight: 900, mb: 0.5, textAlign: 'center' }}>
           Iniciar Sesión
         </Typography>
-        <Typography variant="body2" sx={{ opacity: 0.75, textAlign: 'center', mb: 3, color: 'rgba(15,23,42,0.75)' }}>
+        <Typography variant="body2" sx={{ opacity: 0.75, textAlign: 'center', mb: 3 }}>
           Acceso al sistema de almacén
         </Typography>
 
@@ -98,45 +85,26 @@ export default function LoginPage() {
         <Box component="form" onSubmit={onSubmit}>
           <Stack spacing={2}>
             <TextField
-              sx={fieldSx}
+              sx={tfSx}
               label="Número de Empleado"
               value={employeeNumber}
               onChange={(e) => setEmployeeNumber(e.target.value)}
               autoComplete="off"
             />
-
             <TextField
-              sx={fieldSx}
-              label="Correo Electrónico"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-            />
-
-            <TextField
-              sx={fieldSx}
+              sx={tfSx}
               label="Contraseña"
-              type={showPass ? 'text' : 'password'}
+              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton onClick={() => setShowPass(v => !v)} edge="end" aria-label="toggle password visibility">
-                      {showPass ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                )
-              }}
             />
 
             <Button type="submit" variant="contained" size="large" sx={{ py: 1.25 }} disabled={loading}>
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>
 
-            {/* ✅ links reales */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
+            <Box sx={{ textAlign: 'center' }}>
               <Link
                 component="button"
                 type="button"
@@ -145,16 +113,6 @@ export default function LoginPage() {
                 onClick={() => nav('/forgot-password')}
               >
                 ¿Olvidaste tu contraseña?
-              </Link>
-
-              <Link
-                component="button"
-                type="button"
-                underline="hover"
-                sx={{ fontWeight: 700, opacity: 0.85 }}
-                onClick={() => nav('/register')}
-              >
-                Crear cuenta
               </Link>
             </Box>
           </Stack>
