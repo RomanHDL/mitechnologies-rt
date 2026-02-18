@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+
 const rateLimit = require('express-rate-limit');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -23,7 +24,9 @@ const productionRoutes = require('./src/routes/production.routes');
 const usersRoutes = require('./src/routes/users.routes');
 
 const app = express();
-app.set('trust proxy', 1); // IMPORTANTE para Railway
+
+// ✅ Railway / proxy (necesario para x-forwarded-for + rate-limit)
+app.set('trust proxy', 1);
 
 const httpServer = http.createServer(app);
 
@@ -31,21 +34,43 @@ const httpServer = http.createServer(app);
 // CORS
 // =====================
 const allowedOrigins = (process.env.CORS_ORIGIN || '')
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean);
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
 
 app.use(cors({
-    origin: allowedOrigins.length ? allowedOrigins : true,
-    credentials: true
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // postman/curl
+    if (!allowedOrigins.length) return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(new Error(`CORS blocked: ${origin}`));
+  },
+  credentials: true,
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
 }));
+
+app.options('*', cors());
+
+// =====================
+// Socket.IO
+// =====================
+const io = new Server(httpServer, {
+  cors: {
+    origin: allowedOrigins.length ? allowedOrigins : true,
+    credentials: true,
+    methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  }
+});
+app.set('io', io);
 
 // =====================
 // Rate limit
 // =====================
 const limiter = rateLimit({
-    windowMs: 60 * 1000,
-    max: 120
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 app.use(limiter);
 
@@ -60,7 +85,7 @@ app.use(morgan('dev'));
 // Health
 // =====================
 app.get('/health', (req, res) => {
-    res.json({ ok: true, time: new Date().toISOString() });
+  res.json({ ok: true, time: new Date().toISOString() });
 });
 
 // =====================
@@ -83,21 +108,20 @@ app.use('/api/users', usersRoutes);
 // Error handler
 // =====================
 app.use((err, req, res, next) => {
-    console.error(err);
-    res.status(err.status || 500).json({
-        message: err.message || 'Internal Server Error',
-    });
+  console.error(err);
+  res.status(err.status || 500).json({
+    message: err.message || 'Internal Server Error',
+    details: err.details || undefined,
+  });
 });
 
 const PORT = process.env.PORT || 5000;
 
 connectDB()
-    .then(() => {
-        httpServer.listen(PORT, () =>
-            console.log(`API listening on :${PORT}`)
-        );
-    })
-    .catch((e) => {
-        console.error('DB connection failed:', e);
-        process.exit(1);
-    });
+  .then(() => {
+    httpServer.listen(PORT, () => console.log(`API listening on :${PORT}`));
+  })
+  .catch((e) => {
+    console.error('DB connection failed:', e);
+    process.exit(1);
+  });
