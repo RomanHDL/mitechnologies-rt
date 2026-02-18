@@ -12,7 +12,7 @@ const router = express.Router();
 
 function reqMeta(req) {
     return {
-        ip: req.headers['x-forwarded-for'] ? .toString().split(',')[0] ? .trim() || req.ip || '',
+        ip: req.headers['x-forwarded-for'] ?.toString().split(',')[0] ?.trim() || req.ip || '',
         ua: req.headers['user-agent'] || ''
     };
 }
@@ -30,7 +30,7 @@ router.post('/login', validate(loginSchema), async(req, res, next) => {
 
         const user = await User.findOne({ employeeNumber: emp });
         if (!user || !user.isActive) {
-            await AuthLog.create({ user: user ? ._id || null, email: user ? .email || '', event: 'LOGIN_FAIL', ...meta });
+            await AuthLog.create({ user: user?._id || null, email: user?.email || '', event: 'LOGIN_FAIL', ...meta });
             return res.status(401).json({ message: 'Credenciales inválidas' });
         }
 
@@ -161,7 +161,7 @@ router.post('/register', requireAuth, requireRole('ADMIN'), validate(registerSch
             fullName: fullName || '',
             role: role || 'OPERADOR',
             position: position || '',
-            isActive: isActive ? ? true
+            isActive: isActive ?? true
         });
 
         res.status(201).json({
