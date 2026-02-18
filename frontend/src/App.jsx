@@ -2,8 +2,12 @@ import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './state/auth'
 
-import LoginPage from './pages/LoginPage'
 import Layout from './ui/Layout'
+
+import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+
 import DashboardPage from './pages/DashboardPage'
 import InventoryPage from './pages/InventoryPage'
 import RacksPage from './pages/RacksPage'
@@ -24,7 +28,12 @@ function PrivateRoute({ children }) {
 export default function App() {
   return (
     <Routes>
+      {/* públicas */}
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+      {/* privadas */}
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
         <Route index element={<DashboardPage />} />
         <Route path="inventario" element={<InventoryPage />} />
@@ -38,6 +47,8 @@ export default function App() {
         <Route path="usuarios" element={<UsersPage />} />
         <Route path="scan" element={<ScanPage />} />
       </Route>
+
+      {/* fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
