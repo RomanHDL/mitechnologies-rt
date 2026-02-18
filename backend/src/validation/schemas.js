@@ -1,11 +1,9 @@
 const { z } = require('zod');
 
-const loginSchema = {
-    body: {
-        employeeNumber: { type: 'string', min: 4 },
-        password: { type: 'string', min: 6 }
-    }
-};
+const loginSchema = z.object({
+    employeeNumber: z.string().min(1, 'Número de empleado requerido'),
+    password: z.string().min(6, 'Contraseña mínima 6 caracteres')
+});
 
 const registerSchema = z.object({
     email: z.string().email(),
@@ -17,16 +15,29 @@ const registerSchema = z.object({
     isActive: z.boolean().optional()
 });
 
+// ...los demás schemas igual como los tienes
+
+module.exports = {
+    loginSchema,
+    registerSchema,
+    createPalletSchema,
+    transferSchema,
+    outSchema,
+    adjustSchema
+};
+
 const createPalletSchema = z.object({
     lot: z.string().optional(),
     supplier: z.string().optional(),
     receivedAt: z.string().datetime().optional(),
     locationId: z.string().min(1),
-    items: z.array(z.object({
-        sku: z.string().min(1),
-        description: z.string().optional(),
-        qty: z.number().min(0)
-    })).min(1)
+    items: z.array(
+        z.object({
+            sku: z.string().min(1),
+            description: z.string().optional(),
+            qty: z.number().min(0)
+        })
+    ).min(1)
 });
 
 const transferSchema = z.object({
@@ -41,11 +52,13 @@ const outSchema = z.object({
 });
 
 const adjustSchema = z.object({
-    items: z.array(z.object({
-        sku: z.string().min(1),
-        description: z.string().optional(),
-        qty: z.number().min(0)
-    })).min(1),
+    items: z.array(
+        z.object({
+            sku: z.string().min(1),
+            description: z.string().optional(),
+            qty: z.number().min(0)
+        })
+    ).min(1),
     note: z.string().optional()
 });
 
