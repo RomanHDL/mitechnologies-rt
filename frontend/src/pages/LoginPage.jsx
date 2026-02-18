@@ -24,14 +24,12 @@
       e.preventDefault()
       setError('')
       try {
-        const res = await api().post('/auth/login', { employeeNumber, email, password })
+        const res = await api().post('/api/auth/login', { employeeNumber, email, password })
 
-        localStorage.setItem('token', res.data.token)
-localStorage.setItem('user', JSON.stringify(res.data.user))
+login({ token: res.data.token, user: res.data.user })
 
-        login({ token: res.data.token, user: res.data.user })
+nav('/')
 
-        nav('/')
       } catch (err) {
         setError(err?.response?.data?.message || 'Error al iniciar sesión')
       }
