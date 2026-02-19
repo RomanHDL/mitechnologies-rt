@@ -16,20 +16,18 @@ export default function ForgotPasswordPage() {
   const [ok, setOk] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const onSubmit = async (e) => {
+  const onSubmit = (e) => {
     e.preventDefault()
     setError('')
     setOk('')
-    setLoading(true)
-    try {
-      // Si no existe este endpoint en tu backend, te dará 404 hasta que lo implementemos
-      await api().post('/api/auth/forgot-password', { email })
-      setOk('Si el correo existe, se enviaron instrucciones.')
-    } catch (err) {
-      setError(err?.response?.data?.message || 'No se pudo enviar la solicitud')
-    } finally {
-      setLoading(false)
+    if (!email || !email.includes('@')) {
+      setError('Ingresa un correo válido')
+      return
     }
+    const subject = encodeURIComponent('Solicitud de recuperación de contraseña')
+    const body = encodeURIComponent(`Hola,\n\nSolicito recuperar el acceso a mi cuenta con el correo: ${email}\n\nGracias.`)
+    window.location.href = `mailto:romanherrera548@gmail.com?subject=${subject}&body=${body}`
+    setOk('Se abrió tu cliente de correo para contactar al administrador.')
   }
 
   return (
@@ -41,8 +39,8 @@ export default function ForgotPasswordPage() {
         <Box component="form" onSubmit={onSubmit}>
           <Stack spacing={2}>
             <TextField label="Correo" value={email} onChange={(e)=>setEmail(e.target.value)} />
-            <Button type="submit" variant="contained" disabled={loading}>
-              {loading ? 'Enviando...' : 'Enviar'}
+            <Button type="submit" variant="contained">
+              Contactar administrador
             </Button>
             <Button variant="text" onClick={() => nav('/login')}>Volver a login</Button>
           </Stack>
