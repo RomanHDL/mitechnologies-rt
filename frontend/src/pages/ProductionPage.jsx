@@ -23,6 +23,7 @@ import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorIcon from '@mui/icons-material/Error'
 import DownloadIcon from '@mui/icons-material/Download'
+import * as XLSX from 'xlsx'
 
 export default function ProductionPage() {
   const { token } = useAuth()
@@ -42,6 +43,32 @@ export default function ProductionPage() {
   const create = async () => {
     await api(token).post('/api/production', { area, items: [{ sku, qty: Number(qty) }], note })
     setNote('')
+    await load()
+  }
+
+  // Exportar a Excel/CSV
+  const exportExcel = () => {
+    const data = filteredRows.map(r => ({
+      Area: r.area,
+      Status: r.status,
+      Items: (r.items||[]).map(i => `${i.sku}(${i.qty})`).join(', '),
+      Solicitó: r.requestedBy?.email || '',
+      Nota: r.note || ''
+    }))
+    const ws = XLSX.utils.json_to_sheet(data)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Solicitudes')
+    XLSX.writeFile(wb, 'solicitudes_produccion.xlsx')
+  }
+
+  // Marcar como completada
+  const markCompleted = async (id) => {
+    await api(token).patch(`/api/production/${id}/status`, { status: 'COMPLETADA' })
+    await load()
+  }
+  // Marcar como cancelada
+  const markCancelled = async (id) => {
+    await api(token).patch(`/api/production/${id}/status`, { status: 'CANCELADA' })
     await load()
   }
 
@@ -69,7 +96,7 @@ export default function ProductionPage() {
         <Tooltip title="Completadas"><Chip label={`Completadas: ${resumen.completadas}`} sx={{ bgcolor:'#dcfce7', color:'#166534' }} /></Tooltip>
         <Tooltip title="Canceladas"><Chip label={`Canceladas: ${resumen.canceladas}`} sx={{ bgcolor:'#fee2e2', color:'#991b1b' }} /></Tooltip>
         <Box sx={{ flex: 1 }} />
-        <Tooltip title="Exportar a Excel"><IconButton><DownloadIcon /></IconButton></Tooltip>
+        <Tooltip title="Exportar a Excel"><IconButton onClick={exportExcel}><DownloadIcon /></IconButton></Tooltip>
       </Stack>
 
       <Paper elevation={1} sx={{ p:2, borderRadius:3, mb:2 }}>
@@ -134,8 +161,16 @@ export default function ProductionPage() {
                     </Tooltip>
                   </TableCell>
                   <TableCell sx={{ textAlign:'center' }}>
-                    <Tooltip title="Marcar como completada"><IconButton size="small" sx={{ color:'#22c55e' }}><DoneIcon fontSize="small" /></IconButton></Tooltip>
-                    <Tooltip title="Cancelar"><IconButton size="small" sx={{ color:'#ef4444' }}><CancelIcon fontSize="small" /></IconButton></Tooltip>
+                    <Tooltip title="Marcar como completada">
+                      <IconButton size="small" sx={{ color:'#22c55e' }} onClick={()=>markCompleted(r._id)} disabled={r.status==='COMPLETADA' || r.status==='CANCELADA'}>
+                        <DoneIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Cancelar">
+                      <IconButton size="small" sx={{ color:'#ef4444' }} onClick={()=>markCancelled(r._id)} disabled={r.status==='COMPLETADA' || r.status==='CANCELADA'}>
+                        <CancelIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                   </TableCell>
                 </TableRow>
               )
