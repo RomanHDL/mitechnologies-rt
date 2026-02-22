@@ -33,7 +33,7 @@ const ProductionRequest = sequelize.define('ProductionRequest', {
     },
 
     requestedByUserId: {
-        type: DataTypes.INTEGER.UNSIGNED,
+        type: DataTypes.UUID,
         allowNull: false,
     },
 }, {
