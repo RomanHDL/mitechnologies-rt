@@ -1,69 +1,53 @@
 const express = require('express');
-const Movement = require('../models/Movement');
+const { Movement, Pallet, User, Location } = require('../models/sequelize');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-function csvEscape(v) {
-    // CSV: envolver en comillas y duplicar comillas internas
-    const s = String(v ?? '');
-    const safe = s.replace(/"/g, '""').replace(/\r?\n/g, ' ');
-    return `"${safe}"`;
-}
-
 function toCsv(rows) {
-    const header = ['date', 'type', 'palletCode', 'userEmail', 'from', 'to', 'note'];
-    const lines = [header.join(',')];
-
-    for (const r of rows) {
-        const fromStr = r.fromLocation ?
-            `${r.fromLocation.area}-${r.fromLocation.level}${r.fromLocation.position}` :
-            '';
-        const toStr = r.toLocation ?
-            `${r.toLocation.area}-${r.toLocation.level}${r.toLocation.position}` :
-            '';
-
-        lines.push([
-            r.createdAt ? new Date(r.createdAt).toISOString() : '',
-            r.type || '',
-            (r.pallet && r.pallet.code) ? r.pallet.code : '',
-            (r.user && r.user.email) ? r.user.email : '',
-            fromStr,
-            toStr,
-            r.note || ''
-        ].map(csvEscape).join(','));
-    }
-
-    return lines.join('\n');
+  const header = ['date','type','palletCode','userEmail','from','to','note'];
+  const esc = (v) => `"${String(v ?? '').replaceAll('"','""')}"`;
+  const lines = [header.join(',')];
+  for (const r of rows) {
+    lines.push([
+      r.createdAt?.toISOString?.() || '',
+      r.type,
+      r.pallet?.code || '',
+      r.user?.email || '',
+      r.fromLocation ? `${r.fromLocation.area}-${r.fromLocation.level}${r.fromLocation.position}` : '',
+      r.toLocation ? `${r.toLocation.area}-${r.toLocation.level}${r.toLocation.position}` : '',
+      (r.note || '').replaceAll('\n',' ')
+    ].map(esc).join(','));
+  }
+  return lines.join('\n');
 }
 
-router.get('/', requireAuth, async(req, res, next) => {
-    try {
-        const exp = req.query.export;
+router.get('/', requireAuth, async (req, res, next) => {
+  try {
+    const { export: exp } = req.query;
 
-        // soportar ?limit=10 (tu frontend lo manda)
-        const limit = Math.min(parseInt(req.query.limit || '2000', 10) || 2000, 5000);
+    const rows = await Movement.findAll({
+      include: [
+        { model: Pallet, as: 'pallet', attributes: ['code'] },
+        { model: User, as: 'user', attributes: ['email'] },
+        { model: Location, as: 'fromLocation', attributes: ['area', 'level', 'position'] },
+        { model: Location, as: 'toLocation', attributes: ['area', 'level', 'position'] }
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: 2000
+    });
 
-        const rows = await Movement.find({})
-            .populate('pallet', 'code')
-            .populate('user', 'email')
-            .populate('fromLocation', 'area level position')
-            .populate('toLocation', 'area level position')
-            .sort({ createdAt: -1 })
-            .limit(limit)
-            .lean();
+    const rowsJson = rows.map(r => r.toJSON());
 
-        if (exp === 'csv') {
-            const csv = toCsv(rows);
-            res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-            res.setHeader('Content-Disposition', 'attachment; filename="movimientos.csv"');
-            return res.send(csv);
-        }
-
-        return res.json(rows);
-    } catch (e) {
-        next(e);
+    if (exp === 'csv') {
+      const csv = toCsv(rowsJson);
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="movimientos.csv"');
+      return res.send(csv);
     }
+
+    res.json(rowsJson);
+  } catch (e) { next(e); }
 });
 
 module.exports = router;

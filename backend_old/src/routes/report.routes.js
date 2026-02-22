@@ -1,46 +1,57 @@
 const express = require('express');
 const dayjs = require('dayjs');
-const { Op } = require('sequelize');
 
-const { Movement, Pallet, Location, Product, User } = require('../models/sequelize');
+const Movement = require('../models/Movement');
+const Pallet = require('../models/Pallet');
+const Location = require('../models/Location');
+const Product = require('../models/Product');
 const { requireAuth } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
 
+/**
+ * Productividad por usuario (movimientos por tipo)
+ * GET /api/reports/productivity?days=7
+ */
 router.get('/productivity', requireAuth, requirePermission('view_reports'), async (req, res, next) => {
   try {
     const days = Math.max(1, Math.min(90, Number(req.query.days || 7)));
     const since = dayjs().subtract(days, 'day').toDate();
 
-    const rows = await Movement.findAll({
-      where: { createdAt: { [Op.gte]: since } },
-      include: [{ model: User, as: 'user', attributes: ['email'] }],
-      attributes: ['type', 'userId'],
-      raw: true
-    });
+    const rows = await Movement.aggregate([
+      { $match: { createdAt: { $gte: since } } },
+      { $lookup: { from: 'users', localField: 'user', foreignField: '_id', as: 'u' } },
+      { $unwind: '$u' },
+      { $group: { _id: { user: '$u.email', type: '$type' }, count: { $sum: 1 } } },
+      { $sort: { 'count': -1 } }
+    ]);
 
+    // shape: by user
     const byUser = {};
     for (const r of rows) {
-      const email = r['user.email'];
-      if (!email) continue;
+      const email = r._id.user;
       byUser[email] = byUser[email] || { user: email, totals: 0, byType: {} };
-      byUser[email].byType[r.type] = (byUser[email].byType[r.type] || 0) + 1;
-      byUser[email].totals += 1;
+      byUser[email].byType[r._id.type] = r.count;
+      byUser[email].totals += r.count;
     }
 
     res.json({ days, rows: Object.values(byUser).sort((a,b)=>b.totals-a.totals) });
   } catch (e) { next(e); }
 });
 
+/**
+ * Alertas
+ * - stock bajo: Product.minStock (si existe)
+ * - rack lleno: >=90% por área
+ * GET /api/reports/alerts
+ */
 router.get('/alerts', requireAuth, requirePermission('view_reports'), async (req, res, next) => {
   try {
-    const products = await Product.findAll({ raw: true });
-    const pallets = await Pallet.findAll({
-      where: { status: { [Op.in]: ['IN_STOCK','QUARANTINE','DAMAGED','RETURNED','ADJUSTED'] } },
-      include: [{ model: Location, as: 'location' }]
-    });
+    const products = await Product.find({}).lean();
+    const pallets = await Pallet.find({ status: { $in: ['IN_STOCK','QUARANTINE','DAMAGED','RETURNED','ADJUSTED'] } }).populate('location').lean();
 
+    // Inventory per SKU
     const inv = new Map();
     for (const p of pallets) {
       for (const it of (p.items || [])) {
@@ -58,14 +69,15 @@ router.get('/alerts', requireAuth, requirePermission('view_reports'), async (req
       }
     }
 
-    const locs = await Location.findAll({ raw: true });
+    // Rack full per area (occupied locations / total locations)
+    const locs = await Location.find({}).lean();
     const totalByArea = {};
     for (const l of locs) totalByArea[l.area] = (totalByArea[l.area] || 0) + 1;
 
-    const occupied = new Set(pallets.map(p => p.location?.id || p.locationId).filter(Boolean));
+    const occupied = new Set(pallets.map(p => String(p.location?._id || p.location)));
     const occByArea = {};
     for (const l of locs) {
-      if (occupied.has(l.id)) occByArea[l.area] = (occByArea[l.area] || 0) + 1;
+      if (occupied.has(String(l._id))) occByArea[l.area] = (occByArea[l.area] || 0) + 1;
     }
 
     const rackFull = Object.keys(totalByArea).map(area => {

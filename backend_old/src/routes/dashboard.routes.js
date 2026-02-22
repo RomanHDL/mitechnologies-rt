@@ -1,17 +1,15 @@
 const express = require('express');
-const { Location, Pallet, Movement } = require('../models/sequelize');
-const { Op } = require('sequelize');
+const Location = require('../models/Location');
+const Pallet = require('../models/Pallet');
+const Movement = require('../models/Movement');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
 async function getKpis(req, res, next) {
     try {
-        const locations = await Location.findAll({ raw: true });
-        const pallets = await Pallet.findAll({
-            where: { status: 'IN_STOCK' },
-            include: [{ model: Location, as: 'location' }]
-        });
+        const locations = await Location.find({}).lean();
+        const pallets = await Pallet.find({ status: 'IN_STOCK' }).populate('location').lean();
 
         const total = locations.length;
         const occupied = pallets.length;
@@ -22,11 +20,9 @@ async function getKpis(req, res, next) {
             if (a && occByArea[a] !== undefined) occByArea[a] += 1;
         }
 
+        // Movimientos últimos 14 días
         const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-        const mv = await Movement.findAll({
-            where: { createdAt: { [Op.gte]: since } },
-            raw: true
-        });
+        const mv = await Movement.find({ createdAt: { $gte: since } }).lean();
 
         const perDay = {};
         for (const m of mv) {
@@ -36,6 +32,7 @@ async function getKpis(req, res, next) {
             perDay[key][m.type] = (perDay[key][m.type] || 0) + 1;
         }
 
+        // Top SKUs (por qty total en stock)
         const skuMap = new Map();
         for (const p of pallets) {
             for (const it of(p.items || [])) {

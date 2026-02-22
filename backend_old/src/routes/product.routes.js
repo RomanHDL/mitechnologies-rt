@@ -1,6 +1,5 @@
 const express = require('express');
-const { Product } = require('../models/sequelize');
-const { Op } = require('sequelize');
+const Product = require('../models/Product');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
@@ -8,16 +7,16 @@ const router = express.Router();
 router.get('/', requireAuth, async (req, res, next) => {
   try {
     const { q } = req.query;
-    const where = {};
+    const filter = {};
     if (q) {
-      where[Op.or] = [
-        { sku: { [Op.like]: `%${q}%` } },
-        { description: { [Op.like]: `%${q}%` } },
-        { brand: { [Op.like]: `%${q}%` } },
-        { model: { [Op.like]: `%${q}%` } }
+      filter.$or = [
+        { sku: new RegExp(String(q), 'i') },
+        { description: new RegExp(String(q), 'i') },
+        { brand: new RegExp(String(q), 'i') },
+        { model: new RegExp(String(q), 'i') }
       ];
     }
-    const rows = await Product.findAll({ where, order: [['sku', 'ASC']], raw: true });
+    const rows = await Product.find(filter).sort({ sku: 1 }).lean();
     res.json(rows);
   } catch (e) { next(e); }
 });
@@ -36,21 +35,17 @@ router.post('/', requireAuth, requireRole('ADMIN','SUPERVISOR'), async (req, res
       unit: unit || 'pz',
       isActive: isActive ?? true
     });
-    res.status(201).json(row.toJSON());
+    res.status(201).json(row);
   } catch (e) {
-    if (e.name === 'SequelizeUniqueConstraintError') {
-      return res.status(409).json({ message: 'SKU ya existe' });
-    }
+    if (String(e).includes('E11000')) return res.status(409).json({ message: 'SKU ya existe' });
     next(e);
   }
 });
 
 router.patch('/:id', requireAuth, requireRole('ADMIN','SUPERVISOR'), async (req, res, next) => {
   try {
-    const [updated] = await Product.update(req.body || {}, { where: { id: req.params.id } });
-    if (!updated) return res.status(404).json({ message: 'No encontrado' });
-
-    const row = await Product.findByPk(req.params.id, { raw: true });
+    const row = await Product.findByIdAndUpdate(req.params.id, req.body || {}, { new: true });
+    if (!row) return res.status(404).json({ message: 'No encontrado' });
     res.json(row);
   } catch (e) { next(e); }
 });

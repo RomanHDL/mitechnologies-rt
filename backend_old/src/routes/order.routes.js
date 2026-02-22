@@ -1,5 +1,8 @@
 const express = require('express');
-const { OutboundOrder, Pallet, Location, Movement, User } = require('../models/sequelize');
+const OutboundOrder = require('../models/OutboundOrder');
+const Pallet = require('../models/Pallet');
+const Location = require('../models/Location');
+const Movement = require('../models/Movement');
 const { requireAuth, requireOutboundAuthorization } = require('../middleware/auth');
 
 const router = express.Router();
@@ -11,6 +14,7 @@ function emitRT(req, payload){
   io.emit('dashboard:update', { at: new Date().toISOString() });
 }
 
+
 function makeOrderNumber() {
   const d = new Date();
   const ymd = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
@@ -20,14 +24,12 @@ function makeOrderNumber() {
 
 router.get('/', requireAuth, async (req, res, next) => {
   try {
-    const rows = await OutboundOrder.findAll({
-      include: [
-        { model: User, as: 'createdBy', attributes: ['email'] },
-        { model: User, as: 'authorizedBy', attributes: ['email'] }
-      ],
-      order: [['createdAt', 'DESC']]
-    });
-    res.json(rows.map(r => r.toJSON()));
+    const rows = await OutboundOrder.find({})
+      .populate('createdBy', 'email')
+      .populate('authorizedBy', 'email')
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(rows);
   } catch (e) { next(e); }
 });
 
@@ -43,10 +45,10 @@ router.post('/', requireAuth, requireOutboundAuthorization, async (req, res, nex
       status: 'PENDING_PICK',
       lines,
       notes: notes || '',
-      createdById: req.user.id,
-      authorizedById: req.user.id
+      createdBy: req.user._id,
+      authorizedBy: req.user._id
     });
-    res.status(201).json(row.toJSON());
+    res.status(201).json(row);
   } catch (e) { next(e); }
 });
 
@@ -55,30 +57,30 @@ router.post('/:id/fulfill', requireAuth, requireOutboundAuthorization, async (re
     const { palletIds, note } = req.body || {};
     if (!Array.isArray(palletIds) || palletIds.length === 0) return res.status(400).json({ message: 'palletIds requerido' });
 
-    const order = await OutboundOrder.findByPk(req.params.id);
+    const order = await OutboundOrder.findById(req.params.id);
     if (!order) return res.status(404).json({ message: 'Orden no encontrada' });
     if (['CANCELLED','SHIPPED'].includes(order.status)) return res.status(400).json({ message: 'Orden no editable' });
 
-    const pallets = await Pallet.findAll({ where: { id: palletIds } });
+    const pallets = await Pallet.find({ _id: { $in: palletIds } });
     for (const p of pallets) {
       if (p.status !== 'IN_STOCK') return res.status(400).json({ message: `Tarima ${p.code} no está disponible` });
     }
 
     for (const p of pallets) {
-      const fromLoc = await Location.findByPk(p.locationId);
+      const fromLoc = await Location.findById(p.location);
       p.status = 'OUT';
       await p.save();
 
       const mv = await Movement.create({
         type: 'OUT',
-        palletId: p.id,
-        userId: req.user.id,
-        fromLocationId: fromLoc?.id || null,
-        toLocationId: null,
+        pallet: p._id,
+        user: req.user._id,
+        fromLocation: fromLoc?._id || null,
+        toLocation: null,
         itemsSnapshot: p.items,
         note: `Salida por orden ${order.orderNumber}. ${note || ''}`.trim()
       });
-      emitRT(req, mv.toJSON());
+      emitRT(req, mv);
     }
 
     order.status = 'PICKED';
@@ -94,11 +96,8 @@ router.patch('/:id/status', requireAuth, requireOutboundAuthorization, async (re
   try {
     const { status } = req.body || {};
     if (!['DRAFT','PENDING_PICK','PICKED','SHIPPED','CANCELLED'].includes(status)) return res.status(400).json({ message: 'Status inválido' });
-
-    const [updated] = await OutboundOrder.update({ status }, { where: { id: req.params.id } });
-    if (!updated) return res.status(404).json({ message: 'No encontrado' });
-
-    const row = await OutboundOrder.findByPk(req.params.id, { raw: true });
+    const row = await OutboundOrder.findByIdAndUpdate(req.params.id, { status }, { new: true });
+    if (!row) return res.status(404).json({ message: 'No encontrado' });
     res.json(row);
   } catch (e) { next(e); }
 });

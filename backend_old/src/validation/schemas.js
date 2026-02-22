@@ -1,9 +1,8 @@
 const { z } = require('zod');
 
 const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-  employeeNumber: z.string().min(1)
+  employeeNumber: z.string().min(1, 'Número de empleado requerido'),
+  password: z.string().min(1, 'Contraseña requerida'),
 });
 
 const registerSchema = z.object({
@@ -11,7 +10,7 @@ const registerSchema = z.object({
   password: z.string().min(6),
   employeeNumber: z.string().min(1),
   fullName: z.string().optional(),
-  role: z.enum(['ADMIN','SUPERVISOR','OPERADOR']).optional(),
+  role: z.enum(['ADMIN', 'SUPERVISOR', 'OPERADOR']).optional(),
   position: z.string().optional(),
   isActive: z.boolean().optional()
 });
@@ -34,7 +33,7 @@ const transferSchema = z.object({
 });
 
 const outSchema = z.object({
-  destinationType: z.enum(['CLIENT','PRODUCTION','OTHER']).default('OTHER'),
+  destinationType: z.enum(['CLIENT', 'PRODUCTION', 'OTHER']).default('OTHER'),
   destinationRef: z.string().optional(),
   note: z.string().optional()
 });
