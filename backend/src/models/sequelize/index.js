@@ -88,10 +88,13 @@ CycleCount.belongsTo(User, {
 // ProductionRequest belongs to User (requestedBy)
 ProductionRequest.belongsTo(User, {
     foreignKey: 'requestedByUserId',
+    targetKey: 'id',
     as: 'requestedBy'
 });
+
 User.hasMany(ProductionRequest, {
     foreignKey: 'requestedByUserId',
+    sourceKey: 'id',
     as: 'productionRequests'
 });
 

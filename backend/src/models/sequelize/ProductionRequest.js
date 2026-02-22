@@ -13,11 +13,9 @@ const ProductionRequest = sequelize.define('ProductionRequest', {
         allowNull: false,
     },
 
-    // Guardamos items como JSON (MySQL soporta JSON)
     items: {
         type: DataTypes.JSON,
         allowNull: false,
-        defaultValue: [],
     },
 
     note: {
@@ -32,13 +30,14 @@ const ProductionRequest = sequelize.define('ProductionRequest', {
         defaultValue: 'OPEN',
     },
 
+    // 🔥 CLAVE: debe ser CHAR(36) porque users.id es char(36)
     requestedByUserId: {
-        type: DataTypes.UUID,
+        type: DataTypes.CHAR(36),
         allowNull: false,
     },
 }, {
     tableName: 'production_requests',
-    timestamps: true,
+    underscored: false,
 });
 
 module.exports = ProductionRequest;
