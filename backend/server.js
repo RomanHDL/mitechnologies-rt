@@ -19,7 +19,7 @@ const locationRoutes = require('./src/routes/location.routes');
 const palletRoutes = require('./src/routes/pallet.routes');
 const movementRoutes = require('./src/routes/movement.routes');
 const dashboardRoutes = require('./src/routes/dashboard.routes');
-const productionRoutes = require('./src/routes/production.routes');
+// const productionRoutes = require('./src/routes/production.routes'); // ❌ desactivado (falta model)
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -73,7 +73,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/pallets', palletRoutes);
 app.use('/api/movements', movementRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/production', productionRoutes);
+// app.use('/api/production', productionRoutes); // ❌ desactivado
 
 // Error handler
 app.use((err, req, res, next) => {
