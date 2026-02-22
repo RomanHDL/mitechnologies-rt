@@ -9,96 +9,108 @@ const Movement = require('./Movement');
 const OutboundOrder = require('./OutboundOrder');
 const CycleCount = require('./CycleCount');
 const AuthLog = require('./AuthLog');
+const ProductionRequest = require('./ProductionRequest');
 
 // Define relationships
 
 // Pallet belongs to Location
 Pallet.belongsTo(Location, {
-  foreignKey: 'locationId',
-  as: 'location'
+    foreignKey: 'locationId',
+    as: 'location'
 });
 Location.hasMany(Pallet, {
-  foreignKey: 'locationId',
-  as: 'pallets'
+    foreignKey: 'locationId',
+    as: 'pallets'
 });
 
 // Movement belongs to Pallet
 Movement.belongsTo(Pallet, {
-  foreignKey: 'palletId',
-  as: 'pallet'
+    foreignKey: 'palletId',
+    as: 'pallet'
 });
 Pallet.hasMany(Movement, {
-  foreignKey: 'palletId',
-  as: 'movements'
+    foreignKey: 'palletId',
+    as: 'movements'
 });
 
 // Movement belongs to User
 Movement.belongsTo(User, {
-  foreignKey: 'userId',
-  as: 'user'
+    foreignKey: 'userId',
+    as: 'user'
 });
 User.hasMany(Movement, {
-  foreignKey: 'userId',
-  as: 'movements'
+    foreignKey: 'userId',
+    as: 'movements'
 });
 
 // Movement optional locations
 Movement.belongsTo(Location, {
-  foreignKey: 'fromLocationId',
-  as: 'fromLocation'
+    foreignKey: 'fromLocationId',
+    as: 'fromLocation'
 });
 Movement.belongsTo(Location, {
-  foreignKey: 'toLocationId',
-  as: 'toLocation'
+    foreignKey: 'toLocationId',
+    as: 'toLocation'
 });
 
 // OutboundOrder belongs to User (createdBy)
 OutboundOrder.belongsTo(User, {
-  foreignKey: 'createdById',
-  as: 'createdBy'
+    foreignKey: 'createdById',
+    as: 'createdBy'
 });
 User.hasMany(OutboundOrder, {
-  foreignKey: 'createdById',
-  as: 'createdOrders'
+    foreignKey: 'createdById',
+    as: 'createdOrders'
 });
 
 // OutboundOrder belongs to User (authorizedBy - optional)
 OutboundOrder.belongsTo(User, {
-  foreignKey: 'authorizedById',
-  as: 'authorizedBy'
+    foreignKey: 'authorizedById',
+    as: 'authorizedBy'
 });
 
 // CycleCount belongs to User (createdBy)
 CycleCount.belongsTo(User, {
-  foreignKey: 'createdById',
-  as: 'createdBy'
+    foreignKey: 'createdById',
+    as: 'createdBy'
 });
 User.hasMany(CycleCount, {
-  foreignKey: 'createdById',
-  as: 'createdCounts'
+    foreignKey: 'createdById',
+    as: 'createdCounts'
 });
 
 // CycleCount belongs to User (approvedBy - optional)
 CycleCount.belongsTo(User, {
-  foreignKey: 'approvedById',
-  as: 'approvedBy'
+    foreignKey: 'approvedById',
+    as: 'approvedBy'
+});
+
+// ProductionRequest belongs to User (requestedBy)
+ProductionRequest.belongsTo(User, {
+    foreignKey: 'requestedByUserId',
+    as: 'requestedBy'
+});
+User.hasMany(ProductionRequest, {
+    foreignKey: 'requestedByUserId',
+    as: 'productionRequests'
 });
 
 // AuthLog belongs to User (optional)
 AuthLog.belongsTo(User, {
-  foreignKey: 'userId',
-  as: 'user'
+    foreignKey: 'userId',
+    as: 'user'
 });
 
 // Export all models and sequelize instance
 module.exports = {
-  sequelize,
-  User,
-  Product,
-  Location,
-  Pallet,
-  Movement,
-  OutboundOrder,
-  CycleCount,
-  AuthLog
+    sequelize,
+    User,
+    Product,
+    Location,
+    Pallet,
+    Movement,
+    OutboundOrder,
+    CycleCount,
+    AuthLog,
+    ProductionRequest
 };
