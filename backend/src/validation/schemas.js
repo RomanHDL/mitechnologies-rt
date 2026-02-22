@@ -1,10 +1,12 @@
 const { z } = require('zod');
 
 const loginSchema = z.object({
-    employeeNumber: z.string().min(1, 'employeeNumber requerido'),
-    password: z.string().min(6, 'password mínimo 6 caracteres'),
-    // opcional por si algún día lo usas, pero NO obligatorio
+    password: z.string().min(6),
+    employeeNumber: z.string().min(1).optional(),
     email: z.string().email().optional()
+}).refine((data) => data.employeeNumber || data.email, {
+    message: 'Se requiere employeeNumber o email',
+    path: ['employeeNumber']
 });
 
 const registerSchema = z.object({
