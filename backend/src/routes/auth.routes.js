@@ -11,23 +11,25 @@ const router = express.Router();
 
 function reqMeta(req) {
     return {
-        ip: req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || req.ip || '',
+        ip: req.headers['x-forwarded-for']
+            ? req.headers['x-forwarded-for'].toString().split(',')[0].trim()
+            : req.ip || '',
         ua: req.headers['user-agent'] || ''
     };
 }
 
-router.post('/login', async(req, res, next) => {
+router.post('/login', validate(loginSchema), async(req, res, next) => {
     try {
         const { password, employeeNumber, email } = req.body || {};
         const meta = reqMeta(req);
 
-        // ✅ Si viene employeeNumber, login por employeeNumber (tu UI)
+        // ✅ login por employeeNumber (tu UI)
         let user = null;
 
         if (employeeNumber) {
             user = await User.findOne({ where: { employeeNumber: String(employeeNumber).trim() } });
         } else if (email) {
-            // (Opcional) fallback por email si algún día lo usas
+            // fallback por email (opcional)
             user = await User.findOne({ where: { email: email.toLowerCase().trim() } });
         }
 
@@ -97,7 +99,7 @@ router.post('/register', requireAuth, requireRole('ADMIN'), validate(registerSch
             fullName: fullName || '',
             role: role || 'OPERADOR',
             position: position || '',
-            isActive: isActive ?? true
+            isActive: isActive ? isActive : true
         });
 
         res.status(201).json({
