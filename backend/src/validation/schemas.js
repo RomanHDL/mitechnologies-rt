@@ -8,7 +8,6 @@ const loginSchema = z.object({
     message: 'Se requiere employeeNumber o email',
     path: ['employeeNumber']
 });
-
 const registerSchema = z.object({
     email: z.string().email(),
     password: z.string().min(6),
