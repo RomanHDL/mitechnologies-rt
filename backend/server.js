@@ -32,18 +32,18 @@ const corsOriginEnv = process.env.CORS_ORIGIN || '';
 const allowedOrigins = corsOriginEnv ?
     corsOriginEnv.split(',').map(s => s.trim()).filter(Boolean) : [];
 
-// Express CORS: si no hay lista, permite todo (para desarrollo)
+// Express CORS: seguro para Vercel + local
 app.use(cors({
-    origin: allowedOrigins.length ? allowedOrigins : '*',
-    credentials: true,
+    origin: allowedOrigins.length ? allowedOrigins : true, // true = refleja el origin
+    credentials: false, // JWT no usa cookies
 }));
 
-// Socket.IO (usa la misma lógica)
+// Socket.IO
 const io = new Server(httpServer, {
     cors: {
-        origin: allowedOrigins.length ? allowedOrigins : '*',
+        origin: allowedOrigins.length ? allowedOrigins : true,
         methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
-        credentials: true,
+        credentials: false,
     },
 });
 app.set('io', io);
