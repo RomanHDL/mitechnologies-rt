@@ -25,20 +25,36 @@ const app = express();
 const httpServer = http.createServer(app);
 
 /**
- * CORS (sin optional chaining)
- * CORS_ORIGIN puede ser: "http://localhost:5173,https://tusitio.com"
+ * CORS (a prueba de preflight)
+ * CORS_ORIGIN puede ser:
+ * "http://localhost:5173,https://mitechnologies-rt.vercel.app"
  */
 const corsOriginEnv = process.env.CORS_ORIGIN || '';
 const allowedOrigins = corsOriginEnv ?
     corsOriginEnv.split(',').map(s => s.trim()).filter(Boolean) : [];
 
-// Express CORS: seguro para Vercel + local
-app.use(cors({
-    origin: allowedOrigins.length ? allowedOrigins : true, // true = refleja el origin
-    credentials: false, // JWT no usa cookies
-}));
+const corsOptions = {
+    origin: function(origin, callback) {
+        // Permite requests sin Origin (Postman/curl)
+        if (!origin) return callback(null, true);
 
-// Socket.IO
+        // Si NO configuraste CORS_ORIGIN, permite todo (rápido/temporal)
+        if (!allowedOrigins.length) return callback(null, true);
+
+        // Si sí configuraste, solo permite los que están en la lista
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+
+        return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
+    credentials: false, // JWT no usa cookies
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+app.use(cors(corsOptions));
+// IMPORTANTE: responde los preflight (OPTIONS)
+app.options('*', cors(corsOptions));
+
 const io = new Server(httpServer, {
     cors: {
         origin: allowedOrigins.length ? allowedOrigins : true,
