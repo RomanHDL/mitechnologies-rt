@@ -1,12 +1,12 @@
 const { z } = require('zod');
 
 const loginSchema = z.object({
-    password: z.string().min(6),
-    employeeNumber: z.string().min(1).optional(),
-    email: z.string().email().optional()
-}).refine((data) => data.employeeNumber || data.email, {
-    message: 'Se requiere employeeNumber o email',
-    path: ['employeeNumber']
+    employeeNumber: z.string().min(1),
+    password: z.string().min(1).optional(),
+    pin: z.string().regex(/^\d{6}$/).optional()
+}).refine((data) => data.password || data.pin, {
+    message: "Debes enviar password o pin",
+    path: ["password"]
 });
 const registerSchema = z.object({
     email: z.string().email(),

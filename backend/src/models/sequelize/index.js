@@ -2,6 +2,9 @@ const { sequelize } = require('../../config/mysql');
 
 // Import all models
 const User = require('./User');
+const Device = require('./Device');
+
+module.exports = { User, Device };
 const Product = require('./Product');
 const Location = require('./Location');
 const Pallet = require('./Pallet');

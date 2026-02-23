@@ -19,24 +19,67 @@ function reqMeta(req) {
 
 router.post('/login', validate(loginSchema), async(req, res, next) => {
     try {
-        const { password, employeeNumber, email } = req.body || {};
+        const { employeeNumber, password, pin } = req.body;
         const meta = reqMeta(req);
 
-        let user = null;
-
-        if (employeeNumber) {
-            user = await User.findOne({ where: { employeeNumber: String(employeeNumber).trim() } });
-        } else if (email) {
-            user = await User.findOne({ where: { email: email.toLowerCase().trim() } });
-        }
+        const user = await User.findOne({ where: { employeeNumber: String(employeeNumber).trim() } });
 
         if (!user || !user.isActive) {
-            await AuthLog.create({ userId: user?.id || null, email: email || null, event: 'LOGIN_FAIL', ...meta });
+            await AuthLog.create({ userId: user?.id || null, email: user?.email || null, event: 'LOGIN_FAIL', ...meta });
             return res.status(401).json({ message: 'Credenciales inválidas' });
         }
 
-        const ok = await bcrypt.compare(String(password || ''), user.passwordHash);
-        if (!ok) {
+        // ✅ bloqueo por intentos PIN
+        if (user.pinLockedUntil && new Date(user.pinLockedUntil).getTime() > Date.now()) {
+            return res.status(423).json({ message: 'Cuenta bloqueada por intentos. Intenta más tarde.' });
+        }
+
+        // ✅ OPERADOR: preferir PIN si existe pinHash (y si mandan pin)
+        if (pin) {
+            if (!user.pinHash) {
+                return res.status(403).json({ message: 'PIN no configurado' });
+            }
+
+            const okPin = await bcrypt.compare(String(pin), user.pinHash);
+
+            if (!okPin) {
+                const attempts = (user.pinAttempts || 0) + 1;
+                const update = { pinAttempts: attempts };
+
+                // 5 intentos = bloqueo 10 min
+                if (attempts >= 5) {
+                    update.pinLockedUntil = new Date(Date.now() + 10 * 60 * 1000);
+                    update.pinAttempts = 0;
+                }
+
+                await user.update(update);
+                await AuthLog.create({ userId: user.id, email: user.email, event: 'LOGIN_FAIL', ...meta });
+                return res.status(401).json({ message: 'Credenciales inválidas' });
+            }
+
+            // PIN correcto: reset intentos
+            await user.update({ pinAttempts: 0, pinLockedUntil: null });
+
+            const token = jwt.sign({ sub: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '12h' });
+            await AuthLog.create({ userId: user.id, email: user.email, event: 'LOGIN_SUCCESS', ...meta });
+
+            return res.json({
+                token,
+                user: {
+                    id: user.id,
+                    email: user.email,
+                    fullName: user.fullName,
+                    role: user.role,
+                    position: user.position,
+                    employeeNumber: user.employeeNumber,
+                    mustChangePin: user.mustChangePin || false
+                }
+            });
+        }
+
+        // ✅ ADMIN/SUPERVISOR/otro: password normal (tu login actual)
+        const okPass = await bcrypt.compare(String(password || ''), user.passwordHash);
+        if (!okPass) {
             await AuthLog.create({ userId: user.id, email: user.email, event: 'LOGIN_FAIL', ...meta });
             return res.status(401).json({ message: 'Credenciales inválidas' });
         }
@@ -44,7 +87,7 @@ router.post('/login', validate(loginSchema), async(req, res, next) => {
         const token = jwt.sign({ sub: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '12h' });
         await AuthLog.create({ userId: user.id, email: user.email, event: 'LOGIN_SUCCESS', ...meta });
 
-        res.json({
+        return res.json({
             token,
             user: {
                 id: user.id,
@@ -52,7 +95,8 @@ router.post('/login', validate(loginSchema), async(req, res, next) => {
                 fullName: user.fullName,
                 role: user.role,
                 position: user.position,
-                employeeNumber: user.employeeNumber
+                employeeNumber: user.employeeNumber,
+                mustChangePin: user.mustChangePin || false
             }
         });
     } catch (e) { next(e); }
