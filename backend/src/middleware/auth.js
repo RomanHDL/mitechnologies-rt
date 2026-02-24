@@ -33,6 +33,10 @@ async function requireAuth(req, res, next) {
             role: user.role,
             position: user.position,
             employeeNumber: user.employeeNumber,
+            // ✅ opcional: si en tu tabla User tienes permisos, los metemos aquí
+            permissions: Array.isArray(user.permissions) ?
+                user.permissions :
+                (typeof user.permissions === 'string' ? safeParsePermissions(user.permissions) : []),
         };
 
         next();
@@ -51,4 +55,64 @@ function requireRole(...roles) {
     };
 }
 
-module.exports = { requireAuth, requireRole };
+/**
+ * ✅ requirePermission('view_reports')
+ * - Si tu app usa permisos por rol, aquí está el mapa
+ * - Si tu usuario trae permissions en BD, también lo soporta
+ */
+function requirePermission(permission) {
+    return (req, res, next) => {
+        try {
+            const role = req.user?.role;
+
+            // 1) Si el usuario trae permisos directos (req.user.permissions)
+            const directPerms = req.user?.permissions;
+            if (Array.isArray(directPerms) && directPerms.includes(permission)) {
+                return next();
+            }
+
+            // 2) Si manejas permisos por rol (MAPA)
+            const rolePerms = ROLE_PERMISSIONS[role] || [];
+            if (rolePerms.includes(permission)) {
+                return next();
+            }
+
+            return res.status(403).json({
+                message: 'Forbidden (permission)',
+                permission,
+            });
+        } catch (err) {
+            return next(err);
+        }
+    };
+}
+
+/**
+ * ✅ Ajusta esto a tus roles reales.
+ * Puedes dejarlo así para arrancar YA.
+ * Si tu admin debe ver reportes, aquí se permite.
+ */
+const ROLE_PERMISSIONS = {
+    ADMIN: ['view_reports', 'view_dashboard', 'manage_users', 'manage_inventory'],
+    admin: ['view_reports', 'view_dashboard', 'manage_users', 'manage_inventory'],
+    MANAGER: ['view_reports', 'view_dashboard'],
+    manager: ['view_reports', 'view_dashboard'],
+    SUPERVISOR: ['view_reports'],
+    supervisor: ['view_reports'],
+};
+
+function safeParsePermissions(val) {
+    try {
+        // si viene tipo JSON string: '["view_reports"]'
+        const parsed = JSON.parse(val);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        // si viene tipo CSV: "view_reports,view_dashboard"
+        return String(val)
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean);
+    }
+}
+
+module.exports = { requireAuth, requireRole, requirePermission };
