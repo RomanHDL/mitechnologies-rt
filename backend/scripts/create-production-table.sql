@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS production_requests (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  area VARCHAR(10) NOT NULL DEFAULT 'P1',
+  status VARCHAR(20) NOT NULL DEFAULT 'PENDIENTE',
+  items JSON NOT NULL,
+  note TEXT NULL,
+  requestedByUserId BIGINT UNSIGNED NULL,
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  INDEX idx_prod_status (status),
+  INDEX idx_prod_area (area),
+  INDEX idx_prod_requestedBy (requestedByUserId)
+);

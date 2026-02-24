@@ -18,38 +18,29 @@ const locationRoutes = require('./src/routes/location.routes');
 const palletRoutes = require('./src/routes/pallet.routes');
 const movementRoutes = require('./src/routes/movement.routes');
 const dashboardRoutes = require('./src/routes/dashboard.routes');
+const productionRoutes = require('./src/routes/production.routes'); // ✅ ACTIVADO
 
 const { connectDB } = require('./src/config/db');
+const { sequelize } = require('./src/config/mysql'); // ✅ IMPORTANTE
 
-const app = express(); // ✅ primero crear app
+const app = express();
 const httpServer = http.createServer(app);
 
 /**
- /**
- * CORS (a prueba de preflight)
- * CORS_ORIGIN puede ser:
- * "http://localhost:5173,https://mitechnologies-rt.vercel.app"
+ * CORS
  */
 const corsOriginEnv = process.env.CORS_ORIGIN || '';
 const allowedOrigins = corsOriginEnv ?
     corsOriginEnv.split(',').map(s => s.trim()).filter(Boolean) : [];
 
-// ✅ Previews Vercel de tu proyecto (romanhdls-projects)
 const vercelPreviewRegex = /^https:\/\/mitechnologies-[a-z0-9-]+-romanhdls-projects\.vercel\.app$/i;
 
 const corsOptions = {
     origin: function(origin, callback) {
         if (!origin) return callback(null, true);
-
-        // Si no configuraste CORS_ORIGIN, permite todo (temporal)
         if (!allowedOrigins.length) return callback(null, true);
-
-        // Permitir lista exacta
         if (allowedOrigins.includes(origin)) return callback(null, true);
-
-        // Permitir previews Vercel
         if (vercelPreviewRegex.test(origin)) return callback(null, true);
-
         return callback(null, false);
     },
     credentials: false,
@@ -60,7 +51,9 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
-// Socket.io
+/**
+ * Socket.io
+ */
 const io = new Server(httpServer, {
     cors: {
         origin: allowedOrigins.length ? allowedOrigins : true,
@@ -70,36 +63,45 @@ const io = new Server(httpServer, {
 });
 app.set('io', io);
 
-// Rate limit
+/**
+ * Rate limit
+ */
 const limiter = rateLimit({ windowMs: 60 * 1000, max: 120 });
 app.use(limiter);
 
-// Seguridad + logs
+/**
+ * Seguridad + logs
+ */
 app.use(helmet());
 app.use(express.json({ limit: '2mb' }));
 app.use(morgan('dev'));
 
-// Healthcheck
+/**
+ * Healthcheck
+ */
 app.get('/health', (req, res) =>
     res.json({ ok: true, time: new Date().toISOString() })
 );
 
-// Rutas
+/**
+ * Rutas
+ */
 app.use('/api/auth', authRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/counts', countRoutes);
 app.use('/api/reports', reportRoutes);
-app.use('/api/users', usersRoutes); // ❌ solo para testing, admin maneja usuarios en /api/admin/users
+app.use('/api/users', usersRoutes);
 app.use('/api/pallets', palletRoutes);
 app.use('/api/movements', movementRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-
 app.use('/api/admin', adminRoutes);
-// app.use('/api/production', productionRoutes); // ❌ desactivado
+app.use('/api/production', productionRoutes); // ✅ AHORA SÍ ACTIVO
 
-// Error handler
+/**
+ * Error handler
+ */
 app.use((err, req, res, next) => {
     console.error(err);
     res.status(err.status || 500).json({
@@ -110,10 +112,17 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-// IMPORTANT: levantar httpServer (no app.listen) para que socket.io funcione
+/**
+ * INICIO DEL SERVIDOR
+ */
 connectDB()
-    .then(() => {
-        httpServer.listen(PORT, () => console.log(`API listening on :${PORT}`));
+    .then(async() => {
+        // 🔥 CREA/ACTUALIZA TABLAS AUTOMÁTICAMENTE
+        await sequelize.sync({ alter: true });
+
+        httpServer.listen(PORT, () =>
+            console.log(`API listening on :${PORT}`)
+        );
     })
     .catch((e) => {
         console.error('DB connection failed:', e);
