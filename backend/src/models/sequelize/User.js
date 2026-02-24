@@ -51,16 +51,38 @@ const User = sequelize.define('User', {
         type: DataTypes.STRING,
         allowNull: true,
     },
+
+    // ✅ Columna real en DB (la que tú ya tienes definida)
     pinMustChange: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: false,
     },
+
+    // ✅ Alias COMPATIBLE (para que auth.routes pueda usar mustChangePin)
+    // No crea otra columna: usa la MISMA columna pinMustChange
+    mustChangePin: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        field: 'pinMustChange',
+    },
+
+    // ✅ Tu columna real para intentos fallidos
     pinFailedCount: {
         type: DataTypes.INTEGER,
         allowNull: false,
         defaultValue: 0,
     },
+
+    // ✅ Alias compatible (para que el código pueda usar pinAttempts sin romper)
+    pinAttempts: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+        field: 'pinFailedCount',
+    },
+
     pinLockedUntil: {
         type: DataTypes.DATE,
         allowNull: true,

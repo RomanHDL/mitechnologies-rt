@@ -77,7 +77,7 @@ router.post('/login', validate(loginSchema), async(req, res, next) => {
             });
         }
 
-        // ✅ ADMIN/SUPERVISOR/otro: password normal (tu login actual)
+        // ✅ ADMIN/SUPERVISOR/otro: password normal
         const okPass = await bcrypt.compare(String(password || ''), user.passwordHash);
         if (!okPass) {
             await AuthLog.create({ userId: user.id, email: user.email, event: 'LOGIN_FAIL', ...meta });
@@ -101,6 +101,7 @@ router.post('/login', validate(loginSchema), async(req, res, next) => {
         });
     } catch (e) { next(e); }
 });
+
 router.post('/logout', requireAuth, async(req, res, next) => {
     try {
         const meta = reqMeta(req);
