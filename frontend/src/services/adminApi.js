@@ -2,29 +2,38 @@ import { apiFetch } from "./api";
 
 // GET /api/admin/users?search=...
 export const adminGetUsers = (search = "") => {
-    const q = search && search.trim() ?
-        `?search=${encodeURIComponent(search.trim())}` :
-        "";
+    const q = search && search.trim() ? `?search=${encodeURIComponent(search.trim())}` : "";
     return apiFetch(`/api/admin/users${q}`, { method: "GET" });
 };
 
-export const adminCreateUser = (payload) =>
-    apiFetch(`/api/admin/users`, {
+// POST /api/admin/users
+export const adminCreateUser = (payload) => {
+    return apiFetch(`/api/admin/users`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
     });
+};
 
-export const adminToggleUser = (id) =>
-    apiFetch(`/api/admin/users/${id}/toggle`, { method: "POST" });
+// POST /api/admin/users/:id/toggle
+export const adminToggleUser = (id) => {
+    return apiFetch(`/api/admin/users/${id}/toggle`, { method: "POST" });
+};
 
-export const adminResetPassword = (id, newPassword) =>
-    apiFetch(`/api/admin/users/${id}/reset-password`, {
+// POST /api/admin/users/:id/reset-password
+export const adminResetPassword = (id, newPassword) => {
+    return apiFetch(`/api/admin/users/${id}/reset-password`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ newPassword }),
     });
+};
 
-export const adminResetPin = (id, newPin) =>
-    apiFetch(`/api/admin/users/${id}/reset-pin`, {
+// POST /api/admin/users/:id/reset-pin
+export const adminResetPin = (id, newPin) => {
+    return apiFetch(`/api/admin/users/${id}/reset-pin`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ newPin }),
     });
+};

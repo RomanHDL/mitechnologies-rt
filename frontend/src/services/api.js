@@ -1,39 +1,31 @@
-import { apiFetch } from "./api";
+export function getToken() {
+    return localStorage.getItem("token") || "";
+}
 
-// GET /api/admin/users?search=...
-export const adminGetUsers = (search = "") => {
-    const q = search && search.trim() ? `?search=${encodeURIComponent(search.trim())}` : "";
-    return apiFetch(`/api/admin/users${q}`, { method: "GET" });
-};
+export async function apiFetch(path, options = {}) {
+    const base =
+        import.meta.env.VITE_API_URL;
+    if (!base) throw new Error("Missing VITE_API_URL");
 
-// POST /api/admin/users
-export const adminCreateUser = (payload) => {
-    return apiFetch(`/api/admin/users`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+    const token = getToken();
+
+    const res = await fetch(`${base}${path}`, {
+        ...options,
+        headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(options.headers || {}),
+        },
     });
-};
 
-// POST /api/admin/users/:id/toggle
-export const adminToggleUser = (id) => {
-    return apiFetch(`/api/admin/users/${id}/toggle`, { method: "POST" });
-};
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
 
-// POST /api/admin/users/:id/reset-password
-export const adminResetPassword = (id, newPassword) => {
-    return apiFetch(`/api/admin/users/${id}/reset-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ newPassword }),
-    });
-};
+    if (!res.ok) {
+        const msg = data?.message || `HTTP ${res.status}`;
+        throw new Error(msg);
+    }
 
-// POST /api/admin/users/:id/reset-pin
-export const adminResetPin = (id, newPin) => {
-    return apiFetch(`/api/admin/users/${id}/reset-pin`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ newPin }),
-    });
-};
+    return data;
+}
