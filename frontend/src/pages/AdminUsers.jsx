@@ -5,7 +5,7 @@ import {
   adminResetPassword,
   adminResetPin,
   adminToggleUser,
-} from "../services/AdminApi";
+} from "../services/adminApi";
 
 export default function AdminUsers() {
   const [loading, setLoading] = useState(false);
