@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
-const { User } = require('../models/sequelize');
 
-async function requireAuth(req, res, next) {
+function requireAuth(req, res, next) {
     try {
         const header = req.headers.authorization || '';
         const [type, token] = header.split(' ');
@@ -16,26 +15,8 @@ async function requireAuth(req, res, next) {
         }
 
         const payload = jwt.verify(token, secret);
-
-        // tu JWT usa sub
-        const userId = payload.sub;
-
-        const user = await User.findByPk(userId);
-        if (!user || !user.isActive) {
-            return res.status(401).json({ message: 'Invalid user' });
-        }
-
-        // guardamos usuario completo en req.user
-        req.user = {
-            id: user.id,
-            email: user.email,
-            fullName: user.fullName,
-            role: user.role,
-            position: user.position,
-            employeeNumber: user.employeeNumber,
-        };
-
-        next();
+        req.user = payload; // { id, role, ... } según como lo generes en login
+        return next();
     } catch (err) {
         return res.status(401).json({ message: 'Invalid token' });
     }

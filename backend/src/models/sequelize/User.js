@@ -38,14 +38,40 @@ const User = sequelize.define('User', {
     isActive: {
         type: DataTypes.BOOLEAN,
         defaultValue: true
-    }
+    },
+    shift: {
+        type: DataTypes.ENUM('DAY', 'NIGHT'),
+        allowNull: true,
+    },
+    deviceId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
+    pinHash: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    pinMustChange: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
+    pinFailedCount: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+    },
+    pinLockedUntil: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
 }, {
     tableName: 'users',
     timestamps: true,
-    indexes: [{
-        unique: true,
-        fields: ['email']
-    }]
+    indexes: [
+        { unique: true, fields: ['email'] },
+        { unique: true, fields: ['employeeNumber'] }
+    ]
 });
 
 module.exports = User;

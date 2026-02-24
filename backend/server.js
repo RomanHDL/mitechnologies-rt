@@ -7,7 +7,13 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 
+const usersRoutes = require('./src/routes/users.routes');
+
 const { connectDB } = require('./src/config/db');
+
+app.use('/api/users', usersRoutes);
+
+const adminRoutes = require('./src/routes/admin.routes');
 
 const authRoutes = require('./src/routes/auth.routes');
 const productRoutes = require('./src/routes/product.routes');
@@ -89,6 +95,8 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/pallets', palletRoutes);
 app.use('/api/movements', movementRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+
+app.use('/api/admin', adminRoutes);
 // app.use('/api/production', productionRoutes); // ❌ desactivado
 
 // Error handler
