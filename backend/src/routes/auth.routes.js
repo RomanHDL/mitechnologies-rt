@@ -43,13 +43,13 @@ router.post('/login', validate(loginSchema), async(req, res, next) => {
             const okPin = await bcrypt.compare(String(pin), user.pinHash);
 
             if (!okPin) {
-                const attempts = (user.pinAttempts || 0) + 1;
-                const update = { pinAttempts: attempts };
+                const attempts = (user.pinFailedCount || 0) + 1;
+                const update = { pinFailedCount: attempts };
 
                 // 5 intentos = bloqueo 10 min
                 if (attempts >= 5) {
                     update.pinLockedUntil = new Date(Date.now() + 10 * 60 * 1000);
-                    update.pinAttempts = 0;
+                    update.pinFailedCount = 0;
                 }
 
                 await user.update(update);
@@ -58,7 +58,7 @@ router.post('/login', validate(loginSchema), async(req, res, next) => {
             }
 
             // PIN correcto: reset intentos
-            await user.update({ pinAttempts: 0, pinLockedUntil: null });
+            await user.update({ pinFailedCount: 0, pinLockedUntil: null });
 
             const token = jwt.sign({ sub: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '12h' });
             await AuthLog.create({ userId: user.id, email: user.email, event: 'LOGIN_SUCCESS', ...meta });
@@ -72,7 +72,7 @@ router.post('/login', validate(loginSchema), async(req, res, next) => {
                     role: user.role,
                     position: user.position,
                     employeeNumber: user.employeeNumber,
-                    mustChangePin: user.mustChangePin || false
+                    mustChangePin: user.pinMustChange || false
                 }
             });
         }
