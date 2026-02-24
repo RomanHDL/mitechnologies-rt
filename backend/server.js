@@ -31,21 +31,37 @@ const httpServer = http.createServer(app);
  */
 const corsOriginEnv = process.env.CORS_ORIGIN || '';
 const allowedOrigins = corsOriginEnv ?
-    corsOriginEnv.split(',').map(s => s.trim()).filter(Boolean) : [];
+    corsOriginEnv.split(',').map(s => s.trim()).filter(Boolean) :
+    [];
 
+// ✅ Dominio principal de tu frontend (fallback si no lo pones en Railway)
+const VERCEL_MAIN = 'https://mitechnologies-rt.vercel.app';
+
+// ✅ Previews (si usas deploy previews)
 const vercelPreviewRegex = /^https:\/\/mitechnologies-[a-z0-9-]+-romanhdls-projects\.vercel\.app$/i;
 
 const corsOptions = {
     origin: function(origin, callback) {
+        // Permite Postman / Server-to-server (sin Origin)
         if (!origin) return callback(null, true);
-        if (!allowedOrigins.length) return callback(null, true);
-        if (allowedOrigins.includes(origin)) return callback(null, true);
+
+        // ✅ Siempre permite tu Vercel principal
+        if (origin === VERCEL_MAIN) return callback(null, true);
+
+        // ✅ Permite previews de Vercel
         if (vercelPreviewRegex.test(origin)) return callback(null, true);
-        return callback(null, false);
+
+        // ✅ Permite lo definido en Railway por env (CORS_ORIGIN="..., ...")
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+
+        // ❌ Mejor devolver error explícito (ayuda a debug y evita preflight raro)
+        return callback(new Error(`CORS not allowed for origin: ${origin}`));
     },
-    credentials: false,
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    optionsSuccessStatus: 204,
+    maxAge: 86400,
 };
 
 app.use(cors(corsOptions));
@@ -56,9 +72,15 @@ app.options('*', cors(corsOptions));
  */
 const io = new Server(httpServer, {
     cors: {
-        origin: allowedOrigins.length ? allowedOrigins : true,
+        origin: (origin, callback) => {
+            if (!origin) return callback(null, true);
+            if (origin === VERCEL_MAIN) return callback(null, true);
+            if (vercelPreviewRegex.test(origin)) return callback(null, true);
+            if (allowedOrigins.includes(origin)) return callback(null, true);
+            return callback(new Error(`Socket CORS not allowed: ${origin}`));
+        },
         methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
-        credentials: false,
+        credentials: true,
     },
 });
 app.set('io', io);
@@ -104,6 +126,14 @@ app.use('/api/production', productionRoutes); // ✅ AHORA SÍ ACTIVO
  */
 app.use((err, req, res, next) => {
     console.error(err);
+
+    // ✅ Si el error viene por CORS, responde 403 en vez de 500
+    if (String(err.message || '').toLowerCase().includes('cors')) {
+        return res.status(403).json({
+            message: err.message,
+        });
+    }
+
     res.status(err.status || 500).json({
         message: err.message || 'Internal Server Error',
         details: err.details || undefined,
