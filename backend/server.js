@@ -1,4 +1,4 @@
-require('dotenv').config();
+rrequire('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -26,8 +26,8 @@ const httpServer = http.createServer(app);
 
 /**
  * CORS (a prueba de preflight)
- * CORS_ORIGIN puede ser:
- * "http://localhost:5173,https://mitechnologies-rt.vercel.app"
+ * En Railway agrega:
+ * CORS_ORIGIN="http://localhost:5173,https://mitechnologies-rt.vercel.app"
  */
 const corsOriginEnv = process.env.CORS_ORIGIN || '';
 const allowedOrigins = corsOriginEnv ?
@@ -38,23 +38,26 @@ const corsOptions = {
         // Permite requests sin Origin (Postman/curl)
         if (!origin) return callback(null, true);
 
-        // Si NO configuraste CORS_ORIGIN, permite todo (rápido/temporal)
+        // Si NO configuraste CORS_ORIGIN, permite todo (temporal)
         if (!allowedOrigins.length) return callback(null, true);
 
         // Si sí configuraste, solo permite los que están en la lista
         if (allowedOrigins.includes(origin)) return callback(null, true);
 
-        return callback(new Error(`CORS blocked for origin: ${origin}`));
+        // Importante: NO lanzar error duro, mejor bloquear con false
+        return callback(null, false);
     },
     credentials: false, // JWT no usa cookies
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
+// ✅ CORS primero
 app.use(cors(corsOptions));
-// IMPORTANTE: responde los preflight (OPTIONS)
+// ✅ Responder preflight
 app.options('*', cors(corsOptions));
 
+// Socket.io
 const io = new Server(httpServer, {
     cors: {
         origin: allowedOrigins.length ? allowedOrigins : true,
@@ -85,7 +88,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/counts', countRoutes);
 app.use('/api/reports', reportRoutes);
-app.use("/api/users", usersRoutes); // ❌ solo para testing, admin maneja usuarios en /api/admin/users
+app.use('/api/users', usersRoutes); // ❌ solo para testing, admin maneja usuarios en /api/admin/users
 app.use('/api/pallets', palletRoutes);
 app.use('/api/movements', movementRoutes);
 app.use('/api/dashboard', dashboardRoutes);
