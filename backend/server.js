@@ -25,36 +25,39 @@ const app = express(); // ✅ primero crear app
 const httpServer = http.createServer(app);
 
 /**
+ /**
  * CORS (a prueba de preflight)
- * En Railway agrega:
- * CORS_ORIGIN="http://localhost:5173,https://mitechnologies-rt.vercel.app"
+ * CORS_ORIGIN puede ser:
+ * "http://localhost:5173,https://mitechnologies-rt.vercel.app"
  */
 const corsOriginEnv = process.env.CORS_ORIGIN || '';
 const allowedOrigins = corsOriginEnv ?
     corsOriginEnv.split(',').map(s => s.trim()).filter(Boolean) : [];
 
+// ✅ Previews Vercel de tu proyecto (romanhdls-projects)
+const vercelPreviewRegex = /^https:\/\/mitechnologies-[a-z0-9-]+-romanhdls-projects\.vercel\.app$/i;
+
 const corsOptions = {
     origin: function(origin, callback) {
-        // Permite requests sin Origin (Postman/curl)
         if (!origin) return callback(null, true);
 
-        // Si NO configuraste CORS_ORIGIN, permite todo (temporal)
+        // Si no configuraste CORS_ORIGIN, permite todo (temporal)
         if (!allowedOrigins.length) return callback(null, true);
 
-        // Si sí configuraste, solo permite los que están en la lista
+        // Permitir lista exacta
         if (allowedOrigins.includes(origin)) return callback(null, true);
 
-        // Importante: NO lanzar error duro, mejor bloquear con false
+        // Permitir previews Vercel
+        if (vercelPreviewRegex.test(origin)) return callback(null, true);
+
         return callback(null, false);
     },
-    credentials: false, // JWT no usa cookies
+    credentials: false,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
-// ✅ CORS primero
 app.use(cors(corsOptions));
-// ✅ Responder preflight
 app.options('*', cors(corsOptions));
 
 // Socket.io
