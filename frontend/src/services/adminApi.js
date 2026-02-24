@@ -1,14 +1,30 @@
-import api from "./api";
+import { apiFetch } from "./api";
 
-export const adminGetUsers = (search = "") =>
-    api.get(`/admin/users${search ? `?search=${encodeURIComponent(search)}` : ""}`);
+// GET /api/admin/users?search=...
+export const adminGetUsers = (search = "") => {
+    const q = search && search.trim() ?
+        `?search=${encodeURIComponent(search.trim())}` :
+        "";
+    return apiFetch(`/api/admin/users${q}`, { method: "GET" });
+};
 
-export const adminCreateUser = (payload) => api.post("/admin/users", payload);
+export const adminCreateUser = (payload) =>
+    apiFetch(`/api/admin/users`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+    });
 
-export const adminToggleUser = (id) => api.patch(`/admin/users/${id}/toggle`);
+export const adminToggleUser = (id) =>
+    apiFetch(`/api/admin/users/${id}/toggle`, { method: "POST" });
 
 export const adminResetPassword = (id, newPassword) =>
-  api.patch(`/admin/users/${id}/reset-password`, { newPassword });
+    apiFetch(`/api/admin/users/${id}/reset-password`, {
+        method: "POST",
+        body: JSON.stringify({ newPassword }),
+    });
 
-export const adminResetPin = (id, newPin = "") =>
-  api.patch(`/admin/users/${id}/reset-pin`, newPin ? { newPin } : {});
+export const adminResetPin = (id, newPin) =>
+    apiFetch(`/api/admin/users/${id}/reset-pin`, {
+        method: "POST",
+        body: JSON.stringify({ newPin }),
+    });

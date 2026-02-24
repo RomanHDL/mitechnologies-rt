@@ -1,4 +1,4 @@
-import { apiFetch } from "./apij";
+import { apiFetch } from "./api";
 
 // GET /api/admin/users?search=...
 export const adminGetUsers = (search = "") => {
