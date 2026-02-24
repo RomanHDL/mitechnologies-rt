@@ -33,10 +33,14 @@ async function requireAuth(req, res, next) {
             role: user.role,
             position: user.position,
             employeeNumber: user.employeeNumber,
-            // ✅ opcional: si en tu tabla User tienes permisos, los metemos aquí
+
+            // ✅ opcional: si tu tabla User tiene "permissions" (JSON string / CSV / array)
             permissions: Array.isArray(user.permissions) ?
                 user.permissions :
                 (typeof user.permissions === 'string' ? safeParsePermissions(user.permissions) : []),
+
+            // ✅ opcional: si en tu tabla User tienes algo como canOutbound/outboundAllowed/etc.
+            // outboundAllowed: Boolean(user.outboundAllowed),
         };
 
         next();
@@ -57,21 +61,20 @@ function requireRole(...roles) {
 
 /**
  * ✅ requirePermission('view_reports')
- * - Si tu app usa permisos por rol, aquí está el mapa
- * - Si tu usuario trae permissions en BD, también lo soporta
+ * Soporta permisos directos o permisos por rol.
  */
 function requirePermission(permission) {
     return (req, res, next) => {
         try {
             const role = req.user?.role;
 
-            // 1) Si el usuario trae permisos directos (req.user.permissions)
+            // 1) permisos directos del usuario
             const directPerms = req.user?.permissions;
             if (Array.isArray(directPerms) && directPerms.includes(permission)) {
                 return next();
             }
 
-            // 2) Si manejas permisos por rol (MAPA)
+            // 2) permisos por rol
             const rolePerms = ROLE_PERMISSIONS[role] || [];
             if (rolePerms.includes(permission)) {
                 return next();
@@ -88,26 +91,52 @@ function requirePermission(permission) {
 }
 
 /**
- * ✅ Ajusta esto a tus roles reales.
- * Puedes dejarlo así para arrancar YA.
- * Si tu admin debe ver reportes, aquí se permite.
+ * ✅ requireOutboundAuthorization
+ * Middleware para permitir salidas (/pallets/:id/out).
+ * - Por defecto deja pasar a ADMIN y SUPERVISOR
+ * - También deja pasar si el usuario tiene permiso 'outbound' o 'pallet_out'
+ * Ajusta reglas si quieres.
+ */
+function requireOutboundAuthorization(req, res, next) {
+    try {
+        const role = req.user?.role;
+        const perms = req.user?.permissions || [];
+
+        // Roles que pueden sacar tarima
+        if (role === 'ADMIN' || role === 'SUPERVISOR' || role === 'admin' || role === 'supervisor') {
+            return next();
+        }
+
+        // Permisos que pueden permitir salida
+        if (Array.isArray(perms) && (perms.includes('outbound') || perms.includes('pallet_out'))) {
+            return next();
+        }
+
+        return res.status(403).json({ message: 'Forbidden (outbound)' });
+    } catch (err) {
+        return next(err);
+    }
+}
+
+/**
+ * ✅ Ajusta a tus roles reales.
  */
 const ROLE_PERMISSIONS = {
-    ADMIN: ['view_reports', 'view_dashboard', 'manage_users', 'manage_inventory'],
-    admin: ['view_reports', 'view_dashboard', 'manage_users', 'manage_inventory'],
-    MANAGER: ['view_reports', 'view_dashboard'],
-    manager: ['view_reports', 'view_dashboard'],
-    SUPERVISOR: ['view_reports'],
-    supervisor: ['view_reports'],
+    ADMIN: ['view_reports', 'view_dashboard', 'manage_users', 'manage_inventory', 'outbound', 'pallet_out'],
+    admin: ['view_reports', 'view_dashboard', 'manage_users', 'manage_inventory', 'outbound', 'pallet_out'],
+
+    SUPERVISOR: ['view_reports', 'view_dashboard', 'outbound', 'pallet_out'],
+    supervisor: ['view_reports', 'view_dashboard', 'outbound', 'pallet_out'],
+
+    OPERADOR: [],
+    operador: [],
 };
 
 function safeParsePermissions(val) {
     try {
-        // si viene tipo JSON string: '["view_reports"]'
         const parsed = JSON.parse(val);
         return Array.isArray(parsed) ? parsed : [];
     } catch {
-        // si viene tipo CSV: "view_reports,view_dashboard"
         return String(val)
             .split(',')
             .map(s => s.trim())
@@ -115,4 +144,9 @@ function safeParsePermissions(val) {
     }
 }
 
-module.exports = { requireAuth, requireRole, requirePermission };
+module.exports = {
+    requireAuth,
+    requireRole,
+    requirePermission,
+    requireOutboundAuthorization,
+};
