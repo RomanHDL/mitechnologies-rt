@@ -22,10 +22,17 @@ router.post('/login', validate(loginSchema), async(req, res, next) => {
         const { employeeNumber, password, pin } = req.body;
         const meta = reqMeta(req);
 
-        const user = await User.findOne({ where: { employeeNumber: String(employeeNumber).trim() } });
+        const user = await User.findOne({
+            where: { employeeNumber: String(employeeNumber).trim() },
+        });
 
         if (!user || !user.isActive) {
-            await AuthLog.create({ userId: user?.id || null, email: user?.email || null, event: 'LOGIN_FAIL', ...meta });
+            await AuthLog.create({
+                userId: user?.id || null,
+                email: user?.email || null,
+                event: 'LOGIN_FAIL',
+                ...meta,
+            });
             return res.status(401).json({ message: 'Credenciales inválidas' });
         }
 
@@ -34,7 +41,7 @@ router.post('/login', validate(loginSchema), async(req, res, next) => {
             return res.status(423).json({ message: 'Cuenta bloqueada por intentos. Intenta más tarde.' });
         }
 
-        // ✅ OPERADOR: preferir PIN si existe pinHash (y si mandan pin)
+        // ✅ Si mandan pin, validar PIN
         if (pin) {
             if (!user.pinHash) {
                 return res.status(403).json({ message: 'PIN no configurado' });
@@ -53,15 +60,30 @@ router.post('/login', validate(loginSchema), async(req, res, next) => {
                 }
 
                 await user.update(update);
-                await AuthLog.create({ userId: user.id, email: user.email, event: 'LOGIN_FAIL', ...meta });
+
+                await AuthLog.create({
+                    userId: user.id,
+                    email: user.email,
+                    event: 'LOGIN_FAIL',
+                    ...meta,
+                });
+
                 return res.status(401).json({ message: 'Credenciales inválidas' });
             }
 
             // PIN correcto: reset intentos
             await user.update({ pinFailedCount: 0, pinLockedUntil: null });
 
-            const token = jwt.sign({ sub: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '12h' });
-            await AuthLog.create({ userId: user.id, email: user.email, event: 'LOGIN_SUCCESS', ...meta });
+            const token = jwt.sign({ sub: user.id, role: user.role },
+                process.env.JWT_SECRET, { expiresIn: '12h' }
+            );
+
+            await AuthLog.create({
+                userId: user.id,
+                email: user.email,
+                event: 'LOGIN_SUCCESS',
+                ...meta,
+            });
 
             return res.json({
                 token,
@@ -72,20 +94,33 @@ router.post('/login', validate(loginSchema), async(req, res, next) => {
                     role: user.role,
                     position: user.position,
                     employeeNumber: user.employeeNumber,
-                    mustChangePin: user.pinMustChange || false
-                }
+                    mustChangePin: user.pinMustChange || false,
+                },
             });
         }
 
-        // ✅ ADMIN/SUPERVISOR/otro: password normal
+        // ✅ login normal por password
         const okPass = await bcrypt.compare(String(password || ''), user.passwordHash);
         if (!okPass) {
-            await AuthLog.create({ userId: user.id, email: user.email, event: 'LOGIN_FAIL', ...meta });
+            await AuthLog.create({
+                userId: user.id,
+                email: user.email,
+                event: 'LOGIN_FAIL',
+                ...meta,
+            });
             return res.status(401).json({ message: 'Credenciales inválidas' });
         }
 
-        const token = jwt.sign({ sub: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '12h' });
-        await AuthLog.create({ userId: user.id, email: user.email, event: 'LOGIN_SUCCESS', ...meta });
+        const token = jwt.sign({ sub: user.id, role: user.role },
+            process.env.JWT_SECRET, { expiresIn: '12h' }
+        );
+
+        await AuthLog.create({
+            userId: user.id,
+            email: user.email,
+            event: 'LOGIN_SUCCESS',
+            ...meta,
+        });
 
         return res.json({
             token,
@@ -96,59 +131,10 @@ router.post('/login', validate(loginSchema), async(req, res, next) => {
                 role: user.role,
                 position: user.position,
                 employeeNumber: user.employeeNumber,
-                mustChangePin: user.mustChangePin || false
-            }
+                mustChangePin: user.pinMustChange || false,
+            },
         });
-    } catch (e) { next(e); }
+    } catch (e) {
+        next(e);
+    }
 });
-
-router.post('/logout', requireAuth, async(req, res, next) => {
-    try {
-        const meta = reqMeta(req);
-        await AuthLog.create({ userId: req.user.id, email: req.user.email, event: 'LOGOUT', ...meta });
-        res.json({ ok: true });
-    } catch (e) { next(e); }
-});
-
-router.get('/me', requireAuth, async(req, res) => {
-    const u = req.user;
-    res.json({
-        id: u.id,
-        email: u.email,
-        fullName: u.fullName,
-        role: u.role,
-        position: u.position,
-        employeeNumber: u.employeeNumber
-    });
-});
-
-router.post('/register', requireAuth, requireRole('ADMIN'), validate(registerSchema), async(req, res, next) => {
-    try {
-        const { email, password, employeeNumber, fullName, role, position, isActive } = req.body;
-
-        const exists = await User.findOne({ where: { email: email.toLowerCase().trim() } });
-        if (exists) return res.status(409).json({ message: 'El correo ya existe' });
-
-        const passwordHash = await bcrypt.hash(password, 10);
-        const user = await User.create({
-            email: email.toLowerCase().trim(),
-            passwordHash,
-            employeeNumber: String(employeeNumber).trim(),
-            fullName: fullName || '',
-            role: role || 'OPERADOR',
-            position: position || '',
-            isActive: isActive ? isActive : true
-        });
-
-        res.status(201).json({
-            id: user.id,
-            email: user.email,
-            employeeNumber: user.employeeNumber,
-            role: user.role,
-            position: user.position,
-            isActive: user.isActive
-        });
-    } catch (e) { next(e); }
-});
-
-module.exports = router;
