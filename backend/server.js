@@ -8,26 +8,20 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 
 const usersRoutes = require('./src/routes/users.routes');
-
-const { connectDB } = require('./src/config/db');
-
-app.use('/api/users', usersRoutes);
-
 const adminRoutes = require('./src/routes/admin.routes');
-
 const authRoutes = require('./src/routes/auth.routes');
 const productRoutes = require('./src/routes/product.routes');
 const orderRoutes = require('./src/routes/order.routes');
 const countRoutes = require('./src/routes/count.routes');
 const reportRoutes = require('./src/routes/report.routes');
-
 const locationRoutes = require('./src/routes/location.routes');
 const palletRoutes = require('./src/routes/pallet.routes');
 const movementRoutes = require('./src/routes/movement.routes');
 const dashboardRoutes = require('./src/routes/dashboard.routes');
-// const productionRoutes = require('./src/routes/production.routes'); // ❌ desactivado (falta model)
 
-const app = express();
+const { connectDB } = require('./src/config/db');
+
+const app = express(); // ✅ primero crear app
 const httpServer = http.createServer(app);
 
 /**
@@ -91,7 +85,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/counts', countRoutes);
 app.use('/api/reports', reportRoutes);
-
+app.use("/api/users", usersRoutes); // ❌ solo para testing, admin maneja usuarios en /api/admin/users
 app.use('/api/pallets', palletRoutes);
 app.use('/api/movements', movementRoutes);
 app.use('/api/dashboard', dashboardRoutes);
