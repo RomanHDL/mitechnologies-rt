@@ -94,7 +94,7 @@ router.post('/login', validate(loginSchema), async(req, res, next) => {
                     role: user.role,
                     position: user.position,
                     employeeNumber: user.employeeNumber,
-                    mustChangePin: user.pinMustChange || false
+                    mustChangePin: Boolean(user.mustChangePin)
                 }
             });
         }
@@ -131,7 +131,7 @@ router.post('/login', validate(loginSchema), async(req, res, next) => {
                 role: user.role,
                 position: user.position,
                 employeeNumber: user.employeeNumber,
-                mustChangePin: user.pinMustChange || false
+                mustChangePin: Boolean(user.mustChangePin)
             }
         });
     } catch (e) {
