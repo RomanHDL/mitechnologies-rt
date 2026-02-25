@@ -208,6 +208,7 @@ export default function UsersPage() {
     }
   }
 
+  // ✅ FIX: primero ADMIN (PATCH), luego fallback USERS (POST)
   const doResetPassword = async () => {
     if (!editUser?.id) return
 
@@ -224,25 +225,27 @@ export default function UsersPage() {
     }
 
     try {
-      await apiFetch(`/api/users/${editUser.id}/reset-password`, {
-        method: 'POST',
+      // ✅ endpoint correcto (tu backend lo tiene en admin.routes.js)
+      await apiFetch(`/api/admin/users/${editUser.id}/reset-password`, {
+        method: 'PATCH',
         body: JSON.stringify({ newPassword })
       })
       setModalMsg('Password reseteado ✅')
       setMsg('Password reseteado ✅')
       setResetPass('')
-    } catch (e1) {
-      // fallback si alguien lo dejó en /api/admin
+      return
+    } catch (eAdmin) {
+      // fallback si alguien lo dejó en /api/users
       try {
-        await apiFetch(`/api/admin/users/${editUser.id}/reset-password`, {
-          method: 'PATCH',
+        await apiFetch(`/api/users/${editUser.id}/reset-password`, {
+          method: 'POST',
           body: JSON.stringify({ newPassword })
         })
         setModalMsg('Password reseteado ✅')
         setMsg('Password reseteado ✅')
         setResetPass('')
-      } catch (e2) {
-        const m = e2?.message || e1?.message || 'Error reseteando password'
+      } catch (eUsers) {
+        const m = eUsers?.message || eAdmin?.message || 'Error reseteando password'
         setModalErr(m)
         setListErr(m)
       }
