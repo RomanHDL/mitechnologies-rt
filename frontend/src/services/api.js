@@ -22,7 +22,11 @@ export async function apiFetch(path, options = {}) {
 
     const token = getToken();
 
-    const res = await fetch(`${base}${path}`, {
+    // ✅ evita problemas de slashes: base con/sin "/" + path con/sin "/"
+    const baseClean = String(base).replace(/\/+$/, "");
+    const pathClean = String(path).startsWith("/") ? String(path) : `/${String(path)}`;
+
+    const res = await fetch(`${baseClean}${pathClean}`, {
         ...options,
         headers: {
             "Content-Type": "application/json",
@@ -32,6 +36,8 @@ export async function apiFetch(path, options = {}) {
     });
 
     const text = await res.text();
+
+    // intenta JSON, si no, deja texto
     let data = null;
     try {
         data = text ? JSON.parse(text) : null;
@@ -40,7 +46,11 @@ export async function apiFetch(path, options = {}) {
     }
 
     if (!res.ok) {
-        const msg = data?.message || data?.error || `HTTP ${res.status}`;
+        // ✅ error message robusto (json o texto)
+        const msg =
+            (data && typeof data === "object" && (data.message || data.error)) ||
+            (typeof data === "string" && data) ||
+            `HTTP ${res.status}`;
         throw new Error(msg);
     }
 

@@ -69,7 +69,7 @@ router.get('/', requireAuth, requireRole('ADMIN'), async(req, res, next) => {
 
 /**
  * PATCH /api/users/:id
- * Admin: actualizar campos permitidos (role, position, isActive, fullName, employeeNumber, email)
+ * Admin: actualizar campos permitidos
  * Nota: no cambiamos password aquí.
  */
 router.patch('/:id', requireAuth, requireRole('ADMIN'), async(req, res, next) => {
@@ -99,13 +99,10 @@ router.patch('/:id', requireAuth, requireRole('ADMIN'), async(req, res, next) =>
     }
 });
 
-/**
- * POST /api/users/:id/reset-password
- * Admin: resetea password (recibe newPassword)
- */
-router.post('/:id/reset-password', requireAuth, requireRole('ADMIN'), async(req, res, next) => {
+// ✅ handler compartido para POST/PATCH reset-password (no borra nada, solo compatibilidad)
+async function handleResetPassword(req, res, next) {
     try {
-        const newPassword = String(req.body?.newPassword || '');
+        const newPassword = String(req.body ? .newPassword || '');
         if (newPassword.length < 6) {
             return res.status(400).json({ message: 'newPassword debe tener mínimo 6 caracteres' });
         }
@@ -114,12 +111,26 @@ router.post('/:id/reset-password', requireAuth, requireRole('ADMIN'), async(req,
         if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
 
         const passwordHash = await bcrypt.hash(newPassword, 10);
+
+        // actualiza passwordHash (columna real)
         await User.update({ passwordHash }, { where: { id: user.id } });
 
         res.json({ ok: true });
     } catch (e) {
         next(e);
     }
-});
+}
+
+/**
+ * POST /api/users/:id/reset-password
+ * Admin: resetea password (recibe newPassword)
+ */
+router.post('/:id/reset-password', requireAuth, requireRole('ADMIN'), handleResetPassword);
+
+/**
+ * PATCH /api/users/:id/reset-password
+ * ✅ extra compatibilidad por si quedó algún cliente usando PATCH
+ */
+router.patch('/:id/reset-password', requireAuth, requireRole('ADMIN'), handleResetPassword);
 
 module.exports = router;

@@ -63,6 +63,10 @@ export default function UsersPage() {
   const [resetPass, setResetPass] = useState('')
   const [resetPin, setResetPin] = useState('')
 
+  // ✅ extra: mensaje dentro del modal (para que veas “Password reseteado ✅” ahí mismo)
+  const [modalMsg, setModalMsg] = useState('')
+  const [modalErr, setModalErr] = useState('')
+
   const loadUsers = useMemo(() => {
     return async () => {
       if (!isAdmin) return
@@ -89,6 +93,8 @@ export default function UsersPage() {
     setEditUser({ ...u })
     setResetPass('')
     setResetPin('')
+    setModalMsg('')
+    setModalErr('')
     setOpenEdit(true)
   }
 
@@ -96,6 +102,7 @@ export default function UsersPage() {
     if (!editUser?.id) return
     setEditSaving(true)
     setListErr('')
+    setModalErr('')
     try {
       // users.routes.js => PATCH /api/users/:id
       await apiFetch(`/api/users/${editUser.id}`, {
@@ -113,6 +120,7 @@ export default function UsersPage() {
       await loadUsers()
     } catch (e) {
       setListErr(e?.message || 'Error guardando cambios')
+      setModalErr(e?.message || 'Error guardando cambios')
     } finally {
       setEditSaving(false)
     }
@@ -132,28 +140,59 @@ export default function UsersPage() {
     }
   }
 
+  // ✅ CAMBIO IMPORTANTE: reset password con fallback a /api/admin/users
   const doResetPassword = async () => {
     if (!editUser?.id) return
-    if (!resetPass || resetPass.length < 6) {
-      setListErr('La nueva contraseña debe tener mínimo 6 caracteres')
+
+    setModalMsg('')
+    setModalErr('')
+    setListErr('')
+
+    const newPassword = String(resetPass || '')
+    if (!newPassword || newPassword.length < 6) {
+      const m = 'La nueva contraseña debe tener mínimo 6 caracteres'
+      setModalErr(m)
+      setListErr(m)
       return
     }
-    setListErr('')
+
+    const payload = { newPassword }
+
+    // 1) intentamos la ruta “principal”
     try {
-      // users.routes.js => POST /api/users/:id/reset-password
       await apiFetch(`/api/users/${editUser.id}/reset-password`, {
         method: 'POST',
-        body: JSON.stringify({ newPassword: resetPass })
+        body: JSON.stringify(payload)
       })
+      setModalMsg('Password reseteado ✅')
       setMsg('Password reseteado ✅')
       setResetPass('')
-    } catch (e) {
-      setListErr(e?.message || 'Error reseteando password')
+      return
+    } catch (e1) {
+      // Si falla porque tu backend lo tiene en /api/admin/users o con PATCH, probamos fallback
+      const m1 = e1?.message || 'Error reseteando password'
+      // 2) fallback: /api/admin/users/:id/reset-password (PATCH)
+      try {
+        await apiFetch(`/api/admin/users/${editUser.id}/reset-password`, {
+          method: 'PATCH',
+          body: JSON.stringify({ newPassword })
+        })
+        setModalMsg('Password reseteado ✅')
+        setMsg('Password reseteado ✅')
+        setResetPass('')
+        return
+      } catch (e2) {
+        const m2 = e2?.message || m1
+        setModalErr(m2)
+        setListErr(m2)
+      }
     }
   }
 
   const doResetPin = async () => {
     if (!editUser?.id) return
+    setModalMsg('')
+    setModalErr('')
     setListErr('')
     try {
       // admin.routes.js => PATCH /api/admin/users/:id/reset-pin
@@ -161,10 +200,13 @@ export default function UsersPage() {
         method: 'PATCH',
         body: JSON.stringify(resetPin ? { newPin: resetPin } : {})
       })
+      setModalMsg('PIN reseteado ✅')
       setMsg('PIN reseteado ✅')
       setResetPin('')
     } catch (e) {
-      setListErr(e?.message || 'Error reseteando PIN')
+      const m = e?.message || 'Error reseteando PIN'
+      setModalErr(m)
+      setListErr(m)
     }
   }
 
@@ -256,8 +298,11 @@ export default function UsersPage() {
       <Dialog open={openEdit} onClose={() => setOpenEdit(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Editar usuario</DialogTitle>
         <DialogContent>
+          {modalMsg && <Alert severity="success" sx={{ mt: 2 }}>{modalMsg}</Alert>}
+          {modalErr && <Alert severity="error" sx={{ mt: 2 }}>{modalErr}</Alert>}
+
           {editUser && (
-            <Stack spacing={2} sx={{ mt: 1 }}>
+            <Stack spacing={2} sx={{ mt: 2 }}>
               <TextField label="Correo" value={editUser.email || ''} onChange={(e) => setEditUser({ ...editUser, email: e.target.value })} />
               <TextField label="Número de empleado" value={editUser.employeeNumber || ''} onChange={(e) => setEditUser({ ...editUser, employeeNumber: e.target.value })} />
               <TextField label="Nombre" value={editUser.fullName || ''} onChange={(e) => setEditUser({ ...editUser, fullName: e.target.value })} />
