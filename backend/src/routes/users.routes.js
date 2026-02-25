@@ -102,7 +102,7 @@ router.patch('/:id', requireAuth, requireRole('ADMIN'), async(req, res, next) =>
 // ✅ handler compartido para POST/PATCH reset-password (no borra nada, solo compatibilidad)
 async function handleResetPassword(req, res, next) {
     try {
-        const newPassword = String(req.body ? .newPassword || '');
+        const newPassword = String(req.body?.newPassword || '');
         if (newPassword.length < 6) {
             return res.status(400).json({ message: 'newPassword debe tener mínimo 6 caracteres' });
         }
