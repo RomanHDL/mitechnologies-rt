@@ -60,14 +60,14 @@ const User = sequelize.define('User', {
         allowNull: true
     },
 
-    // ✅ COLUMNA REAL EN TU DB (esto SÍ existe en MySQL)
+    // ✅ COLUMNA REAL (en tu DB existe como mustChangePin)
     mustChangePin: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: false
     },
 
-    // ✅ ALIAS solo para compatibilidad (NO existe en DB, NO se selecciona en SQL)
+    // ✅ ALIAS para compatibilidad (NO DB)
     pinMustChange: {
         type: DataTypes.VIRTUAL,
         get() {
@@ -78,18 +78,22 @@ const User = sequelize.define('User', {
         }
     },
 
-    // ✅ Aquí NO hacemos alias: usa tus columnas reales como están en DB
-    // (tú ya tienes pinAttempts en DB y pinFailedCount también, según tus screenshots)
+    // ✅ COLUMNA REAL para intentos (usa SOLO esta)
     pinAttempts: {
         type: DataTypes.INTEGER,
         allowNull: false,
         defaultValue: 0
     },
 
+    // ✅ ALIAS para compatibilidad (NO DB)
     pinFailedCount: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        defaultValue: 0
+        type: DataTypes.VIRTUAL,
+        get() {
+            return Number(this.getDataValue('pinAttempts') || 0);
+        },
+        set(v) {
+            this.setDataValue('pinAttempts', Number(v || 0));
+        }
     },
 
     pinLockedUntil: {
