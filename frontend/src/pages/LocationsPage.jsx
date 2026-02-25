@@ -17,17 +17,28 @@ import DialogActions from '@mui/material/DialogActions'
 import Alert from '@mui/material/Alert'
 import Divider from '@mui/material/Divider'
 import Tooltip from '@mui/material/Tooltip'
+import IconButton from '@mui/material/IconButton'
+import useMediaQuery from '@mui/material/useMediaQuery'
+import { useTheme } from '@mui/material/styles'
+
 import EditIcon from '@mui/icons-material/Edit'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import BlockIcon from '@mui/icons-material/Block'
 import Inventory2Icon from '@mui/icons-material/Inventory2'
+import ViewListIcon from '@mui/icons-material/ViewList'
+import GridViewIcon from '@mui/icons-material/GridView'
+import InsightsIcon from '@mui/icons-material/Insights'
+import CloseIcon from '@mui/icons-material/Close'
+import RestartAltIcon from '@mui/icons-material/RestartAlt'
 
 const AREAS = ['A1','A2','A3','A4']
 const HEIGHT_LABEL = { A1: 'PLANTA BAJA', B2: 'MEDIA', C3: 'ALTA' }
+const HEIGHTS = ['A1','B2','C3']
+const SLOTS = Array.from({ length: 12 }, (_, i) => i + 1)
+
 const rackOptions = Array.from({ length: 125 }, (_, i) => `F${String(i + 1).padStart(3, '0')}`)
 
 function rackToArea(rackCode) {
-  // F001..F125 -> A1..A4 (ajústalo si tu almacén lo maneja distinto)
   const n = Number(String(rackCode || '').replace(/[^\d]/g, '')) || 0
   if (n >= 1 && n <= 32) return 'A1'
   if (n >= 33 && n <= 64) return 'A2'
@@ -58,18 +69,15 @@ function smartParse(input) {
   let m = raw.match(/^(A1|B2|C3)-(F\d{3})-(\d{3})$/)
   if (m) return { height: m[1], rackCode: m[2], slot: Number(m[3]) }
 
-  // limpiar separadores
   const cleaned = raw.replace(/[_/\\]+/g, ' ').replace(/-+/g, ' ').trim()
   const parts = cleaned.split(/\s+/).filter(Boolean)
 
-  // solo rack
   if (parts.length === 1) {
     const rk = normalizeRackCode(parts[0])
     if (/^F\d{3}$/.test(rk)) return { rackCode: rk }
     return null
   }
 
-  // height + rack + slot  (A1 F59 12)
   if (parts.length >= 3) {
     const height = parts[0]
     const rackCode = normalizeRackCode(parts[1])
@@ -85,16 +93,25 @@ function smartParse(input) {
   return null
 }
 
-function stateColor(state) {
-  if (state === 'BLOQUEADO') return '#fee2e2'
-  if (state === 'OCUPADO') return '#dcfce7'
-  return '#f3f4f6'
+function chipSxForState(st) {
+  if (st === 'OCUPADO') return { bgcolor:'rgba(34,197,94,.18)', border:'1px solid rgba(34,197,94,.22)', color:'#e5e7eb' }
+  if (st === 'BLOQUEADO') return { bgcolor:'rgba(239,68,68,.16)', border:'1px solid rgba(239,68,68,.22)', color:'#e5e7eb' }
+  return { bgcolor:'rgba(148,163,184,.16)', border:'1px solid rgba(255,255,255,.10)', color:'#e5e7eb' }
+}
+
+function cellBgForState(st) {
+  if (st === 'OCUPADO') return 'rgba(34,197,94,.14)'
+  if (st === 'BLOQUEADO') return 'rgba(239,68,68,.12)'
+  return 'rgba(255,255,255,.04)'
 }
 
 export default function LocationsPage() {
   const { token, user } = useAuth()
   const canEdit = ['ADMIN', 'SUPERVISOR'].includes(user?.role)
   const client = useMemo(() => api(token), [token])
+
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
 
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
@@ -105,7 +122,15 @@ export default function LocationsPage() {
   const [state, setState] = useState('')      // VACIO/OCUPADO/BLOQUEADO
   const [q, setQ] = useState('')              // buscador inteligente
 
-  // dialog editar/bloquear
+  // vista
+  const [view, setView] = useState('LISTA')   // LISTA | MAPA | RESUMEN
+
+  // highlight / detalle
+  const [highlightKey, setHighlightKey] = useState(null) // `${height}-${rackCode}-${slot3}`
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [detailItem, setDetailItem] = useState(null)
+
+  // dialog editar/bloquear (se queda)
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState(null)
   const [type, setType] = useState('RACK')
@@ -116,7 +141,6 @@ export default function LocationsPage() {
   const load = async () => {
     setLoading(true)
     try {
-      // ✅ pedimos TODO y filtramos en frontend (porque tu modelo actual no guarda "area")
       const res = await client.get('/api/locations')
       setRows(Array.isArray(res.data) ? res.data : [])
     } finally {
@@ -126,26 +150,43 @@ export default function LocationsPage() {
 
   useEffect(() => { load() }, [token])
 
-  const filtered = useMemo(() => {
-    let list = rows.map(l => ({
+  const enriched = useMemo(() => {
+    return rows.map(l => ({
       ...l,
-      _area: rackToArea(l.rackCode)
+      _area: rackToArea(l.rackCode),
+      _state: l.state || 'VACIO',
+      _slot3: String(l.slot).padStart(3,'0'),
+      _key: `${l.height}-${String(l.rackCode).toUpperCase()}-${String(l.slot).padStart(3,'0')}`
     }))
+  }, [rows])
 
+  const filtered = useMemo(() => {
+    let list = enriched
     if (area) list = list.filter(l => l._area === area)
     if (rack) list = list.filter(l => String(l.rackCode).toUpperCase() === String(rack).toUpperCase())
-    if (state) list = list.filter(l => (l.state || 'VACIO') === state)
-
+    if (state) list = list.filter(l => l._state === state)
     return list
-  }, [rows, area, rack, state])
+  }, [enriched, area, rack, state])
 
   const summary = useMemo(() => {
     const s = { total: filtered.length, VACIO: 0, OCUPADO: 0, BLOQUEADO: 0 }
     for (const l of filtered) {
-      const st = l.state || 'VACIO'
+      const st = l._state
       if (s[st] !== undefined) s[st]++
     }
     return s
+  }, [filtered])
+
+  const perRackSummary = useMemo(() => {
+    const map = new Map()
+    for (const l of filtered) {
+      const rk = String(l.rackCode).toUpperCase()
+      if (!map.has(rk)) map.set(rk, { rackCode: rk, total: 0, VACIO: 0, OCUPADO: 0, BLOQUEADO: 0 })
+      const o = map.get(rk)
+      o.total++
+      o[l._state] = (o[l._state] || 0) + 1
+    }
+    return Array.from(map.values()).sort((a,b) => a.rackCode.localeCompare(b.rackCode))
   }, [filtered])
 
   const openEdit = (l) => {
@@ -175,6 +216,19 @@ export default function LocationsPage() {
     setOpen(false)
   }
 
+  const clearFilters = () => {
+    setArea('A1')
+    setRack('')
+    setState('')
+    setQ('')
+    setHighlightKey(null)
+  }
+
+  const openDetail = (l) => {
+    setDetailItem(l)
+    setDetailOpen(true)
+  }
+
   const applySmartSearch = () => {
     const parsed = smartParse(q)
     if (!parsed) return
@@ -184,27 +238,107 @@ export default function LocationsPage() {
       setRack(parsed.rackCode)
       setArea(rackToArea(parsed.rackCode))
       setState('')
+      setHighlightKey(null)
+      // sugerido: en búsquedas por rack, vista MAPA ayuda a operador
+      setView('MAPA')
       return
     }
 
-    // buscar ubicación exacta
+    // búsqueda exacta height+rack+slot
     setRack(parsed.rackCode)
     setArea(rackToArea(parsed.rackCode))
-    // filtramos por height/slot localmente:
-    // (si quieres, aquí puedes auto-scroll al card exacto)
+    setState('')
+    const slot3 = String(parsed.slot).padStart(3,'0')
+    const key = `${parsed.height}-${parsed.rackCode}-${slot3}`
+    setHighlightKey(key)
+    setView('MAPA')
+
+    // si existe en datos, abre detalle automáticamente
+    const found = enriched.find(x => x._key === key)
+    if (found) {
+      openDetail(found)
+      setTimeout(() => setHighlightKey(null), 4000)
+    } else {
+      setTimeout(() => setHighlightKey(null), 4000)
+    }
   }
 
-  return (
-    <Box>
-      <Typography variant="h6" sx={{ fontWeight: 900, mb: 2 }}>Ubicaciones</Typography>
+  const kpiClick = (k) => {
+    if (k === 'TOTAL') setState('')
+    if (k === 'VACIO') setState('VACIO')
+    if (k === 'OCUPADO') setState('OCUPADO')
+    if (k === 'BLOQUEADO') setState('BLOQUEADO')
+  }
 
-      <Paper elevation={0} sx={{ p: 2, borderRadius: 3, mb: 2 }}>
+  // mapa: si no eligieron rack, usa el primero de la lista filtrada (si existe)
+  const rackForMap = useMemo(() => {
+    if (rack) return String(rack).toUpperCase()
+    const first = filtered[0]?.rackCode
+    return first ? String(first).toUpperCase() : ''
+  }, [rack, filtered])
+
+  const mapForRack = useMemo(() => {
+    const m = new Map()
+    for (const l of filtered) {
+      if (String(l.rackCode).toUpperCase() !== rackForMap) continue
+      m.set(`${l.height}-${String(l.slot).padStart(3,'0')}`, l)
+    }
+    return m
+  }, [filtered, rackForMap])
+
+  return (
+    <Box sx={{ color: '#e5e7eb' }}>
+      <Box sx={{ display:'flex', alignItems:'center', justifyContent:'space-between', mb: 2 }}>
+        <Typography variant="h6" sx={{ fontWeight: 900 }}>Ubicaciones</Typography>
+
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Chip
+            size="small"
+            label={view === 'LISTA' ? 'Lista' : view === 'MAPA' ? 'Mapa' : 'Resumen'}
+            sx={{ bgcolor:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.10)', color:'#e5e7eb', fontWeight: 900 }}
+          />
+        </Stack>
+      </Box>
+
+      <Paper elevation={0} sx={{
+        p: 2, borderRadius: 3, mb: 2,
+        background: 'linear-gradient(180deg, rgba(255,255,255,.05), rgba(17,24,39,.25))',
+        border: '1px solid rgba(255,255,255,.06)'
+      }}>
         {!canEdit && (
           <Alert severity="warning" sx={{ mb: 2 }}>
             Solo ADMIN/SUPERVISOR puede editar ubicaciones y bloquear/desbloquear.
           </Alert>
         )}
 
+        {/* Buscador principal + acciones */}
+        <Stack direction={{ xs:'column', md:'row' }} spacing={2} alignItems={{ xs:'stretch', md:'center' }}>
+          <TextField
+            size="small"
+            label='Buscar ubicación / rack (ej: A1-F059-012 | A1 F59 12 | F059)'
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && applySmartSearch()}
+            sx={{ flex: 1 }}
+          />
+          <Button variant="contained" onClick={applySmartSearch} sx={{ minWidth: 140 }}>
+            Buscar / Ir
+          </Button>
+
+          <Tooltip title="Limpiar filtros">
+            <IconButton onClick={clearFilters} sx={{ bgcolor:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.10)' }}>
+              <RestartAltIcon sx={{ color:'#e5e7eb' }} />
+            </IconButton>
+          </Tooltip>
+
+          <Button size="small" onClick={load} disabled={loading} sx={{ minWidth: 120 }}>
+            {loading ? 'Cargando...' : 'Recargar'}
+          </Button>
+        </Stack>
+
+        <Divider sx={{ my: 2 }} />
+
+        {/* Filtros secundarios */}
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs:'stretch', md:'center' }}>
           <TextField select size="small" label="Área (zona)" value={area} onChange={(e) => setArea(e.target.value)} sx={{ minWidth: 140 }}>
             {AREAS.map(a => <MenuItem key={a} value={a}>{a}</MenuItem>)}
@@ -236,83 +370,451 @@ export default function LocationsPage() {
             <MenuItem value="BLOQUEADO">BLOQUEADO</MenuItem>
           </TextField>
 
-          <TextField
-            size="small"
-            label='Buscar: "A1-F059-012" o "A1 F59 12" o "F059"'
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && applySmartSearch()}
-            sx={{ flex: 1 }}
-          />
-          <Button variant="contained" onClick={applySmartSearch}>Buscar</Button>
+          <Box sx={{ flex: 1 }} />
+
+          {/* Toggle de vistas */}
+          <Stack direction="row" spacing={1}>
+            <Button
+              variant={view === 'LISTA' ? 'contained' : 'outlined'}
+              startIcon={<ViewListIcon />}
+              onClick={() => setView('LISTA')}
+              sx={{ borderRadius: 2 }}
+            >
+              Lista
+            </Button>
+            <Button
+              variant={view === 'MAPA' ? 'contained' : 'outlined'}
+              startIcon={<GridViewIcon />}
+              onClick={() => setView('MAPA')}
+              sx={{ borderRadius: 2 }}
+            >
+              Mapa
+            </Button>
+            <Button
+              variant={view === 'RESUMEN' ? 'contained' : 'outlined'}
+              startIcon={<InsightsIcon />}
+              onClick={() => setView('RESUMEN')}
+              sx={{ borderRadius: 2 }}
+            >
+              Resumen
+            </Button>
+          </Stack>
         </Stack>
 
         <Divider sx={{ my: 2 }} />
 
+        {/* KPIs clickeables */}
         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-          <Chip size="small" label={`Total: ${summary.total}`} />
-          <Chip size="small" label={`VACÍO: ${summary.VACIO}`} sx={{ bgcolor:'#f3f4f6' }} />
-          <Chip size="small" label={`OCUPADO: ${summary.OCUPADO}`} sx={{ bgcolor:'#dcfce7' }} />
-          <Chip size="small" label={`BLOQUEADO: ${summary.BLOQUEADO}`} sx={{ bgcolor:'#fee2e2' }} />
-          <Box sx={{ flex: 1 }} />
-          <Button size="small" onClick={load} disabled={loading}>{loading ? 'Cargando...' : 'Recargar'}</Button>
+          <Chip
+            clickable
+            onClick={() => kpiClick('TOTAL')}
+            size="small"
+            label={`Total: ${summary.total}`}
+            sx={{
+              bgcolor: state === '' ? 'rgba(59,130,246,.22)' : 'rgba(255,255,255,.06)',
+              border:'1px solid rgba(255,255,255,.10)',
+              color:'#e5e7eb',
+              fontWeight: 900
+            }}
+          />
+          <Chip
+            clickable
+            onClick={() => kpiClick('VACIO')}
+            size="small"
+            label={`VACÍO: ${summary.VACIO}`}
+            sx={{
+              ...(chipSxForState('VACIO')),
+              bgcolor: state === 'VACIO' ? 'rgba(148,163,184,.28)' : chipSxForState('VACIO').bgcolor,
+              fontWeight: 900
+            }}
+          />
+          <Chip
+            clickable
+            onClick={() => kpiClick('OCUPADO')}
+            size="small"
+            label={`OCUPADO: ${summary.OCUPADO}`}
+            sx={{
+              ...(chipSxForState('OCUPADO')),
+              bgcolor: state === 'OCUPADO' ? 'rgba(34,197,94,.28)' : chipSxForState('OCUPADO').bgcolor,
+              fontWeight: 900
+            }}
+          />
+          <Chip
+            clickable
+            onClick={() => kpiClick('BLOQUEADO')}
+            size="small"
+            label={`BLOQUEADO: ${summary.BLOQUEADO}`}
+            sx={{
+              ...(chipSxForState('BLOQUEADO')),
+              bgcolor: state === 'BLOQUEADO' ? 'rgba(239,68,68,.26)' : chipSxForState('BLOQUEADO').bgcolor,
+              fontWeight: 900
+            }}
+          />
         </Stack>
       </Paper>
 
-      {/* Tabla moderna de ubicaciones */}
-      <Paper elevation={1} sx={{ width: '100%', overflow: 'auto', borderRadius: 3, mb: 4 }}>
-        <Box component="table" sx={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
-          <Box component="thead" sx={{ background: '#101c2b', position: 'sticky', top: 0, zIndex: 1 }}>
-            <Box component="tr">
-              <Box component="th" sx={{ color: '#fff', fontWeight: 700, p: 1.5, textAlign: 'left', minWidth: 120 }}>Ubicación</Box>
-              <Box component="th" sx={{ color: '#fff', fontWeight: 700, p: 1.5, textAlign: 'center', minWidth: 100 }}>Estado</Box>
-              <Box component="th" sx={{ color: '#fff', fontWeight: 700, p: 1.5, textAlign: 'center', minWidth: 90 }}>Tipo</Box>
-              <Box component="th" sx={{ color: '#fff', fontWeight: 700, p: 1.5, textAlign: 'center', minWidth: 80 }}>Capacidad</Box>
-              <Box component="th" sx={{ color: '#fff', fontWeight: 700, p: 1.5, textAlign: 'center', minWidth: 120 }}>Notas / Motivo</Box>
-              <Box component="th" sx={{ color: '#fff', fontWeight: 700, p: 1.5, textAlign: 'center', minWidth: 80 }}>Acción</Box>
-            </Box>
-          </Box>
-          <Box component="tbody">
-            {filtered.map((l, idx) => {
-              const st = l.state || 'VACIO'
-              const areaLabel = l._area
-              const heightLabel = HEIGHT_LABEL[l.height] || l.height
-              let stateIcon = <Inventory2Icon sx={{ color: '#64748b', verticalAlign: 'middle' }} fontSize="small" />
-              if (st === 'OCUPADO') stateIcon = <CheckCircleIcon sx={{ color: '#22c55e', verticalAlign: 'middle' }} fontSize="small" />
-              if (st === 'BLOQUEADO') stateIcon = <BlockIcon sx={{ color: '#ef4444', verticalAlign: 'middle' }} fontSize="small" />
-              const noteText = l.blocked ? `Motivo: ${l.blockedReason || 'Bloqueado'}` : (l.notes || '—')
-              return (
-                <Box component="tr" key={l._id} sx={{ background: idx % 2 === 0 ? '#19233a' : '#101c2b', transition: 'background 0.2s', '&:hover': { background: '#22304d' } }}>
-                  <Box component="td" sx={{ p: 1.5, fontFamily: 'monospace', fontWeight: 900, color: '#fff' }}>
-                    {l.code}
-                    <Typography variant="caption" sx={{ display: 'block', color: '#cbd5e1', fontWeight: 400 }}>
-                      Área: <b>{areaLabel}</b> · Rack: <b>{l.rackCode}</b> · Altura: <b>{l.height} ({heightLabel})</b> · Slot: <b>{String(l.slot).padStart(3,'0')}</b>
-                    </Typography>
-                  </Box>
-                  <Box component="td" sx={{ p: 1.5, textAlign: 'center' }}>
-                    <Tooltip title={st} arrow>{stateIcon}</Tooltip>
-                    <Typography variant="caption" sx={{ display: 'block', color: '#fff', fontWeight: 700 }}>{st}</Typography>
-                  </Box>
-                  <Box component="td" sx={{ p: 1.5, textAlign: 'center', color: '#fff' }}>{l.type || 'RACK'}</Box>
-                  <Box component="td" sx={{ p: 1.5, textAlign: 'center', color: '#fff' }}>{l.maxPallets || 1}</Box>
-                  <Box component="td" sx={{ p: 1.5, textAlign: 'center', color: '#fff', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <Tooltip title={noteText} arrow>
-                      <span>{noteText.length > 25 ? noteText.slice(0, 25) + '…' : noteText}</span>
-                    </Tooltip>
-                  </Box>
-                  <Box component="td" sx={{ p: 1.5, textAlign: 'center' }}>
-                    <Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => openEdit(l)} sx={{ color: '#fff', borderColor: '#334155', '&:hover': { borderColor: '#64748b', background: '#1e293b' } }}>
-                      Editar
-                    </Button>
+      {/* ====== CONTENIDO: LISTA / MAPA / RESUMEN + PANEL DETALLE ====== */}
+      <Box sx={{
+        display:'grid',
+        gridTemplateColumns: { xs:'1fr', lg:'1fr 360px' },
+        gap: 2,
+        alignItems:'start'
+      }}>
+        {/* IZQ */}
+        <Box>
+          {view === 'LISTA' && (
+            <Paper elevation={0} sx={{ width: '100%', overflow: 'auto', borderRadius: 3, mb: 2 }}>
+              <Box component="table" sx={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
+                <Box component="thead" sx={{ background: 'rgba(15,23,42,.65)', position: 'sticky', top: 0, zIndex: 1 }}>
+                  <Box component="tr">
+                    <Box component="th" sx={{ color: '#fff', fontWeight: 900, p: 1.5, textAlign: 'left', minWidth: 140 }}>Ubicación</Box>
+                    <Box component="th" sx={{ color: '#fff', fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 110 }}>Estado</Box>
+                    <Box component="th" sx={{ color: '#fff', fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 90 }}>Tipo</Box>
+                    <Box component="th" sx={{ color: '#fff', fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 90 }}>Capacidad</Box>
+                    <Box component="th" sx={{ color: '#fff', fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 160 }}>Notas / Motivo</Box>
+                    <Box component="th" sx={{ color: '#fff', fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 120 }}>Acción</Box>
                   </Box>
                 </Box>
-              )
-            })}
-          </Box>
-        </Box>
-      </Paper>
 
-      {/* Dialog */}
+                <Box component="tbody">
+                  {filtered.map((l, idx) => {
+                    const st = l._state
+                    const areaLabel = l._area
+                    const heightLabel = HEIGHT_LABEL[l.height] || l.height
+
+                    let stateIcon = <Inventory2Icon sx={{ color: '#94a3b8', verticalAlign: 'middle' }} fontSize="small" />
+                    if (st === 'OCUPADO') stateIcon = <CheckCircleIcon sx={{ color: '#22c55e', verticalAlign: 'middle' }} fontSize="small" />
+                    if (st === 'BLOQUEADO') stateIcon = <BlockIcon sx={{ color: '#ef4444', verticalAlign: 'middle' }} fontSize="small" />
+
+                    const noteText = l.blocked ? `Motivo: ${l.blockedReason || 'Bloqueado'}` : (l.notes || '—')
+
+                    const isHi = highlightKey && l._key === highlightKey
+
+                    return (
+                      <Box
+                        component="tr"
+                        key={l._id}
+                        onClick={() => openDetail(l)}
+                        sx={{
+                          cursor:'pointer',
+                          background: idx % 2 === 0 ? 'rgba(255,255,255,.03)' : 'rgba(255,255,255,.02)',
+                          transition: 'background 0.15s ease, box-shadow .15s ease',
+                          outline: isHi ? '2px solid rgba(96,165,250,.85)' : 'none',
+                          outlineOffset: -2,
+                          '&:hover': { background: 'rgba(255,255,255,.06)' }
+                        }}
+                      >
+                        <Box component="td" sx={{ p: 1.5, fontFamily: 'monospace', fontWeight: 900, color: '#fff' }}>
+                          {l.code}
+                          <Typography variant="caption" sx={{ display: 'block', color: 'rgba(229,231,235,.75)', fontWeight: 700 }}>
+                            Área: <b>{areaLabel}</b> · Rack: <b>{l.rackCode}</b> · Altura: <b>{l.height} ({heightLabel})</b> · Slot: <b>{l._slot3}</b>
+                          </Typography>
+                        </Box>
+
+                        <Box component="td" sx={{ p: 1.5, textAlign: 'center' }}>
+                          <Tooltip title={st} arrow>{stateIcon}</Tooltip>
+                          <Typography variant="caption" sx={{ display: 'block', color: '#fff', fontWeight: 900 }}>{st}</Typography>
+                        </Box>
+
+                        <Box component="td" sx={{ p: 1.5, textAlign: 'center', color: '#fff', fontWeight: 800 }}>{l.type || 'RACK'}</Box>
+                        <Box component="td" sx={{ p: 1.5, textAlign: 'center', color: '#fff', fontWeight: 800 }}>{l.maxPallets || 1}</Box>
+
+                        <Box component="td" sx={{ p: 1.5, textAlign: 'center', color: '#fff', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <Tooltip title={noteText} arrow>
+                            <span>{noteText.length > 30 ? noteText.slice(0, 30) + '…' : noteText}</span>
+                          </Tooltip>
+                        </Box>
+
+                        <Box component="td" sx={{ p: 1.5, textAlign: 'center' }} onClick={(e)=>e.stopPropagation()}>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<EditIcon />}
+                            onClick={() => openEdit(l)}
+                            sx={{ color: '#e5e7eb', borderColor: 'rgba(255,255,255,.18)', '&:hover': { borderColor: 'rgba(255,255,255,.35)', background: 'rgba(255,255,255,.06)' } }}
+                          >
+                            Editar
+                          </Button>
+                        </Box>
+                      </Box>
+                    )
+                  })}
+                </Box>
+              </Box>
+            </Paper>
+          )}
+
+          {view === 'MAPA' && (
+            <Paper elevation={0} sx={{
+              p: 2, borderRadius: 3,
+              background: 'linear-gradient(180deg, rgba(255,255,255,.04), rgba(17,24,39,.25))',
+              border:'1px solid rgba(255,255,255,.06)'
+            }}>
+              <Stack direction={{ xs:'column', md:'row' }} spacing={1} alignItems={{ xs:'stretch', md:'center' }} justifyContent="space-between" sx={{ mb: 1 }}>
+                <Typography sx={{ fontWeight: 900 }}>
+                  Mapa del Rack {rackForMap || '—'} <span style={{ opacity:.7, fontWeight: 800 }}>(A1/B2/C3 · 001–012)</span>
+                </Typography>
+
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                  <Chip size="small" label="VACÍO" sx={{ ...chipSxForState('VACIO') }} />
+                  <Chip size="small" label="OCUPADO" sx={{ ...chipSxForState('OCUPADO') }} />
+                  <Chip size="small" label="BLOQUEADO" sx={{ ...chipSxForState('BLOQUEADO') }} />
+                </Stack>
+              </Stack>
+
+              <Divider sx={{ my: 1.5 }} />
+
+              {!rackForMap ? (
+                <Typography sx={{ opacity:.75 }}>
+                  No hay resultados para mostrar mapa. Ajusta filtros o busca un rack (ej: <b>F059</b>).
+                </Typography>
+              ) : (
+                <Box sx={{ display:'grid', gap: 1 }}>
+                  {/* encabezado slots */}
+                  <Box sx={{ display:'grid', gridTemplateColumns:'70px repeat(12, 1fr)', gap: 1, alignItems:'center', mb: 0.5 }}>
+                    <Box />
+                    {SLOTS.map(s => (
+                      <Typography key={s} sx={{ fontSize: 12, opacity:.8, fontWeight: 900, textAlign:'center' }}>
+                        {String(s).padStart(3,'0')}
+                      </Typography>
+                    ))}
+                  </Box>
+
+                  {HEIGHTS.map(h => (
+                    <Box key={h} sx={{ display:'grid', gridTemplateColumns:'70px repeat(12, 1fr)', gap: 1, alignItems:'center' }}>
+                      <Typography sx={{ fontWeight: 900, opacity:.9 }}>
+                        {h}
+                      </Typography>
+
+                      {SLOTS.map(s => {
+                        const slot3 = String(s).padStart(3,'0')
+                        const l = mapForRack.get(`${h}-${slot3}`)
+                        const st = l?._state || 'VACIO'
+                        const key = `${h}-${rackForMap}-${slot3}`
+                        const isHi = highlightKey && highlightKey === key
+
+                        return (
+                          <Box
+                            key={slot3}
+                            role="button"
+                            onClick={() => l && openDetail(l)}
+                            sx={{
+                              cursor: l ? 'pointer' : 'default',
+                              p: 1,
+                              borderRadius: 2,
+                              textAlign:'center',
+                              bgcolor: cellBgForState(st),
+                              border: isHi ? '2px solid rgba(96,165,250,.85)' : '1px solid rgba(255,255,255,.08)',
+                              transition:'transform .08s ease, box-shadow .12s ease',
+                              '&:hover': l ? { transform:'translateY(-1px)', boxShadow:'0 12px 26px rgba(0,0,0,.25)' } : {}
+                            }}
+                          >
+                            <Typography sx={{ fontFamily:'monospace', fontWeight: 900, fontSize: 12 }}>
+                              {h}-{slot3}
+                            </Typography>
+                            <Typography sx={{ fontWeight: 900, fontSize: 11, opacity:.9 }}>
+                              {st}
+                            </Typography>
+                          </Box>
+                        )
+                      })}
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </Paper>
+          )}
+
+          {view === 'RESUMEN' && (
+            <Paper elevation={0} sx={{
+              p: 2, borderRadius: 3,
+              background: 'linear-gradient(180deg, rgba(255,255,255,.04), rgba(17,24,39,.25))',
+              border:'1px solid rgba(255,255,255,.06)'
+            }}>
+              <Typography sx={{ fontWeight: 900, mb: 1 }}>
+                Resumen por Rack <span style={{ opacity:.7, fontWeight: 800 }}>(según filtros)</span>
+              </Typography>
+              <Divider sx={{ my: 1.5 }} />
+
+              {perRackSummary.length === 0 ? (
+                <Typography sx={{ opacity:.75 }}>No hay datos para resumir.</Typography>
+              ) : (
+                <Box sx={{
+                  display:'grid',
+                  gridTemplateColumns:{ xs:'1fr', sm:'repeat(2, 1fr)', lg:'repeat(3, 1fr)' },
+                  gap: 2
+                }}>
+                  {perRackSummary.map(rk => {
+                    const occPct = rk.total ? Math.round((rk.OCUPADO / rk.total) * 100) : 0
+                    return (
+                      <Paper
+                        key={rk.rackCode}
+                        elevation={0}
+                        sx={{
+                          p:2,
+                          borderRadius:3,
+                          border:'1px solid rgba(255,255,255,.06)',
+                          background:'linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02))',
+                          cursor:'pointer'
+                        }}
+                        onClick={() => { setRack(rk.rackCode); setView('MAPA') }}
+                      >
+                        <Stack direction="row" justifyContent="space-between" alignItems="center">
+                          <Typography sx={{ fontWeight: 900, fontSize: 18 }}>{rk.rackCode}</Typography>
+                          <Chip size="small" label={`${occPct}% Ocup.`} sx={{ bgcolor:'rgba(59,130,246,.18)', border:'1px solid rgba(59,130,246,.20)', color:'#e5e7eb', fontWeight: 900 }} />
+                        </Stack>
+
+                        <Divider sx={{ my: 1.5 }} />
+
+                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                          <Chip size="small" label={`Total ${rk.total}`} sx={{ bgcolor:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.10)', color:'#e5e7eb' }} />
+                          <Chip size="small" label={`Vacío ${rk.VACIO}`} sx={{ ...chipSxForState('VACIO') }} />
+                          <Chip size="small" label={`Ocupado ${rk.OCUPADO}`} sx={{ ...chipSxForState('OCUPADO') }} />
+                          <Chip size="small" label={`Bloq. ${rk.BLOQUEADO}`} sx={{ ...chipSxForState('BLOQUEADO') }} />
+                        </Stack>
+
+                        <Typography sx={{ mt: 1.2, opacity:.7, fontSize: 12 }}>
+                          Click para abrir mapa del rack
+                        </Typography>
+                      </Paper>
+                    )
+                  })}
+                </Box>
+              )}
+            </Paper>
+          )}
+        </Box>
+
+        {/* DER: Panel de detalle (solo en desktop). En tablet se abre como modal. */}
+        <Box sx={{ display: { xs:'none', lg:'block' } }}>
+          <Paper elevation={0} sx={{
+            p: 2,
+            borderRadius: 3,
+            background: 'linear-gradient(180deg, rgba(255,255,255,.05), rgba(17,24,39,.25))',
+            border:'1px solid rgba(255,255,255,.06)',
+            position:'sticky',
+            top: 92
+          }}>
+            <Typography sx={{ fontWeight: 900 }}>Detalle</Typography>
+            <Divider sx={{ my: 1.5 }} />
+
+            {!detailItem ? (
+              <Typography sx={{ opacity:.75, fontSize: 13 }}>
+                Selecciona una ubicación (lista o mapa) para ver detalles aquí.
+              </Typography>
+            ) : (
+              <Box>
+                <Typography sx={{ fontFamily:'monospace', fontWeight: 900, fontSize: 16 }}>
+                  {detailItem.code}
+                </Typography>
+
+                <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap:'wrap' }} useFlexGap>
+                  <Chip size="small" label={detailItem._state} sx={{ ...chipSxForState(detailItem._state), fontWeight: 900 }} />
+                  <Chip size="small" label={`Rack ${detailItem.rackCode}`} sx={{ bgcolor:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.10)', color:'#e5e7eb', fontWeight: 900 }} />
+                  <Chip size="small" label={`${detailItem.height}-${detailItem._slot3}`} sx={{ bgcolor:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.10)', color:'#e5e7eb', fontWeight: 900 }} />
+                </Stack>
+
+                <Divider sx={{ my: 1.5 }} />
+
+                <Box sx={{ display:'grid', gridTemplateColumns:'120px 1fr', rowGap: 1, columnGap: 1.5 }}>
+                  <Typography sx={{ opacity:.7, fontSize: 12 }}>Área</Typography>
+                  <Typography sx={{ fontSize: 12, fontWeight: 900 }}>{detailItem._area}</Typography>
+
+                  <Typography sx={{ opacity:.7, fontSize: 12 }}>Tipo</Typography>
+                  <Typography sx={{ fontSize: 12, fontWeight: 900 }}>{detailItem.type || 'RACK'}</Typography>
+
+                  <Typography sx={{ opacity:.7, fontSize: 12 }}>Capacidad</Typography>
+                  <Typography sx={{ fontSize: 12, fontWeight: 900 }}>{detailItem.maxPallets || 1}</Typography>
+
+                  <Typography sx={{ opacity:.7, fontSize: 12 }}>Notas/Motivo</Typography>
+                  <Typography sx={{ fontSize: 12, fontWeight: 800, opacity:.9 }}>
+                    {detailItem.blocked ? `Motivo: ${detailItem.blockedReason || 'Bloqueado'}` : (detailItem.notes || '—')}
+                  </Typography>
+                </Box>
+
+                <Divider sx={{ my: 1.5 }} />
+
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    startIcon={<EditIcon />}
+                    onClick={() => openEdit(detailItem)}
+                    sx={{ borderRadius: 2 }}
+                  >
+                    Editar
+                  </Button>
+                </Stack>
+
+                <Typography sx={{ mt: 1, opacity:.6, fontSize: 11 }}>
+                  *Acciones de bloquear/desbloquear/guardar se mantienen en el diálogo de edición.
+                </Typography>
+              </Box>
+            )}
+          </Paper>
+        </Box>
+      </Box>
+
+      {/* MODAL detalle (tablet / mobile) */}
+      <Dialog open={detailOpen && isMobile} onClose={() => setDetailOpen(false)} fullScreen>
+        <DialogTitle sx={{ display:'flex', alignItems:'center', gap: 1 }}>
+          Detalle de ubicación
+          <Box sx={{ flex: 1 }} />
+          <IconButton onClick={() => setDetailOpen(false)}>
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {!detailItem ? (
+            <Typography sx={{ opacity:.75 }}>Sin selección.</Typography>
+          ) : (
+            <Box>
+              <Typography sx={{ fontFamily:'monospace', fontWeight: 900, fontSize: 18 }}>
+                {detailItem.code}
+              </Typography>
+
+              <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap:'wrap' }} useFlexGap>
+                <Chip size="small" label={detailItem._state} sx={{ ...chipSxForState(detailItem._state), fontWeight: 900 }} />
+                <Chip size="small" label={`Rack ${detailItem.rackCode}`} sx={{ bgcolor:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.10)', color:'#e5e7eb', fontWeight: 900 }} />
+                <Chip size="small" label={`${detailItem.height}-${detailItem._slot3}`} sx={{ bgcolor:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.10)', color:'#e5e7eb', fontWeight: 900 }} />
+              </Stack>
+
+              <Divider sx={{ my: 2 }} />
+
+              <Box sx={{ display:'grid', gridTemplateColumns:'120px 1fr', rowGap: 1, columnGap: 1.5 }}>
+                <Typography sx={{ opacity:.7, fontSize: 12 }}>Área</Typography>
+                <Typography sx={{ fontSize: 12, fontWeight: 900 }}>{detailItem._area}</Typography>
+
+                <Typography sx={{ opacity:.7, fontSize: 12 }}>Tipo</Typography>
+                <Typography sx={{ fontSize: 12, fontWeight: 900 }}>{detailItem.type || 'RACK'}</Typography>
+
+                <Typography sx={{ opacity:.7, fontSize: 12 }}>Capacidad</Typography>
+                <Typography sx={{ fontSize: 12, fontWeight: 900 }}>{detailItem.maxPallets || 1}</Typography>
+
+                <Typography sx={{ opacity:.7, fontSize: 12 }}>Notas/Motivo</Typography>
+                <Typography sx={{ fontSize: 12, fontWeight: 800, opacity:.9 }}>
+                  {detailItem.blocked ? `Motivo: ${detailItem.blockedReason || 'Bloqueado'}` : (detailItem.notes || '—')}
+                </Typography>
+              </Box>
+
+              <Divider sx={{ my: 2 }} />
+
+              <Button variant="contained" startIcon={<EditIcon />} onClick={() => openEdit(detailItem)} fullWidth>
+                Editar
+              </Button>
+
+              <Typography sx={{ mt: 1.5, opacity:.6, fontSize: 11 }}>
+                *Acciones de bloquear/desbloquear/guardar se mantienen en el diálogo de edición.
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDetailOpen(false)}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog EDITAR (se queda igual) */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Editar ubicación</DialogTitle>
         <DialogContent>
