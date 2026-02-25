@@ -50,13 +50,14 @@ router.post('/login', validate(loginSchema), async(req, res, next) => {
             const okPin = await bcrypt.compare(String(pin), user.pinHash);
 
             if (!okPin) {
-                const attempts = (user.pinFailedCount || 0) + 1;
-                const update = { pinFailedCount: attempts };
+                // ✅ TU BD tiene pinAttempts (no pinFailedCount)
+                const attempts = (user.pinAttempts || 0) + 1;
+                const update = { pinAttempts: attempts };
 
                 // 5 intentos = bloqueo 10 min
                 if (attempts >= 5) {
                     update.pinLockedUntil = new Date(Date.now() + 10 * 60 * 1000);
-                    update.pinFailedCount = 0;
+                    update.pinAttempts = 0;
                 }
 
                 await user.update(update);
@@ -72,7 +73,7 @@ router.post('/login', validate(loginSchema), async(req, res, next) => {
             }
 
             // PIN correcto: reset intentos
-            await user.update({ pinFailedCount: 0, pinLockedUntil: null });
+            await user.update({ pinAttempts: 0, pinLockedUntil: null });
 
             const token = jwt.sign({ sub: user.id, role: user.role },
                 process.env.JWT_SECRET, { expiresIn: '12h' }
