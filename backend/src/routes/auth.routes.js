@@ -17,6 +17,19 @@ function reqMeta(req) {
     };
 }
 
+// ✅ helper: obtiene el hash real de password aunque la tabla tenga otro nombre
+function getPasswordHash(user) {
+    // prioridad: passwordHash (tu modelo actual)
+    // fallback: password_hash (tablas legacy)
+    // fallback: password (legacy)
+    return (
+        user?.passwordHash ||
+        user?.password_hash ||
+        user?.password ||
+        null
+    );
+}
+
 router.post('/login', validate(loginSchema), async(req, res, next) => {
     try {
         const { employeeNumber, password, pin } = req.body;
@@ -101,7 +114,19 @@ router.post('/login', validate(loginSchema), async(req, res, next) => {
         }
 
         // ✅ login normal por password
-        const okPass = await bcrypt.compare(String(password || ''), user.passwordHash);
+        const passHash = getPasswordHash(user);
+
+        // 🔥 si por alguna razón el usuario no trae hash, es un problema de esquema/DB
+        if (!passHash) {
+            console.error('[LOGIN] Usuario sin password hash:', {
+                userId: user.id,
+                employeeNumber: user.employeeNumber,
+                keys: Object.keys(user?.toJSON?.() || user || {})
+            });
+            return res.status(500).json({ message: 'Usuario sin contraseña configurada (schema mismatch)' });
+        }
+
+        const okPass = await bcrypt.compare(String(password || ''), passHash);
         if (!okPass) {
             await AuthLog.create({
                 userId: user.id,
