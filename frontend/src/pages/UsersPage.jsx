@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../state/auth'
 import { apiFetch } from '../services/api'
+
 import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
 import Box from '@mui/material/Box'
@@ -20,52 +21,75 @@ import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
 import Chip from '@mui/material/Chip'
+import Tooltip from '@mui/material/Tooltip'
+import IconButton from '@mui/material/IconButton'
+
+import AddIcon from '@mui/icons-material/Add'
+import RefreshIcon from '@mui/icons-material/Refresh'
+import EditIcon from '@mui/icons-material/Edit'
+import LockIcon from '@mui/icons-material/Lock'
+import LockOpenIcon from '@mui/icons-material/LockOpen'
+import BadgeIcon from '@mui/icons-material/Badge'
+import EmailIcon from '@mui/icons-material/Email'
+import WorkIcon from '@mui/icons-material/Work'
+import KeyIcon from '@mui/icons-material/Key'
+import PinIcon from '@mui/icons-material/Pin'
 
 export default function UsersPage() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'ADMIN'
 
-  // ---- CREAR (tu form original, conservado) ----
+  // ====== Mensajes globales ======
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
+
+  // ====== LISTA + EDICIÓN ======
+  const [q, setQ] = useState('')
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [listErr, setListErr] = useState('')
+
+  const [filter, setFilter] = useState('ALL') // ALL | ACTIVE | INACTIVE | ADMIN | SUPERVISOR | OPERADOR
+
+  // ====== Modal NUEVO USUARIO (B1) ======
+  const [openCreate, setOpenCreate] = useState(false)
+
+  // ---- CREAR (tu form original, conservado, ahora en modal) ----
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('User123!')
   const [employeeNumber, setEmployeeNumber] = useState('')
   const [fullName, setFullName] = useState('')
   const [role, setRole] = useState('OPERADOR')
   const [position, setPosition] = useState('Ayudante')
-  const [msg, setMsg] = useState('')
-  const [err, setErr] = useState('')
 
-  const create = async () => {
-    setMsg(''); setErr('')
-    try {
-      await apiFetch('/api/auth/register', {
-        method: 'POST',
-        body: JSON.stringify({ email, password, employeeNumber, fullName, role, position })
-      })
-      setMsg('Usuario creado')
-      setEmail(''); setEmployeeNumber(''); setFullName('')
-      // refrescar lista
-      await loadUsers()
-    } catch (e) {
-      setErr(e?.message || 'Error')
-    }
-  }
-
-  // ---- LISTA + EDICIÓN ----
-  const [q, setQ] = useState('')
-  const [users, setUsers] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [listErr, setListErr] = useState('')
-
+  // ====== Modal EDITAR ======
   const [openEdit, setOpenEdit] = useState(false)
   const [editUser, setEditUser] = useState(null)
   const [editSaving, setEditSaving] = useState(false)
   const [resetPass, setResetPass] = useState('')
   const [resetPin, setResetPin] = useState('')
 
-  // ✅ extra: mensaje dentro del modal (para que veas “Password reseteado ✅” ahí mismo)
   const [modalMsg, setModalMsg] = useState('')
   const [modalErr, setModalErr] = useState('')
+
+  const roleChipSx = (r) => {
+    if (r === 'ADMIN') return { bgcolor: '#F97316', color: '#111827', fontWeight: 900 }     // naranja industrial
+    if (r === 'SUPERVISOR') return { bgcolor: '#1E3A8A', color: 'white', fontWeight: 900 }  // azul acero
+    return { bgcolor: '#374151', color: 'white', fontWeight: 900 }                          // gris metal
+  }
+
+  const statusChip = (active) => (
+    <Chip
+      size="small"
+      label={active ? '● ACTIVO' : '● INACTIVO'}
+      sx={{
+        fontWeight: 900,
+        letterSpacing: 0.2,
+        bgcolor: active ? '#16A34A' : '#DC2626',
+        color: 'white'
+      }}
+    />
+  )
 
   const loadUsers = useMemo(() => {
     return async () => {
@@ -73,7 +97,6 @@ export default function UsersPage() {
       setLoading(true)
       setListErr('')
       try {
-        // users.routes.js => GET /api/users?q=&page=&limit=
         const res = await apiFetch(`/api/users?q=${encodeURIComponent(q)}&page=1&limit=50`)
         setUsers(res?.data || [])
       } catch (e) {
@@ -89,6 +112,23 @@ export default function UsersPage() {
     loadUsers()
   }, [loadUsers])
 
+  const filteredUsers = useMemo(() => {
+    let list = [...users]
+    if (filter === 'ACTIVE') list = list.filter(u => u.isActive)
+    if (filter === 'INACTIVE') list = list.filter(u => !u.isActive)
+    if (filter === 'ADMIN') list = list.filter(u => u.role === 'ADMIN')
+    if (filter === 'SUPERVISOR') list = list.filter(u => u.role === 'SUPERVISOR')
+    if (filter === 'OPERADOR') list = list.filter(u => u.role === 'OPERADOR')
+    return list
+  }, [users, filter])
+
+  const totals = useMemo(() => {
+    const total = users.length
+    const active = users.filter(u => u.isActive).length
+    const admins = users.filter(u => u.role === 'ADMIN').length
+    return { total, active, admins }
+  }, [users])
+
   const openEditDialog = (u) => {
     setEditUser({ ...u })
     setResetPass('')
@@ -98,13 +138,40 @@ export default function UsersPage() {
     setOpenEdit(true)
   }
 
+  // ====== CREAR (B1): crea, cierra modal, refresca ======
+  const create = async () => {
+    setMsg(''); setErr('')
+    setModalMsg(''); setModalErr('')
+    try {
+      await apiFetch('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ email, password, employeeNumber, fullName, role, position })
+      })
+      setMsg('Usuario creado ✅')
+      // limpiar
+      setEmail('')
+      setEmployeeNumber('')
+      setFullName('')
+      setRole('OPERADOR')
+      setPosition('Ayudante')
+      setPassword('User123!')
+      // B1: cerrar modal
+      setOpenCreate(false)
+      // refrescar lista
+      await loadUsers()
+    } catch (e) {
+      const m = e?.message || 'Error'
+      setErr(m)
+      setModalErr(m)
+    }
+  }
+
   const saveEdit = async () => {
     if (!editUser?.id) return
     setEditSaving(true)
     setListErr('')
     setModalErr('')
     try {
-      // users.routes.js => PATCH /api/users/:id
       await apiFetch(`/api/users/${editUser.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
@@ -119,8 +186,9 @@ export default function UsersPage() {
       setOpenEdit(false)
       await loadUsers()
     } catch (e) {
-      setListErr(e?.message || 'Error guardando cambios')
-      setModalErr(e?.message || 'Error guardando cambios')
+      const m = e?.message || 'Error guardando cambios'
+      setListErr(m)
+      setModalErr(m)
     } finally {
       setEditSaving(false)
     }
@@ -140,7 +208,6 @@ export default function UsersPage() {
     }
   }
 
-  // ✅ CAMBIO IMPORTANTE: reset password con fallback a /api/admin/users
   const doResetPassword = async () => {
     if (!editUser?.id) return
 
@@ -156,22 +223,16 @@ export default function UsersPage() {
       return
     }
 
-    const payload = { newPassword }
-
-    // 1) intentamos la ruta “principal”
     try {
       await apiFetch(`/api/users/${editUser.id}/reset-password`, {
         method: 'POST',
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ newPassword })
       })
       setModalMsg('Password reseteado ✅')
       setMsg('Password reseteado ✅')
       setResetPass('')
-      return
     } catch (e1) {
-      // Si falla porque tu backend lo tiene en /api/admin/users o con PATCH, probamos fallback
-      const m1 = e1?.message || 'Error reseteando password'
-      // 2) fallback: /api/admin/users/:id/reset-password (PATCH)
+      // fallback si alguien lo dejó en /api/admin
       try {
         await apiFetch(`/api/admin/users/${editUser.id}/reset-password`, {
           method: 'PATCH',
@@ -180,11 +241,10 @@ export default function UsersPage() {
         setModalMsg('Password reseteado ✅')
         setMsg('Password reseteado ✅')
         setResetPass('')
-        return
       } catch (e2) {
-        const m2 = e2?.message || m1
-        setModalErr(m2)
-        setListErr(m2)
+        const m = e2?.message || e1?.message || 'Error reseteando password'
+        setModalErr(m)
+        setListErr(m)
       }
     }
   }
@@ -195,7 +255,6 @@ export default function UsersPage() {
     setModalErr('')
     setListErr('')
     try {
-      // admin.routes.js => PATCH /api/admin/users/:id/reset-pin
       await apiFetch(`/api/admin/users/${editUser.id}/reset-pin`, {
         method: 'PATCH',
         body: JSON.stringify(resetPin ? { newPin: resetPin } : {})
@@ -212,97 +271,245 @@ export default function UsersPage() {
 
   return (
     <Box>
-      <Typography variant="h6" sx={{ fontWeight: 900, mb: 2 }}>Usuarios</Typography>
+      {/* ====== HEADER INDUSTRIAL ====== */}
+      <Paper elevation={0} sx={{ p: 2.2, borderRadius: 3, mb: 2, border: '1px solid rgba(0,0,0,0.08)' }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', md: 'center' }}>
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ fontWeight: 950, letterSpacing: 0.6 }}>
+              ⚙ CONTROL DE PERSONAL
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.8 }}>
+              Gestión de operadores, supervisores y administradores
+            </Typography>
+          </Box>
 
-      <Paper elevation={0} sx={{ p: 2, borderRadius: 3 }}>
-        {!isAdmin && <Alert severity="warning">Solo ADMIN puede crear usuarios.</Alert>}
-        {msg && <Alert sx={{ mt: 2 }} severity="success">{msg}</Alert>}
-        {err && <Alert sx={{ mt: 2 }} severity="error">{err}</Alert>}
-
-        <Stack spacing={2} sx={{ mt: 2 }}>
-          <TextField disabled={!isAdmin} label="Correo" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <TextField disabled={!isAdmin} label="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} />
-          <TextField disabled={!isAdmin} label="Número de empleado" value={employeeNumber} onChange={(e) => setEmployeeNumber(e.target.value)} />
-          <TextField disabled={!isAdmin} label="Nombre" value={fullName} onChange={(e) => setFullName(e.target.value)} />
-          <TextField disabled={!isAdmin} select label="Rol" value={role} onChange={(e) => setRole(e.target.value)}>
-            {['ADMIN', 'SUPERVISOR', 'OPERADOR'].map(r => <MenuItem key={r} value={r}>{r}</MenuItem>)}
-          </TextField>
-          <TextField disabled={!isAdmin} label="Puesto (Supervisor/Coordinador/Gerente/etc)" value={position} onChange={(e) => setPosition(e.target.value)} />
-          <Button disabled={!isAdmin} variant="contained" onClick={create}>Crear usuario</Button>
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            <Chip size="small" label={`TOTAL: ${totals.total}`} sx={{ fontWeight: 900, bgcolor: '#374151', color: 'white' }} />
+            <Chip size="small" label={`ACTIVOS: ${totals.active}`} sx={{ fontWeight: 900, bgcolor: '#16A34A', color: 'white' }} />
+            <Chip size="small" label={`ADMINS: ${totals.admins}`} sx={{ fontWeight: 900, bgcolor: '#F97316', color: '#111827' }} />
+          </Stack>
         </Stack>
       </Paper>
 
-      <Divider sx={{ my: 3 }} />
+      {/* Mensajes globales */}
+      {msg && <Alert sx={{ mb: 2 }} severity="success">{msg}</Alert>}
+      {err && <Alert sx={{ mb: 2 }} severity="error">{err}</Alert>}
 
-      {/* LISTA */}
-      <Paper elevation={0} sx={{ p: 2, borderRadius: 3 }}>
-        <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 900, flex: 1 }}>Lista de usuarios</Typography>
+      {/* ====== TOOLBAR ====== */}
+      <Paper elevation={0} sx={{ p: 2, borderRadius: 3, mb: 2, border: '1px solid rgba(0,0,0,0.08)' }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', md: 'center' }}>
           <TextField
             size="small"
             label="Buscar (empleado/correo/nombre)"
             value={q}
             onChange={(e) => setQ(e.target.value)}
+            fullWidth
           />
-          <Button variant="outlined" onClick={loadUsers} disabled={!isAdmin || loading}>
-            {loading ? 'Cargando...' : 'Refrescar'}
-          </Button>
+
+          <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ justifyContent: { xs: 'flex-start', md: 'center' } }}>
+            <Chip clickable label="Todos" onClick={() => setFilter('ALL')}
+              sx={{ fontWeight: 900, bgcolor: filter === 'ALL' ? '#1E3A8A' : 'transparent', color: filter === 'ALL' ? 'white' : 'inherit', border: '1px solid rgba(0,0,0,0.15)' }} />
+            <Chip clickable label="Activos" onClick={() => setFilter('ACTIVE')}
+              sx={{ fontWeight: 900, bgcolor: filter === 'ACTIVE' ? '#16A34A' : 'transparent', color: filter === 'ACTIVE' ? 'white' : 'inherit', border: '1px solid rgba(0,0,0,0.15)' }} />
+            <Chip clickable label="Inactivos" onClick={() => setFilter('INACTIVE')}
+              sx={{ fontWeight: 900, bgcolor: filter === 'INACTIVE' ? '#DC2626' : 'transparent', color: filter === 'INACTIVE' ? 'white' : 'inherit', border: '1px solid rgba(0,0,0,0.15)' }} />
+            <Chip clickable label="Admins" onClick={() => setFilter('ADMIN')}
+              sx={{ fontWeight: 900, bgcolor: filter === 'ADMIN' ? '#F97316' : 'transparent', color: filter === 'ADMIN' ? '#111827' : 'inherit', border: '1px solid rgba(0,0,0,0.15)' }} />
+          </Stack>
+
+          <Stack direction="row" spacing={1} justifyContent="flex-end">
+            <Tooltip title="Refrescar">
+              <span>
+                <IconButton onClick={loadUsers} disabled={!isAdmin || loading}>
+                  <RefreshIcon />
+                </IconButton>
+              </span>
+            </Tooltip>
+
+            <Button
+              disabled={!isAdmin}
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => { setOpenCreate(true); setModalErr(''); setModalMsg(''); }}
+              sx={{
+                bgcolor: '#F97316',
+                color: '#111827',
+                fontWeight: 950,
+                '&:hover': { bgcolor: '#fb8b24' }
+              }}
+            >
+              Nuevo Usuario
+            </Button>
+          </Stack>
         </Stack>
 
-        {!isAdmin && <Alert severity="info">Inicia sesión como ADMIN para ver la lista.</Alert>}
-        {listErr && <Alert severity="error" sx={{ mb: 2 }}>{listErr}</Alert>}
-
-        {isAdmin && (
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell><b>Empleado</b></TableCell>
-                <TableCell><b>Nombre</b></TableCell>
-                <TableCell><b>Correo</b></TableCell>
-                <TableCell><b>Rol</b></TableCell>
-                <TableCell><b>Activo</b></TableCell>
-                <TableCell align="right"><b>Acciones</b></TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {users.map(u => (
-                <TableRow key={u.id}>
-                  <TableCell sx={{ fontFamily: 'monospace', fontWeight: 900 }}>{u.employeeNumber}</TableCell>
-                  <TableCell>{u.fullName}</TableCell>
-                  <TableCell>{u.email}</TableCell>
-                  <TableCell><Chip size="small" label={u.role} /></TableCell>
-                  <TableCell>{u.isActive ? 'Sí' : 'No'}</TableCell>
-                  <TableCell align="right">
-                    <Stack direction="row" spacing={1} justifyContent="flex-end">
-                      <Button size="small" variant="outlined" onClick={() => openEditDialog(u)}>Editar</Button>
-                      <Button size="small" variant="contained" onClick={() => toggleActive(u)}>
-                        {u.isActive ? 'Desactivar' : 'Activar'}
-                      </Button>
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {!users.length && (
-                <TableRow>
-                  <TableCell colSpan={6} sx={{ opacity: 0.7 }}>
-                    {loading ? 'Cargando...' : 'No hay usuarios para mostrar.'}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        )}
+        {!isAdmin && <Alert sx={{ mt: 2 }} severity="warning">Inicia sesión como ADMIN para gestionar usuarios.</Alert>}
+        {listErr && <Alert sx={{ mt: 2 }} severity="error">{listErr}</Alert>}
       </Paper>
 
-      {/* EDIT DIALOG */}
+      {/* ====== TABLA ====== */}
+      <Paper elevation={0} sx={{ borderRadius: 3, overflow: 'hidden', border: '1px solid rgba(0,0,0,0.08)' }}>
+        <Table size="small">
+          <TableHead>
+            <TableRow sx={{ bgcolor: '#1E3A8A' }}>
+              <TableCell sx={{ color: 'white', fontWeight: 950 }}><b>EMPLEADO</b></TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 950 }}><b>NOMBRE</b></TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 950 }}><b>CORREO</b></TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 950 }}><b>ROL</b></TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 950 }}><b>ESTADO</b></TableCell>
+              <TableCell align="right" sx={{ color: 'white', fontWeight: 950 }}><b>ACCIONES</b></TableCell>
+            </TableRow>
+          </TableHead>
+
+          <TableBody>
+            {filteredUsers.map((u, idx) => (
+              <TableRow
+                key={u.id}
+                sx={{
+                  bgcolor: idx % 2 === 0 ? 'rgba(0,0,0,0.02)' : 'transparent',
+                  '&:hover': { bgcolor: 'rgba(249,115,22,0.10)' }
+                }}
+              >
+                <TableCell sx={{ fontFamily: 'monospace', fontWeight: 950 }}>
+                  {u.employeeNumber}
+                </TableCell>
+                <TableCell>{u.fullName}</TableCell>
+                <TableCell sx={{ opacity: 0.9 }}>{u.email}</TableCell>
+                <TableCell>
+                  <Chip size="small" label={u.role} sx={roleChipSx(u.role)} />
+                </TableCell>
+                <TableCell>{statusChip(u.isActive)}</TableCell>
+                <TableCell align="right">
+                  <Stack direction="row" spacing={1} justifyContent="flex-end">
+                    <Tooltip title="Editar">
+                      <IconButton size="small" onClick={() => openEditDialog(u)}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+
+                    <Tooltip title={u.isActive ? 'Desactivar' : 'Activar'}>
+                      <IconButton
+                        size="small"
+                        onClick={() => toggleActive(u)}
+                        sx={{
+                          bgcolor: u.isActive ? 'rgba(220,38,38,0.12)' : 'rgba(22,163,74,0.12)'
+                        }}
+                      >
+                        {u.isActive ? <LockIcon fontSize="small" /> : <LockOpenIcon fontSize="small" />}
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
+                </TableCell>
+              </TableRow>
+            ))}
+
+            {!filteredUsers.length && (
+              <TableRow>
+                <TableCell colSpan={6} sx={{ opacity: 0.7, p: 2 }}>
+                  {loading ? 'Cargando...' : 'No hay usuarios para mostrar.'}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </Paper>
+
+      {/* ====== MODAL NUEVO USUARIO (B1) ====== */}
+      <Dialog open={openCreate} onClose={() => setOpenCreate(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 950 }}>
+          🟧 NUEVO USUARIO OPERATIVO
+        </DialogTitle>
+
+        <DialogContent>
+          {!isAdmin && <Alert severity="warning" sx={{ mt: 2 }}>Solo ADMIN puede crear usuarios.</Alert>}
+          {modalErr && <Alert severity="error" sx={{ mt: 2 }}>{modalErr}</Alert>}
+
+          <Stack spacing={2} sx={{ mt: 2 }}>
+            <Typography sx={{ fontWeight: 950, opacity: 0.85 }}>DATOS DEL EMPLEADO</Typography>
+            <TextField
+              disabled={!isAdmin}
+              label="Número de empleado"
+              value={employeeNumber}
+              onChange={(e) => setEmployeeNumber(e.target.value)}
+              InputProps={{ startAdornment: <BadgeIcon sx={{ mr: 1, opacity: 0.6 }} /> }}
+            />
+            <TextField
+              disabled={!isAdmin}
+              label="Nombre completo"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+            />
+
+            <Divider />
+
+            <Typography sx={{ fontWeight: 950, opacity: 0.85 }}>ACCESO</Typography>
+            <TextField
+              disabled={!isAdmin}
+              label="Correo"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              InputProps={{ startAdornment: <EmailIcon sx={{ mr: 1, opacity: 0.6 }} /> }}
+            />
+            <TextField
+              disabled={!isAdmin}
+              label="Contraseña"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              InputProps={{ startAdornment: <KeyIcon sx={{ mr: 1, opacity: 0.6 }} /> }}
+            />
+
+            <Divider />
+
+            <Typography sx={{ fontWeight: 950, opacity: 0.85 }}>ROL Y PUESTO</Typography>
+            <TextField
+              disabled={!isAdmin}
+              select
+              label="Rol"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+            >
+              {['ADMIN', 'SUPERVISOR', 'OPERADOR'].map(r => <MenuItem key={r} value={r}>{r}</MenuItem>)}
+            </TextField>
+
+            <TextField
+              disabled={!isAdmin}
+              label="Puesto (Supervisor/Coordinador/Gerente/etc)"
+              value={position}
+              onChange={(e) => setPosition(e.target.value)}
+              InputProps={{ startAdornment: <WorkIcon sx={{ mr: 1, opacity: 0.6 }} /> }}
+            />
+          </Stack>
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={() => setOpenCreate(false)}>Cancelar</Button>
+          <Button
+            disabled={!isAdmin}
+            variant="contained"
+            onClick={create}
+            sx={{
+              bgcolor: '#F97316',
+              color: '#111827',
+              fontWeight: 950,
+              '&:hover': { bgcolor: '#fb8b24' }
+            }}
+          >
+            Crear Usuario
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ====== MODAL EDITAR ====== */}
       <Dialog open={openEdit} onClose={() => setOpenEdit(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Editar usuario</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 950 }}>⚙ EDITAR USUARIO</DialogTitle>
+
         <DialogContent>
           {modalMsg && <Alert severity="success" sx={{ mt: 2 }}>{modalMsg}</Alert>}
           {modalErr && <Alert severity="error" sx={{ mt: 2 }}>{modalErr}</Alert>}
 
           {editUser && (
             <Stack spacing={2} sx={{ mt: 2 }}>
+              <Typography sx={{ fontWeight: 950, opacity: 0.85 }}>DATOS</Typography>
               <TextField label="Correo" value={editUser.email || ''} onChange={(e) => setEditUser({ ...editUser, email: e.target.value })} />
               <TextField label="Número de empleado" value={editUser.employeeNumber || ''} onChange={(e) => setEditUser({ ...editUser, employeeNumber: e.target.value })} />
               <TextField label="Nombre" value={editUser.fullName || ''} onChange={(e) => setEditUser({ ...editUser, fullName: e.target.value })} />
@@ -320,21 +527,37 @@ export default function UsersPage() {
 
               <Divider />
 
+              <Typography sx={{ fontWeight: 950, opacity: 0.85 }}>SEGURIDAD</Typography>
+
               <Typography sx={{ fontWeight: 900 }}>Reset Password</Typography>
               <TextField label="Nueva contraseña (mín 6)" value={resetPass} onChange={(e) => setResetPass(e.target.value)} />
-              <Button variant="outlined" onClick={doResetPassword}>Resetear Password</Button>
+              <Button variant="outlined" onClick={doResetPassword} startIcon={<KeyIcon />}>
+                Resetear Password
+              </Button>
 
               <Divider />
 
               <Typography sx={{ fontWeight: 900 }}>Reset PIN</Typography>
               <TextField label="Nuevo PIN (opcional)" value={resetPin} onChange={(e) => setResetPin(e.target.value)} />
-              <Button variant="outlined" onClick={doResetPin}>Resetear PIN</Button>
+              <Button variant="outlined" onClick={doResetPin} startIcon={<PinIcon />}>
+                Resetear PIN
+              </Button>
             </Stack>
           )}
         </DialogContent>
+
         <DialogActions>
           <Button onClick={() => setOpenEdit(false)}>Cerrar</Button>
-          <Button disabled={editSaving} variant="contained" onClick={saveEdit}>
+          <Button
+            disabled={editSaving}
+            variant="contained"
+            onClick={saveEdit}
+            sx={{
+              bgcolor: '#1E3A8A',
+              fontWeight: 950,
+              '&:hover': { bgcolor: '#2747a6' }
+            }}
+          >
             {editSaving ? 'Guardando...' : 'Guardar'}
           </Button>
         </DialogActions>
