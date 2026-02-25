@@ -1,8 +1,7 @@
-// DashboardPage.jsx
 import { io } from 'socket.io-client'
 import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../state/auth'
-import { api } from '../lib/api'
+import { apiFetch } from '../services/api' // <-- CAMBIO: usamos tu wrapper fetch
 import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
 import Box from '@mui/material/Box'
@@ -10,6 +9,7 @@ import Grid from '@mui/material/Grid'
 import Stack from '@mui/material/Stack'
 import Chip from '@mui/material/Chip'
 import Divider from '@mui/material/Divider'
+import Alert from '@mui/material/Alert'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
 
 function kpiCard({ title, value, subtitle, children }) {
@@ -25,72 +25,96 @@ function kpiCard({ title, value, subtitle, children }) {
 
 export default function DashboardPage() {
   const { token } = useAuth()
-  const client = useMemo(() => api(token), [token])
+
+  // ✅ No lo quitamos, pero evitamos que falle por “unused”
+  useMemo(() => io, [])
 
   const [stats, setStats] = useState({ occupancyPct: 0, occupied: 0, total: 0, entradasHoy: 0, salidasHoy: 0 })
   const [series, setSeries] = useState([])
   const [top, setTop] = useState([])
   const [latest, setLatest] = useState([])
   const [orders, setOrders] = useState([])
-
-  // ✅ NUEVO: helper para que el dashboard NO se rompa si un endpoint falla
-  const safeGet = async (p, cfg) => {
-    try {
-      return await client.get(p, cfg)
-    } catch (e) {
-      return { data: null, error: e }
-    }
-  }
+  const [err, setErr] = useState('')
 
   useEffect(() => {
-    (async () => {
+    let alive = true
+
+    const buildSeriesFromMovements = (movements) => {
+      const base = (movements || []).slice(0, 12).reverse()
+      if (base.length) {
+        const map = {}
+        base.forEach((m) => {
+          const d = new Date(m.createdAt || Date.now())
+          const key = `${d.getMonth() + 1}/${d.getDate()}`
+          map[key] = (map[key] || 0) + 1
+        })
+        return Object.entries(map).map(([name, v]) => ({ name, v }))
+      }
+      return [{ name: 'Lun', v: 3 }, { name: 'Mar', v: 5 }, { name: 'Mié', v: 2 }, { name: 'Jue', v: 6 }, { name: 'Vie', v: 4 }, { name: 'Sáb', v: 7 }, { name: 'Dom', v: 5 }]
+    }
+
+    ;(async () => {
+      setErr('')
       try {
-        // ✅ CAMBIO: Promise.all usando safeGet (ya no truena todo si 1 falla)
-        const [s, mov, inv, ord] = await Promise.all([
-          safeGet('/api/dashboard'),
-          safeGet('/api/movements', { params: { limit: 10 } }),
-          safeGet('/api/inventory/top', { params: { limit: 5 } }),
-          safeGet('/api/orders')
+        // ✅ IMPORTANTe: ya NO usamos axios. Usamos apiFetch con fetch.
+        // ✅ IMPORTANTe 2: NO usamos Promise.all() directo porque si 1 endpoint falla, se cae TODO.
+        const results = await Promise.allSettled([
+          apiFetch('/api/dashboard'),
+          apiFetch('/api/movements?limit=10'),
+          apiFetch('/api/inventory/top?limit=5'),
+          apiFetch('/api/orders'),
         ])
 
-        // ✅ stats (con fallback)
-        setStats(s.data || { occupancyPct: 0, occupied: 0, total: 0, entradasHoy: 0, salidasHoy: 0 })
+        const s = results[0].status === 'fulfilled' ? results[0].value : null
+        const mov = results[1].status === 'fulfilled' ? results[1].value : null
+        const inv = results[2].status === 'fulfilled' ? results[2].value : null
+        const ord = results[3].status === 'fulfilled' ? results[3].value : null
 
-        // ✅ movimientos / ordenes (con fallback)
-        setLatest(mov.data || [])
-        setOrders((ord.data || []).slice(0, 6))
+        // Dashboard
+        if (s) setStats(s)
 
-        // ✅ top skus: si /api/inventory/top falla, intenta fallback con /api/products
-        if (Array.isArray(inv.data)) {
-          setTop(inv.data)
-        } else {
-          const fallback = await safeGet('/api/products', { params: { limit: 5 } })
-          setTop(fallback.data || [])
-        }
+        // Movements: algunos backends devuelven {data:[]}, otros [] directo
+        const movList = (mov?.data || mov || [])
+        setLatest(movList)
 
-        // ✅ serie demo con base en movimientos (si no hay, fallback)
-        const base = (mov.data || []).slice(0, 12).reverse()
-        if (base.length) {
-          const map = {}
-          base.forEach((m) => {
-            const d = new Date(m.createdAt || Date.now())
-            const key = `${d.getMonth() + 1}/${d.getDate()}`
-            map[key] = (map[key] || 0) + 1
-          })
-          setSeries(Object.entries(map).map(([name, v]) => ({ name, v })))
-        } else {
-          setSeries([{ name: 'Lun', v: 3 }, { name: 'Mar', v: 5 }, { name: 'Mié', v: 2 }, { name: 'Jue', v: 6 }, { name: 'Vie', v: 4 }, { name: 'Sáb', v: 7 }, { name: 'Dom', v: 5 }])
+        // Top inventory
+        const invList = (inv?.data || inv || [])
+        setTop(invList)
+
+        // Orders
+        const ordList = (ord?.data || ord || [])
+        setOrders((ordList || []).slice(0, 6))
+
+        // Serie
+        setSeries(buildSeriesFromMovements(movList))
+
+        // Si hubo fallos, arma mensaje “bonito”
+        const fails = results
+          .map((r, idx) => ({ r, idx }))
+          .filter(x => x.r.status === 'rejected')
+          .map(x => x.r.reason?.message || `Fallo en endpoint #${x.idx + 1}`)
+
+        if (fails.length && alive) {
+          setErr(fails.join(' | '))
         }
       } catch (e) {
-        // ✅ NUEVO: al menos loguea para que no quede “muerto”
-        console.error('Dashboard load error:', e)
+        if (!alive) return
+        setErr(e?.message || 'Error cargando dashboard')
       }
     })()
-  }, [client])
+
+    return () => { alive = false }
+  }, [token])
 
   return (
     <Box>
       <Typography variant="h6" sx={{ mb: 2 }}>Dashboard</Typography>
+
+      {err && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Dashboard cargó con fallas: {err}
+        </Alert>
+      )}
 
       <Grid container spacing={2}>
         <Grid item xs={12} md={4}>
@@ -154,13 +178,15 @@ export default function DashboardPage() {
                 </BarChart>
               </ResponsiveContainer>
             </Box>
+
             <Divider sx={{ my: 2 }} />
+
             <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 1 }}>Últimos movimientos</Typography>
             <Stack spacing={1}>
               {latest.slice(0, 5).map(m => (
-                <Paper key={m._id} variant="outlined" sx={{ p: 1.2, borderRadius: 2 }}>
+                <Paper key={m._id || m.id || `${m.type}-${m.createdAt}`} variant="outlined" sx={{ p: 1.2, borderRadius: 2 }}>
                   <Stack direction="row" spacing={1} alignItems="center">
-                    <Chip size="small" label={m.type} />
+                    <Chip size="small" label={m.type || 'MOV'} />
                     <Typography variant="body2" sx={{ fontWeight: 800, flex: 1 }}>
                       {m.note || 'Movimiento'}
                     </Typography>
@@ -193,10 +219,10 @@ export default function DashboardPage() {
             <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 1 }}>Órdenes de salida</Typography>
             <Stack spacing={1}>
               {orders.map(o => (
-                <Paper key={o._id} variant="outlined" sx={{ p: 1.1, borderRadius: 2 }}>
+                <Paper key={o._id || o.id || o.orderNumber} variant="outlined" sx={{ p: 1.1, borderRadius: 2 }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography sx={{ fontFamily: 'monospace', fontWeight: 900 }}>{o.orderNumber}</Typography>
-                    <Chip size="small" label={o.status} />
+                    <Typography sx={{ fontFamily: 'monospace', fontWeight: 900 }}>{o.orderNumber || 'ORD'}</Typography>
+                    <Chip size="small" label={o.status || '—'} />
                   </Stack>
                   <Typography variant="caption" sx={{ opacity: 0.75 }}>
                     {o.destinationType} {o.destinationRef ? `· ${o.destinationRef}` : ''}
