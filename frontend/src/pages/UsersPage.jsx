@@ -29,10 +29,9 @@ export default function UsersPage() {
       await api(token).post('/api/auth/register', { email, password, employeeNumber, fullName, role, position })
       setMsg('Usuario creado')
       setEmail(''); setEmployeeNumber(''); setFullName('')
-    } catch (e) {
-      setErr(e?.response?.data?.message || 'Error')
-    }
-  }
+      } catch (e) {
+    setErr(e?.message || 'Error')
+  } }
 
   return (
     <Box>

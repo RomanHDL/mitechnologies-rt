@@ -1,3 +1,4 @@
+// DashboardPage.jsx
 import { io } from 'socket.io-client'
 import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../state/auth'
@@ -13,7 +14,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, 
 
 function kpiCard({ title, value, subtitle, children }) {
   return (
-    <Paper elevation={0} sx={{ p:2.2, borderRadius:3, height:'100%' }}>
+    <Paper elevation={0} sx={{ p: 2.2, borderRadius: 3, height: '100%' }}>
       <Typography variant="subtitle2" sx={{ fontWeight: 900, opacity: 0.8 }}>{title}</Typography>
       <Typography variant="h4" sx={{ fontWeight: 900, mt: 0.5 }}>{value}</Typography>
       <Typography variant="body2" sx={{ opacity: 0.72, mb: 1 }}>{subtitle}</Typography>
@@ -32,38 +33,64 @@ export default function DashboardPage() {
   const [latest, setLatest] = useState([])
   const [orders, setOrders] = useState([])
 
+  // ✅ NUEVO: helper para que el dashboard NO se rompa si un endpoint falla
+  const safeGet = async (p, cfg) => {
+    try {
+      return await client.get(p, cfg)
+    } catch (e) {
+      return { data: null, error: e }
+    }
+  }
+
   useEffect(() => {
     (async () => {
-      const [s, mov, inv, ord] = await Promise.all([
-        client.get('/api/dashboard'),
-        client.get('/api/movements', { params: { limit: 10 } }),
-        client.get('/api/inventory/top', { params: { limit: 5 } }),
-        client.get('/api/orders')
-      ])
-      setStats(s.data)
-      setLatest(mov.data || [])
-      setTop(inv.data || [])
-      setOrders((ord.data || []).slice(0, 6))
+      try {
+        // ✅ CAMBIO: Promise.all usando safeGet (ya no truena todo si 1 falla)
+        const [s, mov, inv, ord] = await Promise.all([
+          safeGet('/api/dashboard'),
+          safeGet('/api/movements', { params: { limit: 10 } }),
+          safeGet('/api/inventory/top', { params: { limit: 5 } }),
+          safeGet('/api/orders')
+        ])
 
-      // serie demo con base en movimientos (si no hay, fallback)
-      const base = (mov.data || []).slice(0, 12).reverse()
-      if (base.length) {
-        const map = {}
-        base.forEach((m, i) => {
-          const d = new Date(m.createdAt || Date.now())
-          const key = `${d.getMonth()+1}/${d.getDate()}`
-          map[key] = (map[key] || 0) + 1
-        })
-        setSeries(Object.entries(map).map(([name, v]) => ({ name, v })))
-      } else {
-        setSeries([{name:'Lun',v:3},{name:'Mar',v:5},{name:'Mié',v:2},{name:'Jue',v:6},{name:'Vie',v:4},{name:'Sáb',v:7},{name:'Dom',v:5}])
+        // ✅ stats (con fallback)
+        setStats(s.data || { occupancyPct: 0, occupied: 0, total: 0, entradasHoy: 0, salidasHoy: 0 })
+
+        // ✅ movimientos / ordenes (con fallback)
+        setLatest(mov.data || [])
+        setOrders((ord.data || []).slice(0, 6))
+
+        // ✅ top skus: si /api/inventory/top falla, intenta fallback con /api/products
+        if (Array.isArray(inv.data)) {
+          setTop(inv.data)
+        } else {
+          const fallback = await safeGet('/api/products', { params: { limit: 5 } })
+          setTop(fallback.data || [])
+        }
+
+        // ✅ serie demo con base en movimientos (si no hay, fallback)
+        const base = (mov.data || []).slice(0, 12).reverse()
+        if (base.length) {
+          const map = {}
+          base.forEach((m) => {
+            const d = new Date(m.createdAt || Date.now())
+            const key = `${d.getMonth() + 1}/${d.getDate()}`
+            map[key] = (map[key] || 0) + 1
+          })
+          setSeries(Object.entries(map).map(([name, v]) => ({ name, v })))
+        } else {
+          setSeries([{ name: 'Lun', v: 3 }, { name: 'Mar', v: 5 }, { name: 'Mié', v: 2 }, { name: 'Jue', v: 6 }, { name: 'Vie', v: 4 }, { name: 'Sáb', v: 7 }, { name: 'Dom', v: 5 }])
+        }
+      } catch (e) {
+        // ✅ NUEVO: al menos loguea para que no quede “muerto”
+        console.error('Dashboard load error:', e)
       }
     })()
   }, [client])
 
   return (
     <Box>
-      <Typography variant="h6" sx={{ mb:2 }}>Dashboard</Typography>
+      <Typography variant="h6" sx={{ mb: 2 }}>Dashboard</Typography>
 
       <Grid container spacing={2}>
         <Grid item xs={12} md={4}>
@@ -115,8 +142,8 @@ export default function DashboardPage() {
         </Grid>
 
         <Grid item xs={12} md={8}>
-          <Paper elevation={0} sx={{ p:2.2, borderRadius:3 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 900, mb:1 }}>Movimientos diarios</Typography>
+          <Paper elevation={0} sx={{ p: 2.2, borderRadius: 3 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 1 }}>Movimientos diarios</Typography>
             <Box sx={{ height: 260 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={series}>
@@ -127,14 +154,14 @@ export default function DashboardPage() {
                 </BarChart>
               </ResponsiveContainer>
             </Box>
-            <Divider sx={{ my:2 }} />
-            <Typography variant="subtitle2" sx={{ fontWeight: 900, mb:1 }}>Últimos movimientos</Typography>
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 1 }}>Últimos movimientos</Typography>
             <Stack spacing={1}>
               {latest.slice(0, 5).map(m => (
-                <Paper key={m._id} variant="outlined" sx={{ p:1.2, borderRadius:2 }}>
+                <Paper key={m._id} variant="outlined" sx={{ p: 1.2, borderRadius: 2 }}>
                   <Stack direction="row" spacing={1} alignItems="center">
                     <Chip size="small" label={m.type} />
-                    <Typography variant="body2" sx={{ fontWeight: 800, flex:1 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 800, flex: 1 }}>
                       {m.note || 'Movimiento'}
                     </Typography>
                     <Typography variant="caption" sx={{ opacity: 0.7 }}>
@@ -148,11 +175,11 @@ export default function DashboardPage() {
         </Grid>
 
         <Grid item xs={12} md={4}>
-          <Paper elevation={0} sx={{ p:2.2, borderRadius:3, mb:2 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 900, mb:1 }}>Top SKUs</Typography>
+          <Paper elevation={0} sx={{ p: 2.2, borderRadius: 3, mb: 2 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 1 }}>Top SKUs</Typography>
             <Stack spacing={1}>
               {top.map((t) => (
-                <Paper key={t.sku} variant="outlined" sx={{ p:1.2, borderRadius:2 }}>
+                <Paper key={t.sku} variant="outlined" sx={{ p: 1.2, borderRadius: 2 }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
                     <Typography sx={{ fontWeight: 900, fontFamily: 'monospace' }}>{t.sku}</Typography>
                     <Chip size="small" label={t.totalQty} />
@@ -162,13 +189,13 @@ export default function DashboardPage() {
             </Stack>
           </Paper>
 
-          <Paper elevation={0} sx={{ p:2.2, borderRadius:3 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 900, mb:1 }}>Órdenes de salida</Typography>
+          <Paper elevation={0} sx={{ p: 2.2, borderRadius: 3 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 1 }}>Órdenes de salida</Typography>
             <Stack spacing={1}>
               {orders.map(o => (
-                <Paper key={o._id} variant="outlined" sx={{ p:1.1, borderRadius:2 }}>
+                <Paper key={o._id} variant="outlined" sx={{ p: 1.1, borderRadius: 2 }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography sx={{ fontFamily:'monospace', fontWeight:900 }}>{o.orderNumber}</Typography>
+                    <Typography sx={{ fontFamily: 'monospace', fontWeight: 900 }}>{o.orderNumber}</Typography>
                     <Chip size="small" label={o.status} />
                   </Stack>
                   <Typography variant="caption" sx={{ opacity: 0.75 }}>
