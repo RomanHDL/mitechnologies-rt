@@ -27,7 +27,19 @@ router.get('/users', async(req, res, next) => {
                 order: [
                     ['createdAt', 'DESC']
                 ],
-                attributes: ['id', 'email', 'fullName', 'role', 'position', 'employeeNumber', 'isActive', 'mustChangePin', 'pinAttempts', 'pinLockedUntil', 'createdAt']
+                attributes: [
+                    'id',
+                    'email',
+                    'fullName',
+                    'role',
+                    'position',
+                    'employeeNumber',
+                    'isActive',
+                    'mustChangePin',
+                    'pinAttempts',
+                    'pinLockedUntil',
+                    'createdAt',
+                ],
             });
 
             // si no encontró por employeeNumber, intenta por email/nombre (LIKE)
@@ -41,7 +53,19 @@ router.get('/users', async(req, res, next) => {
                     order: [
                         ['createdAt', 'DESC']
                     ],
-                    attributes: ['id', 'email', 'fullName', 'role', 'position', 'employeeNumber', 'isActive', 'mustChangePin', 'pinAttempts', 'pinLockedUntil', 'createdAt']
+                    attributes: [
+                        'id',
+                        'email',
+                        'fullName',
+                        'role',
+                        'position',
+                        'employeeNumber',
+                        'isActive',
+                        'mustChangePin',
+                        'pinAttempts',
+                        'pinLockedUntil',
+                        'createdAt',
+                    ],
                 });
 
                 // si tu proyecto ya usa Sequelize Op en otros lados, te lo adapto después
@@ -52,12 +76,26 @@ router.get('/users', async(req, res, next) => {
                     ['createdAt', 'DESC']
                 ],
                 limit: 200,
-                attributes: ['id', 'email', 'fullName', 'role', 'position', 'employeeNumber', 'isActive', 'mustChangePin', 'pinAttempts', 'pinLockedUntil', 'createdAt']
+                attributes: [
+                    'id',
+                    'email',
+                    'fullName',
+                    'role',
+                    'position',
+                    'employeeNumber',
+                    'isActive',
+                    'mustChangePin',
+                    'pinAttempts',
+                    'pinLockedUntil',
+                    'createdAt',
+                ],
             });
         }
 
         res.json({ users });
-    } catch (e) { next(e); }
+    } catch (e) {
+        next(e);
+    }
 });
 
 // POST /api/admin/users   (crear usuario desde UI)
@@ -81,7 +119,7 @@ router.post('/users', async(req, res, next) => {
             fullName: fullName || '',
             role: role || 'OPERADOR',
             position: position || '',
-            isActive: typeof isActive === 'boolean' ? isActive : true
+            isActive: typeof isActive === 'boolean' ? isActive : true,
         });
 
         res.status(201).json({
@@ -91,9 +129,11 @@ router.post('/users', async(req, res, next) => {
             fullName: user.fullName,
             role: user.role,
             position: user.position,
-            isActive: user.isActive
+            isActive: user.isActive,
         });
-    } catch (e) { next(e); }
+    } catch (e) {
+        next(e);
+    }
 });
 
 // PATCH /api/admin/users/:id/toggle
@@ -104,23 +144,34 @@ router.patch('/users/:id/toggle', async(req, res, next) => {
 
         const updated = await u.update({ isActive: !u.isActive });
         res.json({ id: updated.id, isActive: updated.isActive });
-    } catch (e) { next(e); }
+    } catch (e) {
+        next(e);
+    }
 });
 
-// PATCH /api/admin/users/:id/reset-password
+// ✅ PATCH /api/admin/users/:id/reset-password (FIX ROBUSTO)
 router.patch('/users/:id/reset-password', async(req, res, next) => {
     try {
-        const { newPassword } = req.body;
-        if (!newPassword) return res.status(400).json({ message: 'newPassword requerido' });
+        // Evita crash si body viene vacío
+        const newPassword = String((req.body && req.body.newPassword) || '').trim();
+
+        // Validación fuerte (el login depende de passwordHash)
+        if (newPassword.length < 6) {
+            return res.status(400).json({ message: 'newPassword debe tener mínimo 6 caracteres' });
+        }
 
         const u = await User.findByPk(req.params.id);
         if (!u) return res.status(404).json({ message: 'Usuario no encontrado' });
 
-        const passwordHash = await bcrypt.hash(String(newPassword), 10);
+        const passwordHash = await bcrypt.hash(newPassword, 10);
+
+        // 🔥 Actualiza EXACTAMENTE passwordHash (lo que compara /login)
         await u.update({ passwordHash });
 
         res.json({ ok: true });
-    } catch (e) { next(e); }
+    } catch (e) {
+        next(e);
+    }
 });
 
 // PATCH /api/admin/users/:id/reset-pin
@@ -133,7 +184,7 @@ router.patch('/users/:id/reset-pin', async(req, res, next) => {
         const update = {
             pinAttempts: 0,
             pinLockedUntil: null,
-            mustChangePin: 1
+            mustChangePin: 1,
         };
 
         if (newPin) {
@@ -146,7 +197,9 @@ router.patch('/users/:id/reset-pin', async(req, res, next) => {
 
         await u.update(update);
         res.json({ ok: true });
-    } catch (e) { next(e); }
+    } catch (e) {
+        next(e);
+    }
 });
 
 module.exports = router;
