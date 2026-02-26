@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { api } from '../lib/api'
 import { socket } from '../lib/socket'
 
@@ -32,6 +33,8 @@ const rackOptions = Array.from({ length: 125 }, (_, i) => `F${String(i+1).padSta
 
 export default function RacksPage() {
   const client = useMemo(() => api(), [])
+  const routerLoc = useLocation() // ✅ NUEVO: para recibir state desde Inventory
+
   const [rackCode, setRackCode] = useState('F001')
   const [locs, setLocs] = useState([])
   const [q, setQ] = useState('') // búsqueda por código completo
@@ -40,6 +43,23 @@ export default function RacksPage() {
   // UI extra (no afecta lógica)
   const [filter, setFilter] = useState('TODOS') // TODOS | VACIO | OCUPADO | BLOQUEADO
   const [selected, setSelected] = useState(null) // { level, pos, code, state, raw }
+
+  // ✅ NUEVO: si vienes desde Inventario con nav('/racks', { state: { rackCode, highlight } })
+  useEffect(() => {
+    const st = routerLoc?.state
+    if (st?.rackCode) {
+      const r = String(st.rackCode || '').trim().toUpperCase()
+      if (r) setRackCode(r)
+    }
+    if (st?.highlight) {
+      const h = String(st.highlight || '').trim().toUpperCase()
+      if (h) {
+        setHighlight(h)
+        setTimeout(() => setHighlight(null), 4000)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const load = async (r = rackCode) => {
     const res = await client.get(`/api/locations/racks/${r}`)
@@ -359,7 +379,6 @@ export default function RacksPage() {
                     const isHi = highlight && code === highlight
                     const isSelected = selected && selected.level === level && selected.pos === pos
 
-                    // filtro visual (no borra nada, solo baja opacidad)
                     const dim = !matchesFilter(state)
 
                     return (
@@ -471,7 +490,6 @@ export default function RacksPage() {
                     variant="contained"
                     fullWidth
                     sx={{ textTransform:'none', fontWeight: 900, borderRadius: 2 }}
-                    // NO conecto acciones nuevas para no romper tu lógica.
                     onClick={() => {}}
                   >
                     Registrar movimiento
