@@ -31,8 +31,7 @@ const httpServer = http.createServer(app);
  */
 const corsOriginEnv = process.env.CORS_ORIGIN || '';
 const allowedOrigins = corsOriginEnv ?
-    corsOriginEnv.split(',').map(s => s.trim()).filter(Boolean) :
-    [];
+    corsOriginEnv.split(',').map(s => s.trim()).filter(Boolean) : [];
 
 // ✅ Dominio principal de tu frontend (fallback si no lo pones en Railway)
 const VERCEL_MAIN = 'https://mitechnologies-rt.vercel.app';
@@ -147,12 +146,8 @@ const PORT = process.env.PORT || 5000;
  */
 connectDB()
     .then(async() => {
-        // 🔥 CREA/ACTUALIZA TABLAS AUTOMÁTICAMENTE
-        await sequelize.sync({ alter: true });
-
-        httpServer.listen(PORT, () =>
-            console.log(`API listening on :${PORT}`)
-        );
+        // ✅ OJO: YA NO sync aquí porque ya lo controla connectDB()
+        httpServer.listen(PORT, () => console.log(`API listening on :${PORT}`));
     })
     .catch((e) => {
         console.error('DB connection failed:', e);
