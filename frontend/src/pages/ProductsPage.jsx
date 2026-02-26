@@ -1,229 +1,272 @@
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useAuth } from '../state/auth'
 import { api } from '../lib/api'
 import Paper from '@mui/material/Paper'
-import MenuItem from '@mui/material/MenuItem'
 import Typography from '@mui/material/Typography'
 import Box from '@mui/material/Box'
 import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
+import MenuItem from '@mui/material/MenuItem'
 import Stack from '@mui/material/Stack'
-import Dialog from '@mui/material/Dialog'
-import DialogTitle from '@mui/material/DialogTitle'
-import DialogContent from '@mui/material/DialogContent'
-import DialogActions from '@mui/material/DialogActions'
+import Chip from '@mui/material/Chip'
 import Table from '@mui/material/Table'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import TableCell from '@mui/material/TableCell'
 import TableBody from '@mui/material/TableBody'
-import Chip from '@mui/material/Chip'
-import Alert from '@mui/material/Alert'
 import Tooltip from '@mui/material/Tooltip'
 import IconButton from '@mui/material/IconButton'
 import EditIcon from '@mui/icons-material/Edit'
-import DeleteIcon from '@mui/icons-material/Delete'
+import DoneIcon from '@mui/icons-material/Done'
+import CancelIcon from '@mui/icons-material/Cancel'
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
-import BlockIcon from '@mui/icons-material/Block'
-import ImageIcon from '@mui/icons-material/Image'
 import DownloadIcon from '@mui/icons-material/Download'
 import * as XLSX from 'xlsx'
 
-export default function ProductsPage() {
-  const { token, user } = useAuth()
-  const isWriter = ['ADMIN','SUPERVISOR'].includes(user?.role)
-  const [q, setQ] = useState('')
-  const [rows, setRows] = useState([])
-  const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({ sku:'', description:'', brand:'', model:'', category:'', unit:'pz' })
-  const [err, setErr] = useState('')
+const AREA_OPTIONS = [
+  { value: 'P1', label: 'P1 — Incoming (Recepción)' },
+  { value: 'P2', label: 'P2 — Sorting (Clasificación)' },
+  { value: 'P3', label: 'P3 — FFT (Accesorios)' },
+  { value: 'P4', label: 'P4 — OpenCell (Piso)' },
+]
 
-  const [view, setView] = useState('table')
-  const [filterCategory, setFilterCategory] = useState('')
-  const [filterActive, setFilterActive] = useState('')
-  const [filterUnit, setFilterUnit] = useState('')
+function areaLabel(a) {
+  if (a === 'P1') return 'Incoming'
+  if (a === 'P2') return 'Sorting'
+  if (a === 'P3') return 'FFT'
+  if (a === 'P4') return 'OpenCell'
+  return a
+}
+
+export default function ProductionPage() {
+  const { token } = useAuth()
+  const [rows, setRows] = useState([])
+  const [area, setArea] = useState('P1')
+  const [sku, setSku] = useState('') // ✅ accesorios
+  const [qty, setQty] = useState(1)
+  const [note, setNote] = useState('')
+  const [filtroStatus, setFiltroStatus] = useState('')
+
   const load = async () => {
-    const res = await api(token).get('/api/products', { params: { q } })
+    const res = await api(token).get('/api/production')
     setRows(res.data)
   }
 
-  useEffect(() => { load() }, [token, q])
+  useEffect(() => { load() }, [token])
 
   const create = async () => {
-    setErr('')
-    try {
-      await api(token).post('/api/products', form)
-      setOpen(false)
-      setForm({ sku:'', description:'', brand:'', model:'', category:'', unit:'pz' })
-      await load()
-    } catch (e) {
-      setErr(e?.response?.data?.message || 'Error')
-    }
+    // ✅ no rompe nada: solo valida mínimo
+    const safeSku = String(sku || '').trim()
+    const safeQty = Number(qty)
+
+    if (!safeSku) return alert('Escribe un SKU (ej: ACC-CTRL-SAM, ACC-CBL-HDMI-2M)')
+    if (!safeQty || safeQty <= 0) return alert('Cantidad inválida')
+
+    await api(token).post('/api/production', {
+      area,
+      items: [{ sku: safeSku, qty: safeQty }],
+      note
+    })
+    setSku('')
+    setQty(1)
+    setNote('')
+    await load()
   }
 
-  // Filtros y búsqueda
-  const filtered = useMemo(() => {
-    let list = rows
-    if (filterCategory) list = list.filter(r => r.category === filterCategory)
-    if (filterActive) list = list.filter(r => filterActive === 'Sí' ? r.isActive : !r.isActive)
-    if (filterUnit) list = list.filter(r => r.unit === filterUnit)
-    return list
-  }, [rows, filterCategory, filterActive, filterUnit])
-
-  // Resumen superior
-  const resumen = useMemo(() => {
-    return {
-      total: rows.length,
-      activos: rows.filter(r => r.isActive).length,
-      categorias: Array.from(new Set(rows.map(r => r.category))).length
-    }
-  }, [rows])
-
-  // Exportar a Excel
+  // Exportar a Excel/CSV
   const exportExcel = () => {
-    const data = filtered.map(r => ({
-      SKU: r.sku,
-      Descripción: r.description,
-      Categoría: r.category,
-      Marca: r.brand,
-      Modelo: r.model,
-      Unidad: r.unit,
-      Activo: r.isActive ? 'Sí' : 'No'
+    const data = filteredRows.map(r => ({
+      Area: `${r.area} - ${areaLabel(r.area)}`,
+      Status: r.status,
+      Items: (r.items || []).map(i => `${i.sku}(${i.qty})`).join(', '),
+      Solicitó: r.requestedBy?.email || '',
+      Nota: r.note || ''
     }))
     const ws = XLSX.utils.json_to_sheet(data)
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Productos')
-    XLSX.writeFile(wb, 'catalogo_productos.xlsx')
+    XLSX.utils.book_append_sheet(wb, ws, 'Solicitudes')
+    XLSX.writeFile(wb, 'solicitudes_operacion.xlsx')
   }
 
-  // Acciones rápidas
-  const toggleActive = async (id, active) => {
-    await api(token).patch(`/api/products/${id}/active`, { isActive: !active })
+  // Marcar como completada
+  const markCompleted = async (id) => {
+    await api(token).patch(`/api/production/${id}/status`, { status: 'COMPLETADA' })
     await load()
   }
-  const deleteProduct = async (id) => {
-    await api(token).delete(`/api/products/${id}`)
+  // Marcar como cancelada
+  const markCancelled = async (id) => {
+    await api(token).patch(`/api/production/${id}/status`, { status: 'CANCELADA' })
     await load()
   }
 
-  // Vista alternable
-  const [showImages, setShowImages] = useState(false)
+  // Resumen superior
+  const resumen = {
+    total: rows.length,
+    pendientes: rows.filter(r => r.status === 'PENDIENTE').length,
+    enproceso: rows.filter(r => r.status === 'EN PROCESO').length,
+    completadas: rows.filter(r => r.status === 'COMPLETADA').length,
+    canceladas: rows.filter(r => r.status === 'CANCELADA').length
+  }
+
+  const filteredRows = rows.filter(r => !filtroStatus || r.status === filtroStatus)
 
   return (
     <Box>
-      <Typography variant="h6" sx={{ fontWeight: 900, mb:2 }}>Productos (Catálogo SKU)</Typography>
+      <Typography variant="h6" sx={{ fontWeight: 900, mb: .5 }}>
+        Solicitudes (Operación)
+      </Typography>
+      <Typography variant="caption" sx={{ opacity: .75 }}>
+        P1 Incoming · P2 Sorting · P3 FFT (Accesorios) · P4 OpenCell
+      </Typography>
+
       {/* Resumen superior */}
-      <Stack direction="row" spacing={2} sx={{ mb:2 }}>
-        <Chip label={`Total: ${resumen.total}`} color="primary" />
-        <Chip label={`Activos: ${resumen.activos}`} sx={{ bgcolor:'#dcfce7', color:'#166534' }} />
-        <Chip label={`Categorías: ${resumen.categorias}`} sx={{ bgcolor:'#bae6fd', color:'#0369a1' }} />
+      <Stack direction="row" spacing={2} sx={{ mt: 2, mb: 2, flexWrap: 'wrap' }} useFlexGap>
+        <Tooltip title="Total solicitudes"><Chip label={`Total: ${resumen.total}`} color="primary" /></Tooltip>
+        <Tooltip title="Pendientes"><Chip label={`Pendientes: ${resumen.pendientes}`} sx={{ bgcolor: '#fef9c3', color: '#a16207' }} /></Tooltip>
+        <Tooltip title="En proceso"><Chip label={`En proceso: ${resumen.enproceso}`} sx={{ bgcolor: '#bae6fd', color: '#0369a1' }} /></Tooltip>
+        <Tooltip title="Completadas"><Chip label={`Completadas: ${resumen.completadas}`} sx={{ bgcolor: '#dcfce7', color: '#166534' }} /></Tooltip>
+        <Tooltip title="Canceladas"><Chip label={`Canceladas: ${resumen.canceladas}`} sx={{ bgcolor: '#fee2e2', color: '#991b1b' }} /></Tooltip>
         <Box sx={{ flex: 1 }} />
         <Tooltip title="Exportar a Excel"><IconButton onClick={exportExcel}><DownloadIcon /></IconButton></Tooltip>
-        <Button variant="outlined" onClick={()=>setView(view==='table'?'cards':'table')}>{view==='table'?'Vista tarjetas':'Vista tabla'}</Button>
-        <Button variant="outlined" onClick={()=>setShowImages(v=>!v)}>{showImages?'Ocultar imágenes':'Mostrar imágenes'}</Button>
       </Stack>
-      {/* Filtros */}
-      <Stack direction="row" spacing={2} sx={{ mb:2 }}>
-        <TextField label="Buscar (SKU, descripción, marca)" value={q} onChange={(e)=>setQ(e.target.value)} sx={{ minWidth:220 }} />
-        <TextField select label="Categoría" value={filterCategory} onChange={e=>setFilterCategory(e.target.value)} sx={{ minWidth:140 }}>
-          <MenuItem value="">Todas</MenuItem>
-          {Array.from(new Set(rows.map(r=>r.category))).map(c=><MenuItem key={c} value={c}>{c}</MenuItem>)}
-        </TextField>
-        <TextField select label="Activo" value={filterActive} onChange={e=>setFilterActive(e.target.value)} sx={{ minWidth:120 }}>
-          <MenuItem value="">Todos</MenuItem>
-          <MenuItem value="Sí">Sí</MenuItem>
-          <MenuItem value="No">No</MenuItem>
-        </TextField>
-        <TextField select label="Unidad" value={filterUnit} onChange={e=>setFilterUnit(e.target.value)} sx={{ minWidth:120 }}>
-          <MenuItem value="">Todas</MenuItem>
-          {Array.from(new Set(rows.map(r=>r.unit))).map(u=><MenuItem key={u} value={u}>{u}</MenuItem>)}
-        </TextField>
-        <Button disabled={!isWriter} variant="contained" onClick={()=>setOpen(true)}>Nuevo SKU</Button>
-      </Stack>
-      {/* Vista alternable */}
-      {view==='table' ? (
-        <Paper elevation={1} sx={{ p:0, borderRadius:3 }}>
-          <Table size="small" sx={{ minWidth:1000 }}>
-            <TableHead>
-              <TableRow sx={{ background:'#101c2b', position:'sticky', top:0, zIndex:1 }}>
-                <TableCell sx={{ color:'#fff', fontWeight:700 }}>SKU</TableCell>
-                <TableCell sx={{ color:'#fff', fontWeight:700 }}>Descripción</TableCell>
-                <TableCell sx={{ color:'#fff', fontWeight:700 }}>Categoría</TableCell>
-                <TableCell sx={{ color:'#fff', fontWeight:700 }}>Marca/Modelo</TableCell>
-                <TableCell sx={{ color:'#fff', fontWeight:700 }}>Unidad</TableCell>
-                <TableCell sx={{ color:'#fff', fontWeight:700 }}>Activo</TableCell>
-                {showImages && <TableCell sx={{ color:'#fff', fontWeight:700 }}>Imagen</TableCell>}
-                <TableCell sx={{ color:'#fff', fontWeight:700, textAlign:'center' }}>Acción</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filtered.map((r, idx) => (
-                <TableRow key={r._id} sx={{ background: idx % 2 === 0 ? '#19233a' : '#101c2b', transition:'background 0.2s', '&:hover': { background:'#22304d' } }}>
-                  <TableCell sx={{ fontFamily:'monospace', fontWeight:800, color:'#fff' }}>{r.sku}</TableCell>
-                  <TableCell sx={{ color:'#fff' }}>{r.description || '—'}</TableCell>
-                  <TableCell sx={{ color:'#fff' }}>{r.category || '—'}</TableCell>
-                  <TableCell sx={{ color:'#fff' }}>{[r.brand, r.model].filter(Boolean).join(' / ') || '—'}</TableCell>
-                  <TableCell sx={{ color:'#fff' }}>{r.unit || 'pz'}</TableCell>
-                  <TableCell sx={{ color:'#fff' }}>
-                    <Tooltip title={r.isActive ? 'Activo' : 'Inactivo'} arrow>
-                      {r.isActive ? <CheckCircleIcon sx={{ color:'#22c55e' }} /> : <BlockIcon sx={{ color:'#ef4444' }} />}
+
+      <Paper elevation={1} sx={{ p: 2, borderRadius: 3, mb: 2 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 2 }}>
+          Nueva solicitud
+        </Typography>
+
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+          <TextField
+            select
+            label="Área"
+            value={area}
+            onChange={(e) => setArea(e.target.value)}
+            sx={{ minWidth: 260 }}
+          >
+            {AREA_OPTIONS.map(o => (
+              <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+            ))}
+          </TextField>
+
+          <TextField
+            label="SKU (ej: ACC-CTRL-SAM, ACC-CBL-HDMI-2M)"
+            value={sku}
+            onChange={(e) => setSku(e.target.value)}
+            fullWidth
+          />
+          <TextField
+            label="Qty"
+            type="number"
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+            sx={{ width: 140 }}
+          />
+          <TextField
+            label="Nota"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            fullWidth
+          />
+          <Button variant="contained" onClick={create} sx={{ minWidth: 120, fontWeight: 900 }}>
+            Crear
+          </Button>
+        </Stack>
+      </Paper>
+
+      <Paper elevation={1} sx={{ p: 0, borderRadius: 3 }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ p: 2, pb: 0 }}>
+          <TextField
+            select
+            label="Filtrar status"
+            value={filtroStatus}
+            onChange={e => setFiltroStatus(e.target.value)}
+            sx={{ minWidth: 200 }}
+          >
+            <MenuItem value="">Todos</MenuItem>
+            <MenuItem value="PENDIENTE">Pendiente</MenuItem>
+            <MenuItem value="EN PROCESO">En proceso</MenuItem>
+            <MenuItem value="COMPLETADA">Completada</MenuItem>
+            <MenuItem value="CANCELADA">Cancelada</MenuItem>
+          </TextField>
+        </Stack>
+
+        <Table size="small" sx={{ minWidth: 900 }}>
+          <TableHead>
+            <TableRow sx={{ background: '#101c2b', position: 'sticky', top: 0, zIndex: 1 }}>
+              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Área</TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Status</TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Items</TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Solicitó</TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Nota</TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 700, textAlign: 'center' }}>Acción</TableCell>
+            </TableRow>
+          </TableHead>
+
+          <TableBody>
+            {filteredRows.map((r, idx) => {
+              // Icono de estado
+              let statusIcon = <HourglassEmptyIcon sx={{ color: '#eab308', verticalAlign: 'middle' }} fontSize="small" />
+              if (r.status === 'EN PROCESO') statusIcon = <EditIcon sx={{ color: '#0369a1', verticalAlign: 'middle' }} fontSize="small" />
+              if (r.status === 'COMPLETADA') statusIcon = <CheckCircleIcon sx={{ color: '#22c55e', verticalAlign: 'middle' }} fontSize="small" />
+              if (r.status === 'CANCELADA') statusIcon = <CancelIcon sx={{ color: '#ef4444', verticalAlign: 'middle' }} fontSize="small" />
+
+              const itemsText = (r.items || []).map(i => `${i.sku}(${i.qty})`).join(', ')
+
+              return (
+                <TableRow key={r._id} sx={{ background: idx % 2 === 0 ? '#19233a' : '#101c2b', '&:hover': { background: '#22304d' } }}>
+                  <TableCell sx={{ color: '#fff' }}>
+                    {r.area} — {areaLabel(r.area)}
+                  </TableCell>
+
+                  <TableCell sx={{ color: '#fff' }}>
+                    <Tooltip title={r.status} arrow>{statusIcon}</Tooltip>
+                    <Typography variant="caption" sx={{ ml: 1, color: '#fff' }}>{r.status}</Typography>
+                  </TableCell>
+
+                  <TableCell sx={{ color: '#fff', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Tooltip title={itemsText} arrow>
+                      <span>{itemsText.length > 35 ? itemsText.slice(0, 35) + '…' : itemsText}</span>
                     </Tooltip>
                   </TableCell>
-                  {showImages && <TableCell sx={{ color:'#fff' }}>
-                    {r.imageUrl ? <img src={r.imageUrl} alt={r.sku} style={{ width:48, height:48, borderRadius:8 }} /> : <ImageIcon sx={{ color:'#64748b' }} />}
-                  </TableCell>}
-                  <TableCell sx={{ textAlign:'center' }}>
-                    <Tooltip title="Editar"><IconButton size="small" sx={{ color:'#0369a1' }}><EditIcon fontSize="small" /></IconButton></Tooltip>
-                    <Tooltip title="Eliminar"><IconButton size="small" sx={{ color:'#ef4444' }} onClick={()=>deleteProduct(r._id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
-                    <Tooltip title={r.isActive ? 'Desactivar' : 'Activar'}><IconButton size="small" sx={{ color:'#22c55e' }} onClick={()=>toggleActive(r._id, r.isActive)}>{r.isActive ? <BlockIcon fontSize="small" /> : <CheckCircleIcon fontSize="small" />}</IconButton></Tooltip>
+
+                  <TableCell sx={{ color: '#fff' }}>{r.requestedBy?.email || '—'}</TableCell>
+
+                  <TableCell sx={{ color: '#fff', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Tooltip title={r.note || '—'} arrow>
+                      <span>{(r.note || '—').length > 35 ? (r.note || '—').slice(0, 35) + '…' : (r.note || '—')}</span>
+                    </Tooltip>
+                  </TableCell>
+
+                  <TableCell sx={{ textAlign: 'center' }}>
+                    <Tooltip title="Marcar como completada">
+                      <IconButton
+                        size="small"
+                        sx={{ color: '#22c55e' }}
+                        onClick={() => markCompleted(r._id)}
+                        disabled={r.status === 'COMPLETADA' || r.status === 'CANCELADA'}
+                      >
+                        <DoneIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+
+                    <Tooltip title="Cancelar">
+                      <IconButton
+                        size="small"
+                        sx={{ color: '#ef4444' }}
+                        onClick={() => markCancelled(r._id)}
+                        disabled={r.status === 'COMPLETADA' || r.status === 'CANCELADA'}
+                      >
+                        <CancelIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Paper>
-      ) : (
-        <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-          {filtered.map(r => (
-            <Paper key={r._id} elevation={2} sx={{ width:260, p:2, borderRadius:3, mb:2, background:'#19233a', color:'#fff', transition:'background 0.2s', '&:hover': { background:'#22304d' } }}>
-              <Stack spacing={1} alignItems="center">
-                {showImages && (r.imageUrl ? <img src={r.imageUrl} alt={r.sku} style={{ width:64, height:64, borderRadius:8 }} /> : <ImageIcon sx={{ color:'#64748b', fontSize:48 }} />)}
-                <Typography sx={{ fontFamily:'monospace', fontWeight:800 }}>{r.sku}</Typography>
-                <Typography variant="body2">{r.description || '—'}</Typography>
-                <Typography variant="caption">{r.category || '—'}</Typography>
-                <Typography variant="caption">{[r.brand, r.model].filter(Boolean).join(' / ') || '—'}</Typography>
-                <Typography variant="caption">Unidad: {r.unit || 'pz'}</Typography>
-                <Chip size="small" label={r.isActive ? 'Activo' : 'Inactivo'} color={r.isActive ? 'success' : 'error'} />
-                <Stack direction="row" spacing={1}>
-                  <Tooltip title="Editar"><IconButton size="small" sx={{ color:'#0369a1' }}><EditIcon fontSize="small" /></IconButton></Tooltip>
-                  <Tooltip title="Eliminar"><IconButton size="small" sx={{ color:'#ef4444' }} onClick={()=>deleteProduct(r._id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
-                  <Tooltip title={r.isActive ? 'Desactivar' : 'Activar'}><IconButton size="small" sx={{ color:'#22c55e' }} onClick={()=>toggleActive(r._id, r.isActive)}>{r.isActive ? <BlockIcon fontSize="small" /> : <CheckCircleIcon fontSize="small" />}</IconButton></Tooltip>
-                </Stack>
-              </Stack>
-            </Paper>
-          ))}
-        </Stack>
-      )}
-
-      <Dialog open={open} onClose={()=>setOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Nuevo SKU</DialogTitle>
-        <DialogContent>
-          {!isWriter && <Alert severity="warning" sx={{ mb:2 }}>Solo ADMIN/SUPERVISOR puede crear SKUs.</Alert>}
-          {err && <Alert severity="error" sx={{ mb:2 }}>{err}</Alert>}
-          <Stack spacing={2} sx={{ mt:1 }}>
-            <TextField label="SKU" value={form.sku} onChange={(e)=>setForm({ ...form, sku: e.target.value })} />
-            <TextField label="Descripción" value={form.description} onChange={(e)=>setForm({ ...form, description: e.target.value })} />
-            <TextField label="Categoría" value={form.category} onChange={(e)=>setForm({ ...form, category: e.target.value })} />
-            <TextField label="Marca" value={form.brand} onChange={(e)=>setForm({ ...form, brand: e.target.value })} />
-            <TextField label="Modelo" value={form.model} onChange={(e)=>setForm({ ...form, model: e.target.value })} />
-            <TextField label="Unidad" value={form.unit} onChange={(e)=>setForm({ ...form, unit: e.target.value })} />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={()=>setOpen(false)}>Cancelar</Button>
-          <Button disabled={!isWriter} variant="contained" onClick={create}>Guardar</Button>
-        </DialogActions>
-      </Dialog>
+              )
+            })}
+          </TableBody>
+        </Table>
+      </Paper>
     </Box>
   )
 }
