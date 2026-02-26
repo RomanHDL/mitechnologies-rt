@@ -63,5 +63,5 @@ module.exports = {
     OutboundOrder,
     CycleCount,
     AuthLog,
-    ProductionRequest,
+    ProductionRequest
 };

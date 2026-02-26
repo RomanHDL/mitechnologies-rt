@@ -1,159 +1,131 @@
-const express = require('express');
-const { Location, Pallet, Movement, User } = require('../models/sequelize');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../../config/mysql');
 
-const router = express.Router();
+const Location = sequelize.define('Location', {
+    id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true
+    },
 
-/**
- * =====================================================
- * ✅ GET /api/locations/racks/:rackCode
- * VERSION PRO — NO ROMPE NADA EXISTENTE
- * =====================================================
- */
-router.get('/racks/:rackCode', requireAuth, async(req, res, next) => {
-    try {
+    // Área del almacén
+    area: {
+        type: DataTypes.ENUM('A1', 'A2', 'A3', 'A4', 'B2', 'C3'),
+        allowNull: false
+    },
 
-        const rackCode = String(req.params.rackCode || '')
-            .trim()
-            .toUpperCase();
+    // Nivel (estante)
+    level: {
+        type: DataTypes.ENUM('A', 'B', 'C'),
+        allowNull: false
+    },
 
-        if (!/^F\d{3}$/.test(rackCode)) {
-            return res.status(400).json({ message: 'Rack inválido' });
+    // Posición (1..12)
+    position: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        validate: { min: 1, max: 12 }
+    },
+
+    // Tipo de ubicación
+    type: {
+        type: DataTypes.ENUM('RACK', 'FLOOR', 'QUARANTINE', 'RETURNS'),
+        defaultValue: 'RACK'
+    },
+
+    // Capacidad
+    maxPallets: {
+        type: DataTypes.INTEGER,
+        defaultValue: 1,
+        validate: { min: 1 }
+    },
+
+    notes: {
+        type: DataTypes.TEXT,
+        defaultValue: ''
+    },
+
+    blocked: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+
+    blockedReason: {
+        type: DataTypes.TEXT,
+        defaultValue: ''
+    },
+
+    /**
+     * ================================
+     * ✅ CAMPOS PRO (NO ROMPEN NADA)
+     * ================================
+     * Estos campos te ayudan a:
+     * - filtrar racks rápido desde DB
+     * - generar/guardar code tipo A01-F059-012
+     *
+     * IMPORTANTE:
+     * - Si NO existen en tu tabla MySQL aún, NO truena el backend,
+     *   pero cuando intente leer/escribir esas columnas sí necesitarás migración.
+     */
+    rack: {
+        type: DataTypes.STRING(4), // ej: F059
+        defaultValue: '',
+        allowNull: false
+    },
+
+    code: {
+        type: DataTypes.STRING, // ej: A01-F059-012
+        defaultValue: '',
+        allowNull: false
+    }
+
+}, {
+    tableName: 'locations',
+    timestamps: true,
+    indexes: [{
+            unique: true,
+            fields: ['area', 'level', 'position']
+        },
+        // ✅ acelera /api/locations/racks/:rackCode si usas columna rack
+        {
+            fields: ['rack']
+        },
+        // ✅ si usas búsqueda por code
+        {
+            fields: ['code']
         }
+    ],
 
-        // ===============================
-        // 1️⃣ Locations
-        // ===============================
-        const locations = await Location.findAll({
-            raw: true
-        });
+    hooks: {
+        /**
+         * ✅ Auto-calcular rack y code si vienen vacíos.
+         * No rompe tu app: si ya vienen, los respeta.
+         */
+        beforeValidate: (loc) => {
+            const level = String(loc.level || '').toUpperCase();
+            const area = String(loc.area || '').toUpperCase();
+            const position = Number(loc.position || 0);
 
-        // Filtrar rack
-        const rackLocs = locations.filter(l =>
-            `${l.area}-${rackCode}`.includes(rackCode)
-        );
+            // Si no hay datos mínimos, no hacemos nada
+            if (!level || !area || !position) return;
 
-        const locIds = rackLocs.map(l => l.id);
+            // Si rack está vacío, intenta inferirlo desde notes/code existentes (si aplica)
+            // (Si tú ya lo guardas desde seed/migración, mejor)
+            if (!loc.rack) {
+                // Si ya hay code tipo A01-F059-012, extraemos rack
+                const c = String(loc.code || '').toUpperCase();
+                const m = c.match(/-(F\d{3})-/);
+                if (m) loc.rack = m[1];
+            }
 
-        // ===============================
-        // 2️⃣ Pallets en esas locations
-        // ===============================
-        const pallets = await Pallet.findAll({
-            where: { locationId: locIds },
-            raw: true
-        });
-
-        const palletMap = new Map();
-        for (const p of pallets) {
-            palletMap.set(p.locationId, p);
-        }
-
-        // ===============================
-        // 3️⃣ Últimos movimientos
-        // ===============================
-        const palletIds = pallets.map(p => p.id);
-
-        const movements = await Movement.findAll({
-            where: { palletId: palletIds },
-            include: [
-                { model: User, as: 'user', attributes: ['email'] }
-            ],
-            order: [
-                ['createdAt', 'DESC']
-            ]
-        });
-
-        const lastMoveMap = new Map();
-
-        for (const m of movements) {
-            const pid = m.palletId;
-            if (!lastMoveMap.has(pid)) {
-                lastMoveMap.set(pid, m);
+            // Si code está vacío y sí hay rack, lo generamos
+            if (!loc.code && loc.rack) {
+                const pos2 = String(position).padStart(2, '0');
+                const pos3 = String(position).padStart(3, '0');
+                loc.code = `${level}${pos2}-${String(loc.rack).toUpperCase()}-${pos3}`;
             }
         }
-
-        // ===============================
-        // 4️⃣ Shape final
-        // ===============================
-        const shaped = rackLocs.map(loc => {
-
-            const pallet = palletMap.get(loc.id);
-
-            let state = 'VACIO';
-            if (loc.blocked) state = 'BLOQUEADO';
-            else if (pallet) state = 'OCUPADO';
-
-            let lastMoveAt = null;
-            let lastMoveBy = null;
-
-            if (pallet) {
-                const mv = lastMoveMap.get(pallet.id);
-                if (mv) {
-                    lastMoveAt = mv.createdAt;
-                    lastMoveBy = mv.user?.email || null;
-                }
-            }
-
-            const firstItem = pallet?.items?.[0];
-
-            return {
-                ...loc,
-
-                code: `${loc.level}${String(loc.position).padStart(2,'0')}-${rackCode}-${String(loc.position).padStart(3,'0')}`,
-
-                state,
-
-                pallet: pallet ? {
-                    id: pallet.id,
-                    code: pallet.code,
-                    lot: pallet.lot,
-                    sku: firstItem?.sku || null,
-                    qty: firstItem?.qty || 0,
-                    status: pallet.status
-                } : null,
-
-                lastMoveAt,
-                lastMoveBy
-            };
-        });
-
-        res.json({
-            rackCode,
-            locations: shaped
-        });
-
-    } catch (e) {
-        next(e);
     }
 });
 
-/**
- * =====================================================
- * EXISTENTES (NO TOCADOS)
- * =====================================================
- */
-
-router.get('/', requireAuth, async(req, res, next) => {
-    try {
-        const locations = await Location.findAll({ raw: true });
-        res.json(locations);
-    } catch (e) { next(e); }
-});
-
-router.patch('/:id', requireAuth, requireRole('ADMIN', 'SUPERVISOR'),
-    async(req, res, next) => {
-        try {
-            const [updated] = await Location.update(req.body, {
-                where: { id: req.params.id }
-            });
-
-            if (!updated)
-                return res.status(404).json({ message: 'Ubicación no encontrada' });
-
-            const loc = await Location.findByPk(req.params.id, { raw: true });
-            res.json(loc);
-
-        } catch (e) { next(e) }
-    });
-
-module.exports = router;
+module.exports = Location;
