@@ -175,7 +175,7 @@ export default function Layout() {
           <NavItem to="/racks" icon={<GridViewIcon fontSize="small" />} label="Racks" />
           <NavItem to="/produccion" icon={<PrecisionManufacturingIcon fontSize="small" />} label="Producción" />
           <NavItem to="/movimientos" icon={<SwapHorizIcon fontSize="small" />} label="Movimientos" />
-          <NavItem to="/productos" icon={<Inventory2Icon fontSize="small" />} label="Productos" />
+          <NavItem to="/productos" icon={<Inventory2Icon fontSize="small" />} label="Pallet Items" />
           <NavItem to="/ordenes" icon={<AssignmentIcon fontSize="small" />} label="Órdenes" />
           <NavItem to="/conteos" icon={<FactCheckIcon fontSize="small" />} label="Conteos" />
           <NavItem to="/ubicaciones" icon={<PlaceIcon fontSize="small" />} label="Ubicaciones" />

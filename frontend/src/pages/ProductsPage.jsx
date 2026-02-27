@@ -114,7 +114,7 @@ export default function ProductionPage() {
   return (
     <Box>
       <Typography variant="h6" sx={{ fontWeight: 900, mb: .5 }}>
-        Solicitudes (Operación)
+        Pallet Items
       </Typography>
       <Typography variant="caption" sx={{ opacity: .75 }}>
         P1 Incoming · P2 Sorting · P3 FFT (Accesorios) · P4 OpenCell
@@ -195,10 +195,9 @@ export default function ProductionPage() {
           <TableHead>
             <TableRow sx={{ background: '#101c2b', position: 'sticky', top: 0, zIndex: 1 }}>
               <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Área</TableCell>
-              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Status</TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Pallet ID</TableCell>
               <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Items</TableCell>
-              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Solicitó</TableCell>
-              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Nota</TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Status</TableCell>
               <TableCell sx={{ color: '#fff', fontWeight: 700, textAlign: 'center' }}>Acción</TableCell>
             </TableRow>
           </TableHead>
@@ -219,23 +218,17 @@ export default function ProductionPage() {
                     {r.area} — {areaLabel(r.area)}
                   </TableCell>
 
+                  <TableCell sx={{ color: '#fff', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {(r.items && r.items[0]?.sku) ? r.items[0].sku : '—'}
+                  </TableCell>
+
+                  <TableCell sx={{ color: '#fff' }}>
+                    {(r.items || []).reduce((acc, i) => acc + (Number(i.qty) || 0), 0)}
+                  </TableCell>
+
                   <TableCell sx={{ color: '#fff' }}>
                     <Tooltip title={r.status} arrow>{statusIcon}</Tooltip>
                     <Typography variant="caption" sx={{ ml: 1, color: '#fff' }}>{r.status}</Typography>
-                  </TableCell>
-
-                  <TableCell sx={{ color: '#fff', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <Tooltip title={itemsText} arrow>
-                      <span>{itemsText.length > 35 ? itemsText.slice(0, 35) + '…' : itemsText}</span>
-                    </Tooltip>
-                  </TableCell>
-
-                  <TableCell sx={{ color: '#fff' }}>{r.requestedBy?.email || '—'}</TableCell>
-
-                  <TableCell sx={{ color: '#fff', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <Tooltip title={r.note || '—'} arrow>
-                      <span>{(r.note || '—').length > 35 ? (r.note || '—').slice(0, 35) + '…' : (r.note || '—')}</span>
-                    </Tooltip>
                   </TableCell>
 
                   <TableCell sx={{ textAlign: 'center' }}>
