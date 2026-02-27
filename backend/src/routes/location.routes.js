@@ -74,7 +74,7 @@ async function enrichLocations(rawLocations, { rackCodeForCompute } = {}) {
             if (!lastMoveByPallet.has(pid)) {
                 lastMoveByPallet.set(pid, {
                     createdAt: m.createdAt || null,
-                    userEmail: m.user ? .email || null
+                    userEmail: m.user?.email || null
                 });
             }
         }
@@ -99,7 +99,7 @@ async function enrichLocations(rawLocations, { rackCodeForCompute } = {}) {
             }
         }
 
-        const firstItem = pallet ? .items ? .[0] || null;
+        const firstItem = pallet?.items?.[0] || null;
 
         // code: si trae loc.code lo respetamos; si no, lo calculamos si tenemos rackCodeForCompute
         const computedCode =
@@ -115,8 +115,8 @@ async function enrichLocations(rawLocations, { rackCodeForCompute } = {}) {
                     id: pallet.id,
                     code: pallet.code,
                     lot: pallet.lot,
-                    sku: firstItem ? .sku || null,
-                    qty: firstItem ? .qty || 0,
+                    sku: firstItem?.sku || null,
+                    qty: firstItem?.qty || 0,
                     status: pallet.status
                 } :
                 null,
@@ -240,12 +240,12 @@ router.get('/fft/accesorios', requireAuth, async(req, res, next) => {
             return {
                 height: heightLabel,
                 rackCode: h.rackCode,
-                state: raw ? .state || 'VACIO',
-                code: raw ? .code || null,
-                blockedReason: raw ? .blockedReason || raw ? .blocked_reason || '',
-                pallet: raw ? .pallet || null,
-                lastMoveAt: raw ? .lastMoveAt || null,
-                lastMoveBy: raw ? .lastMoveBy || null
+                state: raw?.state || 'VACIO',
+                code: raw?.code || null,
+                blockedReason: raw?.blockedReason || raw?.blocked_reason || '',
+                pallet: raw?.pallet || null,
+                lastMoveAt: raw?.lastMoveAt || null,
+                lastMoveBy: raw?.lastMoveBy || null
             };
         });
 
@@ -321,7 +321,7 @@ router.patch('/:id', requireAuth, requireRole('ADMIN', 'SUPERVISOR'), async(req,
 
 router.patch('/:id/block', requireAuth, requireRole('ADMIN', 'SUPERVISOR'), async(req, res, next) => {
     try {
-        const reason = req.body ? .reason || 'Mantenimiento';
+        const reason = req.body?.reason || 'Mantenimiento';
         const [updated] = await Location.update({ blocked: true, blockedReason: reason }, { where: { id: req.params.id } });
         if (!updated) return res.status(404).json({ message: 'Ubicación no encontrada' });
 
