@@ -183,7 +183,7 @@ export default function ProductionPage() {
           </TextField>
 
           <TextField label="PalletID" value={sku} onChange={(e) => setSku(e.target.value)} fullWidth />
-          <TextField label="Qty" type="number" value={qty} onChange={(e) => setQty(e.target.value)} sx={{ width: 120 }} />
+          <TextField label="Cantidad" type="number" value={qty} onChange={(e) => setQty(e.target.value)} sx={{ width: 120 }} />
           <TextField label="Nota" value={note} onChange={(e) => setNote(e.target.value)} fullWidth />
           <Button variant="contained" onClick={create}>Crear</Button>
         </Stack>
