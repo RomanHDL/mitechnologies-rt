@@ -1,20 +1,23 @@
 module.exports = (sequelize, DataTypes) => {
-    const ProductionRequest = sequelize.define('ProductionRequest', {
-        id: { type: DataTypes.BIGINT.UNSIGNED, autoIncrement: true, primaryKey: true },
+  const ProductionRequest = sequelize.define('ProductionRequest', {
+    id: { type: DataTypes.BIGINT.UNSIGNED, autoIncrement: true, primaryKey: true },
 
-        area: { type: DataTypes.STRING(10), allowNull: false, defaultValue: 'P1' },
+    area: { type: DataTypes.STRING(10), allowNull: false, defaultValue: 'P1' },
 
-        status: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'PENDIENTE' },
+    // ✅ NUEVO: subárea (NO rompe nada)
+    subarea: { type: DataTypes.STRING(60), allowNull: true, defaultValue: null },
 
-        items: { type: DataTypes.JSON, allowNull: false, defaultValue: [] },
+    status: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'PENDIENTE' },
 
-        note: { type: DataTypes.TEXT, allowNull: true },
+    items: { type: DataTypes.JSON, allowNull: false, defaultValue: [] },
 
-        requestedByUserId: { type: DataTypes.BIGINT.UNSIGNED, allowNull: true },
-    }, {
-        tableName: 'production_requests',
-        timestamps: true,
-    });
+    note: { type: DataTypes.TEXT, allowNull: true },
 
-    return ProductionRequest;
+    requestedByUserId: { type: DataTypes.BIGINT.UNSIGNED, allowNull: true },
+  }, {
+    tableName: 'production_requests',
+    timestamps: true,
+  });
+
+  return ProductionRequest;
 };
