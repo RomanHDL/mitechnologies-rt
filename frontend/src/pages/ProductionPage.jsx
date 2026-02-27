@@ -59,7 +59,7 @@ export default function ProductionPage() {
   const [area, setArea] = useState('P2') // FFT por default
   const [subarea, setSubarea] = useState('Accesorios')
 
-  const [sku, setSku] = useState('TV-55-4K')
+  const [sku, setSku] = useState('')
   const [qty, setQty] = useState(1)
   const [note, setNote] = useState('')
 
@@ -182,7 +182,7 @@ export default function ProductionPage() {
             ))}
           </TextField>
 
-          <TextField label="SKU" value={sku} onChange={(e) => setSku(e.target.value)} fullWidth />
+          <TextField label="PalletID" value={sku} onChange={(e) => setSku(e.target.value)} fullWidth />
           <TextField label="Qty" type="number" value={qty} onChange={(e) => setQty(e.target.value)} sx={{ width: 120 }} />
           <TextField label="Nota" value={note} onChange={(e) => setNote(e.target.value)} fullWidth />
           <Button variant="contained" onClick={create}>Crear</Button>
