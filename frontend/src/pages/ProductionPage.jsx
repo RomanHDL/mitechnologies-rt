@@ -37,7 +37,7 @@ const AREAS = [
 
 const SUBAREAS_BY_AREA = {
   P1: ['Sorting'],
-  P2: ['PNP/POC/PEN', 'BOX PREP', 'Accesorios'],
+  P2: ['Palletizado', 'Produccion'],
   P3: ['Midea', 'O.C', 'ACC', 'OC'],
   P4: ['OpenCell', 'Technical'],
 }
