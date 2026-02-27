@@ -17,8 +17,6 @@ function safeUpper(v) {
 
 function computeLocationCode(loc, rackCode) {
     // Formato UI esperado: A01-F059-012
-    // A01 = level + position(2)
-    // 012 = position(3)
     const level = safeUpper(loc.level || 'A');
     const pos = Number(loc.position || 1);
     const pos2 = String(pos).padStart(2, '0');
@@ -27,24 +25,111 @@ function computeLocationCode(loc, rackCode) {
 }
 
 function rackFilter(loc, rackCode) {
-    // ✅ PRO: si tu DB tiene columna rack
     const dbRack = safeUpper(loc.rack);
     if (dbRack) return dbRack === rackCode;
 
-    // ✅ Fallback: si tu DB tiene code tipo A01-F059-012
     const code = safeUpper(loc.code);
     if (code) return code.includes(`-${rackCode}-`);
 
-    // ❗️Si no hay rack ni code, NO se puede inferir el rack con certeza.
-    // Para NO romper y NO traer TODO el almacén, regresamos false.
     return false;
+}
+
+// ✅ Enriquecedor reutilizable (pallet + last move + state)
+async function enrichLocations(rawLocations, { rackCodeForCompute } = {}) {
+    const locations = (rawLocations || []).map((l) => ({...l }));
+    const locIds = locations.map((l) => l.id).filter(Boolean);
+    if (!locIds.length) return [];
+
+    // pallets activos en esas locations
+    const pallets = await Pallet.findAll({
+        where: {
+            locationId: {
+                [Op.in]: locIds },
+            status: {
+                [Op.in]: ACTIVE_PALLET_STATUS }
+        },
+        raw: true
+    });
+
+    const palletByLocation = new Map();
+    for (const p of pallets) palletByLocation.set(p.locationId, p);
+
+    // últimos movimientos por pallet
+    const palletIds = pallets.map((p) => p.id).filter(Boolean);
+    const lastMoveByPallet = new Map();
+
+    if (palletIds.length) {
+        const movements = await Movement.findAll({
+            where: { palletId: {
+                    [Op.in]: palletIds } },
+            include: [{ model: User, as: 'user', attributes: ['email'] }],
+            order: [
+                ['createdAt', 'DESC']
+            ],
+            limit: 5000
+        });
+
+        for (const m of movements) {
+            const pid = m.palletId;
+            if (!lastMoveByPallet.has(pid)) {
+                lastMoveByPallet.set(pid, {
+                    createdAt: m.createdAt || null,
+                    userEmail: m.user ? .email || null
+                });
+            }
+        }
+    }
+
+    // shape final
+    return locations.map((loc) => {
+        const pallet = palletByLocation.get(loc.id) || null;
+
+        let state = 'VACIO';
+        if (loc.blocked) state = 'BLOQUEADO';
+        else if (pallet) state = 'OCUPADO';
+
+        let lastMoveAt = null;
+        let lastMoveBy = null;
+
+        if (pallet) {
+            const mv = lastMoveByPallet.get(pallet.id);
+            if (mv) {
+                lastMoveAt = mv.createdAt;
+                lastMoveBy = mv.userEmail;
+            }
+        }
+
+        const firstItem = pallet ? .items ? .[0] || null;
+
+        // code: si trae loc.code lo respetamos; si no, lo calculamos si tenemos rackCodeForCompute
+        const computedCode =
+            loc.code ||
+            (rackCodeForCompute ? computeLocationCode(loc, rackCodeForCompute) : null);
+
+        return {
+            ...loc,
+            code: computedCode || loc.code || null,
+            state,
+            pallet: pallet ?
+                {
+                    id: pallet.id,
+                    code: pallet.code,
+                    lot: pallet.lot,
+                    sku: firstItem ? .sku || null,
+                    qty: firstItem ? .qty || 0,
+                    status: pallet.status
+                } :
+                null,
+            lastMoveAt,
+            lastMoveBy
+        };
+    });
 }
 
 /**
  * =====================================================
  * ✅ GET /api/locations/racks/:rackCode
- * VERSION PRO — NO ROMPE NADA EXISTENTE
- * Devuelve: { rackCode, locations:[ { ...loc, state, pallet, lastMoveAt, lastMoveBy } ] }
+ * (TU ENDPOINT EXISTENTE - NO TOCADO, solo usa enrich)
  * =====================================================
  */
 router.get('/racks/:rackCode', requireAuth, async(req, res, next) => {
@@ -55,9 +140,6 @@ router.get('/racks/:rackCode', requireAuth, async(req, res, next) => {
             return res.status(400).json({ message: 'Rack inválido' });
         }
 
-        // ===============================
-        // 1️⃣ Locations (todas) + filtrar por rack (real)
-        // ===============================
         const locations = await Location.findAll({ raw: true });
 
         const rackLocs = locations
@@ -68,113 +150,9 @@ router.get('/racks/:rackCode', requireAuth, async(req, res, next) => {
                 return (Number(a.position) || 0) - (Number(b.position) || 0);
             });
 
-        const locIds = rackLocs.map((l) => l.id).filter(Boolean);
+        if (!rackLocs.length) return res.json({ rackCode, locations: [] });
 
-        if (!locIds.length) {
-            // Si tu DB no tiene rack/code, aquí verás vacío (es correcto).
-            // Para que funcione el rack, necesitas guardar rack o code en Location.
-            return res.json({ rackCode, locations: [] });
-        }
-
-        // ===============================
-        // 2️⃣ Pallets en esas locations (ocupación)
-        // ===============================
-        const pallets = await Pallet.findAll({
-            where: {
-                locationId: {
-                    [Op.in]: locIds
-                },
-                status: {
-                    [Op.in]: ACTIVE_PALLET_STATUS
-                }
-            },
-            raw: true
-        });
-
-        const palletByLocation = new Map();
-        for (const p of pallets) palletByLocation.set(p.locationId, p);
-
-        // ===============================
-        // 3️⃣ Últimos movimientos por pallet (más eficiente)
-        // ===============================
-        const palletIds = pallets.map((p) => p.id).filter(Boolean);
-
-        // Mapa palletId -> { createdAt, userEmail }
-        const lastMoveByPallet = new Map();
-
-        if (palletIds.length) {
-            // ✅ Optimización:
-            // traemos movimientos recientes ordenados DESC y nos quedamos con el primero por pallet
-            // (limit alto para racks “normales”, evita bajar TODO)
-            const movements = await Movement.findAll({
-                where: {
-                    palletId: {
-                        [Op.in]: palletIds
-                    }
-                },
-                include: [{ model: User, as: 'user', attributes: ['email'] }],
-                order: [
-                    ['createdAt', 'DESC']
-                ],
-                limit: 5000 // seguridad por si hay muchos movimientos
-            });
-
-            for (const m of movements) {
-                const pid = m.palletId;
-                if (!lastMoveByPallet.has(pid)) {
-                    lastMoveByPallet.set(pid, {
-                        createdAt: m.createdAt || null,
-                        userEmail: m.user?.email || null
-                    });
-                }
-            }
-        }
-
-        // ===============================
-        // 4️⃣ Shape final
-        // ===============================
-        const shaped = rackLocs.map((loc) => {
-            const pallet = palletByLocation.get(loc.id) || null;
-
-            let state = 'VACIO';
-            if (loc.blocked) state = 'BLOQUEADO';
-            else if (pallet) state = 'OCUPADO';
-
-            let lastMoveAt = null;
-            let lastMoveBy = null;
-
-            if (pallet) {
-                const mv = lastMoveByPallet.get(pallet.id);
-                if (mv) {
-                    lastMoveAt = mv.createdAt;
-                    lastMoveBy = mv.userEmail;
-                }
-            }
-
-            const firstItem = pallet?.items?.[0] || null;
-
-            // code: si DB trae loc.code lo respetamos; si no, lo calculamos
-            const computedCode = loc.code || computeLocationCode(loc, rackCode);
-
-            return {
-                ...loc,
-                code: computedCode,
-                state,
-
-                pallet: pallet ? {
-                    id: pallet.id,
-                    code: pallet.code,
-                    lot: pallet.lot,
-                    sku: firstItem?.sku || null,
-                    qty: firstItem?.qty || 0,
-                    status: pallet.status
-                } : null,
-
-                lastMoveAt,
-                lastMoveBy
-            };
-        });
-
+        const shaped = await enrichLocations(rackLocs, { rackCodeForCompute: rackCode });
         res.json({ rackCode, locations: shaped });
     } catch (e) {
         next(e);
@@ -183,8 +161,104 @@ router.get('/racks/:rackCode', requireAuth, async(req, res, next) => {
 
 /**
  * =====================================================
+ * ✅ NUEVO: GET /api/locations/bins?area=A1&subarea=...
+ * Devuelve bins “normales” para grid
+ * =====================================================
+ */
+router.get('/bins', requireAuth, async(req, res, next) => {
+    try {
+        const { area, subarea } = req.query;
+
+        const where = {};
+        if (area) where.area = String(area).trim();
+        if (subarea) where.subarea = String(subarea).trim();
+
+        const locations = await Location.findAll({ where, raw: true });
+        const shaped = await enrichLocations(locations, { rackCodeForCompute: null });
+
+        // orden estable
+        shaped.sort((a, b) => {
+            const ra = String(a.rack || '').localeCompare(String(b.rack || ''));
+            if (ra !== 0) return ra;
+            const la = String(a.level || '').localeCompare(String(b.level || ''));
+            if (la !== 0) return la;
+            return (Number(a.position) || 0) - (Number(b.position) || 0);
+        });
+
+        res.json({ area: area || null, subarea: subarea || null, locations: shaped });
+    } catch (e) {
+        next(e);
+    }
+});
+
+/**
+ * =====================================================
+ * ✅ NUEVO: GET /api/locations/fft/accesorios?area=A1
+ * Caso especial “estantes por altura” (H1..H5)
+ *
+ * Interpreta:
+ * - Alturas = rack F001..F005 (1 abajo → 5 arriba)
+ * - Si hay más de 1 row por altura (por tu insert anterior), usa la position mínima
+ * =====================================================
+ */
+router.get('/fft/accesorios', requireAuth, async(req, res, next) => {
+    try {
+        const { area } = req.query;
+
+        const where = {
+            rack: {
+                [Op.in]: ['F001', 'F002', 'F003', 'F004', 'F005'] }
+        };
+        if (area) where.area = String(area).trim();
+
+        const all = await Location.findAll({ where, raw: true });
+
+        // agrupa por rack (altura) y toma el registro con position mínima
+        const byRack = new Map();
+        for (const l of all) {
+            const r = safeUpper(l.rack);
+            if (!r) continue;
+            const prev = byRack.get(r);
+            if (!prev) byRack.set(r, l);
+            else if (Number(l.position || 9999) < Number(prev.position || 9999)) byRack.set(r, l);
+        }
+
+        const heights = ['F001', 'F002', 'F003', 'F004', 'F005'].map((rackCode) => {
+            const loc = byRack.get(rackCode) || null;
+            return { rackCode, loc };
+        });
+
+        // enrich solo los que existen
+        const existingLocs = heights.map(h => h.loc).filter(Boolean);
+        const enriched = await enrichLocations(existingLocs, { rackCodeForCompute: null });
+        const enrichedById = new Map(enriched.map(l => [l.id, l]));
+
+        const result = heights.map((h, idx) => {
+            const raw = h.loc ? (enrichedById.get(h.loc.id) || h.loc) : null;
+            // H1..H5 (texto UI)
+            const heightLabel = `H${idx + 1}`;
+            return {
+                height: heightLabel,
+                rackCode: h.rackCode,
+                state: raw ? .state || 'VACIO',
+                code: raw ? .code || null,
+                blockedReason: raw ? .blockedReason || raw ? .blocked_reason || '',
+                pallet: raw ? .pallet || null,
+                lastMoveAt: raw ? .lastMoveAt || null,
+                lastMoveBy: raw ? .lastMoveBy || null
+            };
+        });
+
+        res.json({ area: area || null, heights: result });
+    } catch (e) {
+        next(e);
+    }
+});
+
+/**
+ * =====================================================
  * ✅ GET /api/locations
- * (con area opcional) + calcula state (OCUPADO/VACIO/BLOQUEADO)
+ * (EXISTENTE)
  * =====================================================
  */
 router.get('/', requireAuth, async(req, res, next) => {
@@ -201,11 +275,9 @@ router.get('/', requireAuth, async(req, res, next) => {
         const pallets = await Pallet.findAll({
             where: {
                 locationId: {
-                    [Op.in]: locIds
-                },
+                    [Op.in]: locIds },
                 status: {
-                    [Op.in]: ACTIVE_PALLET_STATUS
-                }
+                    [Op.in]: ACTIVE_PALLET_STATUS }
             },
             attributes: ['locationId'],
             raw: true
@@ -227,7 +299,7 @@ router.get('/', requireAuth, async(req, res, next) => {
 /**
  * =====================================================
  * ✅ PATCH /api/locations/:id
- * (NO tocado: solo permite type/maxPallets/notes)
+ * (EXISTENTE)
  * =====================================================
  */
 router.patch('/:id', requireAuth, requireRole('ADMIN', 'SUPERVISOR'), async(req, res, next) => {
@@ -247,14 +319,9 @@ router.patch('/:id', requireAuth, requireRole('ADMIN', 'SUPERVISOR'), async(req,
     }
 });
 
-/**
- * =====================================================
- * ✅ PATCH /api/locations/:id/block
- * =====================================================
- */
 router.patch('/:id/block', requireAuth, requireRole('ADMIN', 'SUPERVISOR'), async(req, res, next) => {
     try {
-        const reason = req.body?.reason || 'Mantenimiento';
+        const reason = req.body ? .reason || 'Mantenimiento';
         const [updated] = await Location.update({ blocked: true, blockedReason: reason }, { where: { id: req.params.id } });
         if (!updated) return res.status(404).json({ message: 'Ubicación no encontrada' });
 
@@ -265,11 +332,6 @@ router.patch('/:id/block', requireAuth, requireRole('ADMIN', 'SUPERVISOR'), asyn
     }
 });
 
-/**
- * =====================================================
- * ✅ PATCH /api/locations/:id/unblock
- * =====================================================
- */
 router.patch('/:id/unblock', requireAuth, requireRole('ADMIN', 'SUPERVISOR'), async(req, res, next) => {
     try {
         const [updated] = await Location.update({ blocked: false, blockedReason: '' }, { where: { id: req.params.id } });
