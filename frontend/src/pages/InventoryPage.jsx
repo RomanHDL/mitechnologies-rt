@@ -643,7 +643,7 @@ export default function InventoryPage() {
 
           <TextField
             size="small"
-            label="Lote / SKU"
+            label="SKU"
             value={lotFilter}
             onChange={(e) => setLotFilter(e.target.value)}
             sx={{ minWidth: 160 }}
