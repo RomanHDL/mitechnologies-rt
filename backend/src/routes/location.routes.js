@@ -44,9 +44,11 @@ async function enrichLocations(rawLocations, { rackCodeForCompute } = {}) {
     const pallets = await Pallet.findAll({
         where: {
             locationId: {
-                [Op.in]: locIds },
+                [Op.in]: locIds
+            },
             status: {
-                [Op.in]: ACTIVE_PALLET_STATUS }
+                [Op.in]: ACTIVE_PALLET_STATUS
+            }
         },
         raw: true
     });
@@ -60,8 +62,11 @@ async function enrichLocations(rawLocations, { rackCodeForCompute } = {}) {
 
     if (palletIds.length) {
         const movements = await Movement.findAll({
-            where: { palletId: {
-                    [Op.in]: palletIds } },
+            where: {
+                palletId: {
+                    [Op.in]: palletIds
+                }
+            },
             include: [{ model: User, as: 'user', attributes: ['email'] }],
             order: [
                 ['createdAt', 'DESC']
@@ -110,16 +115,14 @@ async function enrichLocations(rawLocations, { rackCodeForCompute } = {}) {
             ...loc,
             code: computedCode || loc.code || null,
             state,
-            pallet: pallet ?
-                {
-                    id: pallet.id,
-                    code: pallet.code,
-                    lot: pallet.lot,
-                    sku: firstItem?.sku || null,
-                    qty: firstItem?.qty || 0,
-                    status: pallet.status
-                } :
-                null,
+            pallet: pallet ? {
+                id: pallet.id,
+                code: pallet.code,
+                lot: pallet.lot,
+                sku: firstItem?.sku || null,
+                qty: firstItem?.qty || 0,
+                status: pallet.status
+            } : null,
             lastMoveAt,
             lastMoveBy
         };
@@ -207,7 +210,8 @@ router.get('/fft/accesorios', requireAuth, async(req, res, next) => {
 
         const where = {
             rack: {
-                [Op.in]: ['F001', 'F002', 'F003', 'F004', 'F005'] }
+                [Op.in]: ['F001', 'F002', 'F003', 'F004', 'F005']
+            }
         };
         if (area) where.area = String(area).trim();
 
@@ -275,9 +279,11 @@ router.get('/', requireAuth, async(req, res, next) => {
         const pallets = await Pallet.findAll({
             where: {
                 locationId: {
-                    [Op.in]: locIds },
+                    [Op.in]: locIds
+                },
                 status: {
-                    [Op.in]: ACTIVE_PALLET_STATUS }
+                    [Op.in]: ACTIVE_PALLET_STATUS
+                }
             },
             attributes: ['locationId'],
             raw: true
@@ -343,5 +349,126 @@ router.patch('/:id/unblock', requireAuth, requireRole('ADMIN', 'SUPERVISOR'), as
         next(e);
     }
 });
+
+/**
+ * =====================================================
+ * ✅ NUEVO: POST /api/locations/seed-tech-opencell-bins
+ * Crea bines TECHNICAL y OPENCELL (entrada/salida)
+ * - No elimina nada
+ * - No duplica (busca por code)
+ * =====================================================
+ *
+ * Body opcional:
+ * {
+ *   "area": "A1",          // A1..A4 (default A1)
+ *   "level": "A",          // A|B|C (default A)
+ *   "startPosition": 800   // (default 800) para evitar choques
+ * }
+ */
+router.post(
+    '/seed-tech-opencell-bins',
+    requireAuth,
+    requireRole('ADMIN', 'SUPERVISOR'),
+    async(req, res, next) => {
+        try {
+            const area = String(req.body?.area || 'A1').trim();
+            const level = String(req.body?.level || 'A').trim().toUpperCase();
+            const startPosition = Number(req.body?.startPosition || 800);
+
+            // Validaciones suaves (para no romper)
+            const validAreas = new Set(['A1', 'A2', 'A3', 'A4']);
+            const validLevels = new Set(['A', 'B', 'C']);
+
+            if (!validAreas.has(area)) {
+                return res.status(400).json({ message: 'area inválida. Usa A1, A2, A3 o A4' });
+            }
+            if (!validLevels.has(level)) {
+                return res.status(400).json({ message: 'level inválido. Usa A, B o C' });
+            }
+
+            // Helpers
+            const makeList = (prefix, from, to) => {
+                const out = [];
+                for (let i = from; i <= to; i++) {
+                    out.push(`${prefix}${String(i).padStart(2, '0')}`);
+                }
+                return out;
+            };
+
+            const TECH_IN = makeList('MTY-MAXX-TECH-AREA', 1, 5);
+            const TECH_OUT = makeList('MTY-MAXX-TECH-RETURN', 1, 5);
+
+            const OPEN_IN = makeList('MTY-MAXX-OPENCELL-AREA', 1, 5);
+            const OPEN_OUT = makeList('MTY-MAXX-OPENCELL-RETURN', 1, 5);
+
+            // Armado final (type FLOOR para ENTRADA, RETURNS para SALIDA)
+            const desired = [
+                ...TECH_IN.map((code) => ({ code, subarea: 'TECHNICAL', type: 'FLOOR' })),
+                ...TECH_OUT.map((code) => ({ code, subarea: 'TECHNICAL', type: 'RETURNS' })),
+                ...OPEN_IN.map((code) => ({ code, subarea: 'OPENCELL', type: 'FLOOR' })),
+                ...OPEN_OUT.map((code) => ({ code, subarea: 'OPENCELL', type: 'RETURNS' })),
+            ];
+
+            let pos = startPosition;
+
+            const created = [];
+            const updated = [];
+            const existing = [];
+
+            for (const item of desired) {
+                const found = await Location.findOne({ where: { code: item.code } });
+
+                if (!found) {
+                    // ✅ Creamos nuevo, sin tocar racks (rack=null)
+                    const row = await Location.create({
+                        area,
+                        subarea: item.subarea,
+                        rack: null,
+                        level,
+                        position: pos++,
+                        type: item.type,
+                        maxPallets: 1,
+                        notes: `${item.subarea} - ${item.type === 'FLOOR' ? 'ENTRADA' : 'SALIDA'}`,
+                        blocked: false,
+                        blockedReason: '',
+                        code: item.code,
+                    });
+                    created.push(row.code);
+                    continue;
+                }
+
+                // ✅ Ya existe: NO lo borramos.
+                // Solo lo "completamos" si le faltan campos clave (sin corromper)
+                const patch = {};
+                if (!found.subarea) patch.subarea = item.subarea;
+                if (!found.type) patch.type = item.type;
+                if (!found.area) patch.area = area;
+                if (!found.level) patch.level = level;
+                if (!found.position) patch.position = pos++; // solo si le falta
+
+                const patchKeys = Object.keys(patch);
+                if (patchKeys.length) {
+                    await Location.update(patch, { where: { id: found.id } });
+                    updated.push(item.code);
+                } else {
+                    existing.push(item.code);
+                }
+            }
+
+            return res.json({
+                ok: true,
+                total: desired.length,
+                createdCount: created.length,
+                updatedCount: updated.length,
+                existingCount: existing.length,
+                created,
+                updated,
+                existing,
+            });
+        } catch (e) {
+            next(e);
+        }
+    }
+);
 
 module.exports = router;
