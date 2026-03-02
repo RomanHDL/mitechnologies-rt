@@ -38,14 +38,17 @@ const HEIGHT_LABEL = { A: 'PLANTA BAJA', B: 'MEDIA', C: 'ALTA' }
 const HEIGHTS = ['A', 'B', 'C']
 const SLOTS = Array.from({ length: 12 }, (_, i) => i + 1)
 
+// Puedes dejar 125 aquí si en tu DB existen F121..F125
 const rackOptions = Array.from({ length: 125 }, (_, i) => `F${String(i + 1).padStart(3, '0')}`)
 
+// ✅ 30 racks por área (120 total). Si hay >120, lo mandamos a A4.
 function rackToArea(rackCode) {
   const n = Number(String(rackCode || '').replace(/[^\d]/g, '')) || 0
-  if (n >= 1 && n <= 32) return 'A1'
-  if (n >= 33 && n <= 64) return 'A2'
-  if (n >= 65 && n <= 96) return 'A3'
-  if (n >= 97 && n <= 125) return 'A4'
+  if (n >= 1 && n <= 30) return 'A1'
+  if (n >= 31 && n <= 60) return 'A2'
+  if (n >= 61 && n <= 90) return 'A3'
+  if (n >= 91 && n <= 120) return 'A4'
+  if (n > 120) return 'A4'
   return 'A1'
 }
 
@@ -55,6 +58,11 @@ function normalizeRackCode(input) {
   if (/^\d{1,3}$/.test(s)) return `F${s.padStart(3, '0')}`
   if (/^F\d{1,3}$/.test(s)) return `F${s.slice(1).padStart(3, '0')}`
   if (/^F\d{3}$/.test(s)) return s
+
+  // ✅ por si viene "F125." o "F125," o "F125 " etc
+  const m = s.match(/F(\d{1,3})/)
+  if (m) return `F${String(m[1]).padStart(3, '0')}`
+
   return s
 }
 
@@ -75,7 +83,7 @@ function parseCodeFallback(code) {
 
 // Acepta:
 // - A-F059-012 (nuevo formato real)
-// - A1-F059-012 (por compatibilidad vieja; A1 aquí se ignora para altura)
+// - A1-A-F059-012 (compat)
 // - A F59 12
 // - F059 / 59 (solo rack)
 function smartParse(input) {
@@ -86,7 +94,7 @@ function smartParse(input) {
   let m = raw.match(/^([A-C])-(F\d{3})-(\d{3})$/)
   if (m) return { height: m[1], rackCode: m[2], slot: Number(m[3]) }
 
-  // A2-A-F059-012 (area + height + rack + slot)
+  // A1-A-F059-012
   m = raw.match(/^(A1|A2|A3|A4)-([A-C])-(F\d{3})-(\d{3})$/)
   if (m) return { area: m[1], height: m[2], rackCode: m[3], slot: Number(m[4]) }
 
@@ -174,26 +182,29 @@ export default function LocationsPage() {
 
   useEffect(() => { load() }, [token])
 
-  // ✅ FIX REAL: SIEMPRE calcular área por rack (no confiar en l.area)
-  // ✅ Y normalizar lo que venga de DB (rack/level/position/slot)
+  // ✅ FIX REAL: adaptar lo que viene de DB a lo que tu UI espera
   const enriched = useMemo(() => {
     return (rows || []).map((l) => {
       const fallback = parseCodeFallback(l.code)
 
-      const rackCode = String(l.rackCode || l.rack || fallback.rack || '').toUpperCase()
-      const height = String(l.level || l.height || fallback.level || '').toUpperCase() || 'A' // A/B/C
-      const slot = Number(
-        l.position ?? l.slot ?? fallback.position ?? 0
-      )
+      // DB puede traer: rackCode / rack
+      const rackCode = normalizeRackCode(l.rackCode || l.rack || fallback.rack || '')
+      // DB puede traer: level (A/B/C)
+      const height = String(l.level || fallback.level || l.height || '').toUpperCase()
+      // DB puede traer: position (1..12)
+      const slot = Number(l.position ?? l.slot ?? fallback.position ?? 0)
 
       const slot3 = String(slot || 0).padStart(3, '0')
 
+      // ✅ SIEMPRE calcular por rack (NO confiar en l.area)
       const computedArea = rackToArea(rackCode)
+
       const key = `${height}-${rackCode}-${slot3}`
 
       return {
         ...l,
-        _id: l._id || l.id, // para que patch use selected._id y key de lista funcione
+        // por si tu backend manda id y la UI usa _id
+        _id: l._id || l.id,
         rackCode,
         height,
         slot,
