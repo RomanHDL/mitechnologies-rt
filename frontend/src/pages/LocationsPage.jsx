@@ -38,17 +38,14 @@ const HEIGHT_LABEL = { A: 'PLANTA BAJA', B: 'MEDIA', C: 'ALTA' }
 const HEIGHTS = ['A', 'B', 'C']
 const SLOTS = Array.from({ length: 12 }, (_, i) => i + 1)
 
-// Puedes dejar 125 aquí si en tu DB existen F121..F125
 const rackOptions = Array.from({ length: 125 }, (_, i) => `F${String(i + 1).padStart(3, '0')}`)
 
-// ✅ 30 racks por área (120 total). Si hay >120, lo mandamos a A4.
 function rackToArea(rackCode) {
   const n = Number(String(rackCode || '').replace(/[^\d]/g, '')) || 0
-  if (n >= 1 && n <= 30) return 'A1'
-  if (n >= 31 && n <= 60) return 'A2'
-  if (n >= 61 && n <= 90) return 'A3'
-  if (n >= 91 && n <= 120) return 'A4'
-  if (n > 120) return 'A4'
+  if (n >= 1 && n <= 32) return 'A1'
+  if (n >= 33 && n <= 64) return 'A2'
+  if (n >= 65 && n <= 96) return 'A3'
+  if (n >= 97 && n <= 125) return 'A4'
   return 'A1'
 }
 
@@ -58,11 +55,6 @@ function normalizeRackCode(input) {
   if (/^\d{1,3}$/.test(s)) return `F${s.padStart(3, '0')}`
   if (/^F\d{1,3}$/.test(s)) return `F${s.slice(1).padStart(3, '0')}`
   if (/^F\d{3}$/.test(s)) return s
-
-  // ✅ por si viene "F125." o "F125," o "F125 " etc
-  const m = s.match(/F(\d{1,3})/)
-  if (m) return `F${String(m[1]).padStart(3, '0')}`
-
   return s
 }
 
@@ -83,7 +75,7 @@ function parseCodeFallback(code) {
 
 // Acepta:
 // - A-F059-012 (nuevo formato real)
-// - A1-A-F059-012 (compat)
+// - A1-F059-012 (por compatibilidad vieja; A1 aquí se ignora para altura)
 // - A F59 12
 // - F059 / 59 (solo rack)
 function smartParse(input) {
@@ -94,7 +86,7 @@ function smartParse(input) {
   let m = raw.match(/^([A-C])-(F\d{3})-(\d{3})$/)
   if (m) return { height: m[1], rackCode: m[2], slot: Number(m[3]) }
 
-  // A1-A-F059-012
+  // A1-A-F059-012 (compat)
   m = raw.match(/^(A1|A2|A3|A4)-([A-C])-(F\d{3})-(\d{3})$/)
   if (m) return { area: m[1], height: m[2], rackCode: m[3], slot: Number(m[4]) }
 
@@ -182,29 +174,25 @@ export default function LocationsPage() {
 
   useEffect(() => { load() }, [token])
 
-  // ✅ FIX REAL: adaptar lo que viene de DB a lo que tu UI espera
+  // ✅ FIX: adaptar lo que viene de DB a lo que tu UI espera
   const enriched = useMemo(() => {
     return (rows || []).map((l) => {
       const fallback = parseCodeFallback(l.code)
 
-      // DB puede traer: rackCode / rack
-      const rackCode = normalizeRackCode(l.rackCode || l.rack || fallback.rack || '')
-      // DB puede traer: level (A/B/C)
-      const height = String(l.level || fallback.level || l.height || '').toUpperCase()
-      // DB puede traer: position (1..12)
-      const slot = Number(l.position ?? l.slot ?? fallback.position ?? 0)
+      const rackCode = String(l.rackCode || l.rack || fallback.rack || '').toUpperCase()
+      const height = String(l.level || fallback.level || '').toUpperCase() // A/B/C
+      const slot = Number(l.position ?? fallback.position ?? 0) // 1..12
 
       const slot3 = String(slot || 0).padStart(3, '0')
 
-      // ✅ SIEMPRE calcular por rack (NO confiar en l.area)
+      // ✅ SIEMPRE calcular por rack (no confiar en l.area)
       const computedArea = rackToArea(rackCode)
 
       const key = `${height}-${rackCode}-${slot3}`
 
       return {
         ...l,
-        // por si tu backend manda id y la UI usa _id
-        _id: l._id || l.id,
+        _id: l.id || l._id, // por si viene id o _id
         rackCode,
         height,
         slot,
@@ -292,7 +280,7 @@ export default function LocationsPage() {
 
     if (parsed.rackCode && !parsed.height) {
       setRack(parsed.rackCode)
-      setArea(rackToArea(parsed.rackCode))
+      setArea(rackToArea(parsed.rackCode)) // ✅ ya llevaba, ok
       setState('')
       setHighlightKey(null)
       setView('MAPA')
@@ -300,7 +288,7 @@ export default function LocationsPage() {
     }
 
     setRack(parsed.rackCode)
-    setArea(rackToArea(parsed.rackCode))
+    setArea(rackToArea(parsed.rackCode)) // ✅ ya llevaba, ok
     setState('')
     const slot3 = String(parsed.slot).padStart(3, '0')
     const key = `${parsed.height}-${parsed.rackCode}-${slot3}`
@@ -321,6 +309,17 @@ export default function LocationsPage() {
     if (k === 'VACIO') setState('VACIO')
     if (k === 'OCUPADO') setState('OCUPADO')
     if (k === 'BLOQUEADO') setState('BLOQUEADO')
+  }
+
+  // ✅ NUEVO FIX: cuando cambias RACK en el dropdown, también mover el ÁREA automáticamente
+  const handleRackChange = (value) => {
+    const v = String(value || '').toUpperCase()
+    setRack(v)
+
+    // si selecciona "Todos" (vacío) no forzamos área
+    if (v) {
+      setArea(rackToArea(v)) // ✅ esto es lo que te faltaba
+    }
   }
 
   const rackForMap = useMemo(() => {
@@ -399,7 +398,7 @@ export default function LocationsPage() {
             size="small"
             label="Rack"
             value={rack}
-            onChange={(e) => setRack(e.target.value)}
+            onChange={(e) => handleRackChange(e.target.value)}   // ✅ FIX AQUÍ
             sx={{ minWidth: 160 }}
           >
             <MenuItem value="">Todos</MenuItem>
@@ -701,7 +700,11 @@ export default function LocationsPage() {
                           background: 'linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02))',
                           cursor: 'pointer'
                         }}
-                        onClick={() => { setRack(rk.rackCode); setView('MAPA') }}
+                        onClick={() => {
+                          setRack(rk.rackCode)
+                          setArea(rackToArea(rk.rackCode)) // ✅ FIX también aquí
+                          setView('MAPA')
+                        }}
                       >
                         <Stack direction="row" justifyContent="space-between" alignItems="center">
                           <Typography sx={{ fontWeight: 900, fontSize: 18 }}>{rk.rackCode}</Typography>
