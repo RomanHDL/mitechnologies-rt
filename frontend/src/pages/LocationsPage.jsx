@@ -31,21 +31,21 @@ import InsightsIcon from '@mui/icons-material/Insights'
 import CloseIcon from '@mui/icons-material/Close'
 import RestartAltIcon from '@mui/icons-material/RestartAlt'
 
-const AREAS = ['A1','A2','A3','A4']
-const HEIGHT_LABEL = { A1: 'PLANTA BAJA', B2: 'MEDIA', C3: 'ALTA' }
-const HEIGHTS = ['A1','B2','C3']
+const AREAS = ['A1', 'A2', 'A3', 'A4']
+
+// UI label para alturas (tu DB usa A/B/C)
+const HEIGHT_LABEL = { A: 'PLANTA BAJA', B: 'MEDIA', C: 'ALTA' }
+const HEIGHTS = ['A', 'B', 'C']
 const SLOTS = Array.from({ length: 12 }, (_, i) => i + 1)
 
-// ✅ Mantengo tu select de racks (125), pero el cálculo por área lo dejamos en 30 por área (120)
 const rackOptions = Array.from({ length: 125 }, (_, i) => `F${String(i + 1).padStart(3, '0')}`)
 
-// ✅ 30 por área (como pediste): 120 total
 function rackToArea(rackCode) {
   const n = Number(String(rackCode || '').replace(/[^\d]/g, '')) || 0
-  if (n >= 1 && n <= 30) return 'A1'
-  if (n >= 31 && n <= 60) return 'A2'
-  if (n >= 61 && n <= 90) return 'A3'
-  if (n >= 91 && n <= 120) return 'A4'
+  if (n >= 1 && n <= 32) return 'A1'
+  if (n >= 33 && n <= 64) return 'A2'
+  if (n >= 65 && n <= 96) return 'A3'
+  if (n >= 97 && n <= 125) return 'A4'
   return 'A1'
 }
 
@@ -58,18 +58,36 @@ function normalizeRackCode(input) {
   return s
 }
 
+// extrae rack/level/pos desde code si viniera así (fallback)
+function parseCodeFallback(code) {
+  const c = String(code || '').trim().toUpperCase()
+
+  // ejemplo: A01-F059-012  -> level=A rack=F059 pos=12
+  let m = c.match(/^([A-Z])\d{2}-(F\d{3})-(\d{3})$/)
+  if (m) return { level: m[1], rack: m[2], position: Number(m[3]) }
+
+  // ejemplo: FFT-ACC-F001-001 -> rack F001 pos 1 (level desconocido)
+  m = c.match(/(F\d{3})-(\d{3})$/)
+  if (m) return { rack: m[1], position: Number(m[2]) }
+
+  return {}
+}
+
 // Acepta:
-// - A1-F059-012 (exacto)
-// - A1 F59 12 (inteligente)
+// - A-F059-012 (nuevo formato real)
+// - A1-F059-012 (por compatibilidad vieja; A1 aquí se ignora para altura)
+// - A F59 12
 // - F059 / 59 (solo rack)
-// Devuelve { area?, rackCode?, height?, slot? } o null
 function smartParse(input) {
   const raw = String(input || '').trim().toUpperCase()
   if (!raw) return null
 
-  // exacto A1-F059-012
-  let m = raw.match(/^(A1|B2|C3)-(F\d{3})-(\d{3})$/)
+  // A-F059-012  ó  A1-F059-012
+  let m = raw.match(/^([A-C])-(F\d{3})-(\d{3})$/)
   if (m) return { height: m[1], rackCode: m[2], slot: Number(m[3]) }
+
+  m = raw.match(/^(A1|A2|A3|A4)-([A-C])-(F\d{3})-(\d{3})$/)
+  if (m) return { area: m[1], height: m[2], rackCode: m[3], slot: Number(m[4]) }
 
   const cleaned = raw.replace(/[_/\\]+/g, ' ').replace(/-+/g, ' ').trim()
   const parts = cleaned.split(/\s+/).filter(Boolean)
@@ -80,12 +98,13 @@ function smartParse(input) {
     return null
   }
 
+  // A F59 12
   if (parts.length >= 3) {
     const height = parts[0]
     const rackCode = normalizeRackCode(parts[1])
     const slotNum = Number(String(parts[2]).replace(/\D/g, ''))
 
-    if (!['A1','B2','C3'].includes(height)) return null
+    if (!['A', 'B', 'C'].includes(height)) return null
     if (!/^F\d{3}$/.test(rackCode)) return null
     if (!Number.isFinite(slotNum) || slotNum < 1 || slotNum > 12) return null
 
@@ -96,9 +115,9 @@ function smartParse(input) {
 }
 
 function chipSxForState(st) {
-  if (st === 'OCUPADO') return { bgcolor:'rgba(34,197,94,.18)', border:'1px solid rgba(34,197,94,.22)', color:'#e5e7eb' }
-  if (st === 'BLOQUEADO') return { bgcolor:'rgba(239,68,68,.16)', border:'1px solid rgba(239,68,68,.22)', color:'#e5e7eb' }
-  return { bgcolor:'rgba(148,163,184,.16)', border:'1px solid rgba(255,255,255,.10)', color:'#e5e7eb' }
+  if (st === 'OCUPADO') return { bgcolor: 'rgba(34,197,94,.18)', border: '1px solid rgba(34,197,94,.22)', color: '#e5e7eb' }
+  if (st === 'BLOQUEADO') return { bgcolor: 'rgba(239,68,68,.16)', border: '1px solid rgba(239,68,68,.22)', color: '#e5e7eb' }
+  return { bgcolor: 'rgba(148,163,184,.16)', border: '1px solid rgba(255,255,255,.10)', color: '#e5e7eb' }
 }
 
 function cellBgForState(st) {
@@ -107,40 +126,11 @@ function cellBgForState(st) {
   return 'rgba(255,255,255,.04)'
 }
 
-/* =========================================================
-   ✅ NUEVO: Adaptador de forma (NO quita nada)
-   Asegura: _id, rackCode, height, slot aunque backend mande:
-   - id (UUID)
-   - rack (columna) o code contiene F###
-   - level/position en vez de height/slot
-   ========================================================= */
-function extractRackFromAny(loc) {
-  const r = String(loc?.rack || loc?.rackCode || '').trim().toUpperCase()
-  if (/^F\d{3}$/.test(r)) return r
-
-  const c = String(loc?.code || '').trim().toUpperCase()
-  const m = c.match(/F\d{3}/)
-  return m ? m[0] : ''
-}
-
-function adaptLocationShape(loc) {
-  const rackCode = extractRackFromAny(loc)
-  const height = loc?.height || loc?.level || '' // backend suele traer level (A/B/C)
-  const slot = loc?.slot ?? loc?.position ?? null // backend suele traer position (1..12)
-  const id = loc?._id || loc?.id
-
-  return {
-    ...loc,
-    _id: id,
-    rackCode,
-    height,
-    slot
-  }
-}
-
 export default function LocationsPage() {
   const { token, user } = useAuth()
   const canEdit = ['ADMIN', 'SUPERVISOR'].includes(user?.role)
+
+  // OJO: tu api() normalmente toma token del storage; pero no rompe si se lo pasas
   const client = useMemo(() => api(token), [token])
 
   const theme = useTheme()
@@ -151,19 +141,19 @@ export default function LocationsPage() {
 
   // filtros
   const [area, setArea] = useState('A1')
-  const [rack, setRack] = useState('')        // F059
-  const [state, setState] = useState('')      // VACIO/OCUPADO/BLOQUEADO
-  const [q, setQ] = useState('')              // buscador inteligente
+  const [rack, setRack] = useState('')
+  const [state, setState] = useState('')
+  const [q, setQ] = useState('')
 
   // vista
-  const [view, setView] = useState('LISTA')   // LISTA | MAPA | RESUMEN
+  const [view, setView] = useState('LISTA')
 
   // highlight / detalle
-  const [highlightKey, setHighlightKey] = useState(null) // `${height}-${rackCode}-${slot3}`
+  const [highlightKey, setHighlightKey] = useState(null)
   const [detailOpen, setDetailOpen] = useState(false)
   const [detailItem, setDetailItem] = useState(null)
 
-  // dialog editar/bloquear (se queda)
+  // dialog editar/bloquear
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState(null)
   const [type, setType] = useState('RACK')
@@ -175,9 +165,7 @@ export default function LocationsPage() {
     setLoading(true)
     try {
       const res = await client.get('/api/locations')
-      const raw = Array.isArray(res.data) ? res.data : []
-      const shaped = raw.map(adaptLocationShape)
-      setRows(shaped)
+      setRows(Array.isArray(res.data) ? res.data : [])
     } finally {
       setLoading(false)
     }
@@ -185,15 +173,34 @@ export default function LocationsPage() {
 
   useEffect(() => { load() }, [token])
 
+  // ✅ AQUÍ ESTÁ EL FIX: adaptar lo que viene de DB a lo que tu UI espera
   const enriched = useMemo(() => {
-    return rows.map(l => ({
-      ...l,
-      // ✅ usa el area real de BD si existe, si no calcula por rackCode
-      _area: l.area || rackToArea(l.rackCode),
-      _state: l.state || 'VACIO',
-      _slot3: String(l.slot ?? '').padStart(3,'0'),
-      _key: `${l.height}-${String(l.rackCode).toUpperCase()}-${String(l.slot ?? '').padStart(3,'0')}`
-    }))
+    return (rows || []).map((l) => {
+      const fallback = parseCodeFallback(l.code)
+
+      const rackCode = String(l.rack || fallback.rack || '').toUpperCase()
+      const height = String(l.level || fallback.level || '').toUpperCase() // A/B/C
+      const slot = Number(l.position ?? fallback.position ?? 0) // 1..12
+
+      const slot3 = String(slot || 0).padStart(3, '0')
+
+      // área a nivel UI: si DB trae area úsala; si no, calcula por rack
+      const computedArea = l.area || rackToArea(rackCode)
+
+      const key = `${height}-${rackCode}-${slot3}`
+
+      return {
+        ...l,
+        _id: l.id,          // compat para tu UI
+        rackCode,           // compat para tu UI
+        height,             // compat para tu UI
+        slot,               // compat para tu UI
+        _area: computedArea,
+        _state: l.state || 'VACIO',
+        _slot3: slot3,
+        _key: key,
+      }
+    })
   }, [rows])
 
   const filtered = useMemo(() => {
@@ -217,12 +224,13 @@ export default function LocationsPage() {
     const map = new Map()
     for (const l of filtered) {
       const rk = String(l.rackCode).toUpperCase()
+      if (!rk) continue
       if (!map.has(rk)) map.set(rk, { rackCode: rk, total: 0, VACIO: 0, OCUPADO: 0, BLOQUEADO: 0 })
       const o = map.get(rk)
       o.total++
       o[l._state] = (o[l._state] || 0) + 1
     }
-    return Array.from(map.values()).sort((a,b) => a.rackCode.localeCompare(b.rackCode))
+    return Array.from(map.values()).sort((a, b) => a.rackCode.localeCompare(b.rackCode))
   }, [filtered])
 
   const openEdit = (l) => {
@@ -235,19 +243,19 @@ export default function LocationsPage() {
   }
 
   const save = async () => {
-    await client.patch(`/api/locations/${selected?._id || selected?.id}`, { type, maxPallets: Number(maxPallets), notes })
+    await client.patch(`/api/locations/${selected._id}`, { type, maxPallets: Number(maxPallets), notes })
     await load()
     setOpen(false)
   }
 
   const block = async () => {
-    await client.patch(`/api/locations/${selected?._id || selected?.id}/block`, { reason })
+    await client.patch(`/api/locations/${selected._id}/block`, { reason })
     await load()
     setOpen(false)
   }
 
   const unblock = async () => {
-    await client.patch(`/api/locations/${selected?._id || selected?.id}/unblock`)
+    await client.patch(`/api/locations/${selected._id}/unblock`)
     await load()
     setOpen(false)
   }
@@ -270,7 +278,6 @@ export default function LocationsPage() {
     if (!parsed) return
 
     if (parsed.rackCode && !parsed.height) {
-      // solo rack
       setRack(parsed.rackCode)
       setArea(rackToArea(parsed.rackCode))
       setState('')
@@ -279,11 +286,10 @@ export default function LocationsPage() {
       return
     }
 
-    // búsqueda exacta height+rack+slot
     setRack(parsed.rackCode)
     setArea(rackToArea(parsed.rackCode))
     setState('')
-    const slot3 = String(parsed.slot).padStart(3,'0')
+    const slot3 = String(parsed.slot).padStart(3, '0')
     const key = `${parsed.height}-${parsed.rackCode}-${slot3}`
     setHighlightKey(key)
     setView('MAPA')
@@ -304,7 +310,6 @@ export default function LocationsPage() {
     if (k === 'BLOQUEADO') setState('BLOQUEADO')
   }
 
-  // mapa: si no eligieron rack, usa el primero de la lista filtrada (si existe)
   const rackForMap = useMemo(() => {
     if (rack) return String(rack).toUpperCase()
     const first = filtered[0]?.rackCode
@@ -315,21 +320,21 @@ export default function LocationsPage() {
     const m = new Map()
     for (const l of filtered) {
       if (String(l.rackCode).toUpperCase() !== rackForMap) continue
-      m.set(`${l.height}-${String(l.slot).padStart(3,'0')}`, l)
+      m.set(`${l.height}-${String(l.slot).padStart(3, '0')}`, l)
     }
     return m
   }, [filtered, rackForMap])
 
   return (
     <Box sx={{ color: '#e5e7eb' }}>
-      <Box sx={{ display:'flex', alignItems:'center', justifyContent:'space-between', mb: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
         <Typography variant="h6" sx={{ fontWeight: 900 }}>Ubicaciones</Typography>
 
         <Stack direction="row" spacing={1} alignItems="center">
           <Chip
             size="small"
             label={view === 'LISTA' ? 'Lista' : view === 'MAPA' ? 'Mapa' : 'Resumen'}
-            sx={{ bgcolor:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.10)', color:'#e5e7eb', fontWeight: 900 }}
+            sx={{ bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)', color: '#e5e7eb', fontWeight: 900 }}
           />
         </Stack>
       </Box>
@@ -345,11 +350,10 @@ export default function LocationsPage() {
           </Alert>
         )}
 
-        {/* Buscador principal + acciones */}
-        <Stack direction={{ xs:'column', md:'row' }} spacing={2} alignItems={{ xs:'stretch', md:'center' }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'stretch', md: 'center' }}>
           <TextField
             size="small"
-            label='Buscar ubicación / rack (ej: A1-F059-012 | A1 F59 12 | F059)'
+            label='Buscar ubicación / rack (ej: A-F059-012 | A F59 12 | F059)'
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && applySmartSearch()}
@@ -360,8 +364,8 @@ export default function LocationsPage() {
           </Button>
 
           <Tooltip title="Limpiar filtros">
-            <IconButton onClick={clearFilters} sx={{ bgcolor:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.10)' }}>
-              <RestartAltIcon sx={{ color:'#e5e7eb' }} />
+            <IconButton onClick={clearFilters} sx={{ bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)' }}>
+              <RestartAltIcon sx={{ color: '#e5e7eb' }} />
             </IconButton>
           </Tooltip>
 
@@ -372,8 +376,7 @@ export default function LocationsPage() {
 
         <Divider sx={{ my: 2 }} />
 
-        {/* Filtros secundarios */}
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs:'stretch', md:'center' }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'stretch', md: 'center' }}>
           <TextField select size="small" label="Área (zona)" value={area} onChange={(e) => setArea(e.target.value)} sx={{ minWidth: 140 }}>
             {AREAS.map(a => <MenuItem key={a} value={a}>{a}</MenuItem>)}
           </TextField>
@@ -406,7 +409,6 @@ export default function LocationsPage() {
 
           <Box sx={{ flex: 1 }} />
 
-          {/* Toggle de vistas */}
           <Stack direction="row" spacing={1}>
             <Button
               variant={view === 'LISTA' ? 'contained' : 'outlined'}
@@ -437,7 +439,6 @@ export default function LocationsPage() {
 
         <Divider sx={{ my: 2 }} />
 
-        {/* KPIs clickeables */}
         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
           <Chip
             clickable
@@ -446,8 +447,8 @@ export default function LocationsPage() {
             label={`Total: ${summary.total}`}
             sx={{
               bgcolor: state === '' ? 'rgba(59,130,246,.22)' : 'rgba(255,255,255,.06)',
-              border:'1px solid rgba(255,255,255,.10)',
-              color:'#e5e7eb',
+              border: '1px solid rgba(255,255,255,.10)',
+              color: '#e5e7eb',
               fontWeight: 900
             }}
           />
@@ -487,14 +488,12 @@ export default function LocationsPage() {
         </Stack>
       </Paper>
 
-      {/* ====== CONTENIDO: LISTA / MAPA / RESUMEN + PANEL DETALLE ====== */}
       <Box sx={{
-        display:'grid',
-        gridTemplateColumns: { xs:'1fr', lg:'1fr 360px' },
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', lg: '1fr 360px' },
         gap: 2,
-        alignItems:'start'
+        alignItems: 'start'
       }}>
-        {/* IZQ */}
         <Box>
           {view === 'LISTA' && (
             <Paper elevation={0} sx={{ width: '100%', overflow: 'auto', borderRadius: 3, mb: 2 }}>
@@ -521,7 +520,6 @@ export default function LocationsPage() {
                     if (st === 'BLOQUEADO') stateIcon = <BlockIcon sx={{ color: '#ef4444', verticalAlign: 'middle' }} fontSize="small" />
 
                     const noteText = l.blocked ? `Motivo: ${l.blockedReason || 'Bloqueado'}` : (l.notes || '—')
-
                     const isHi = highlightKey && l._key === highlightKey
 
                     return (
@@ -530,7 +528,7 @@ export default function LocationsPage() {
                         key={l._id}
                         onClick={() => openDetail(l)}
                         sx={{
-                          cursor:'pointer',
+                          cursor: 'pointer',
                           background: idx % 2 === 0 ? 'rgba(255,255,255,.03)' : 'rgba(255,255,255,.02)',
                           transition: 'background 0.15s ease, box-shadow .15s ease',
                           outline: isHi ? '2px solid rgba(96,165,250,.85)' : 'none',
@@ -539,9 +537,9 @@ export default function LocationsPage() {
                         }}
                       >
                         <Box component="td" sx={{ p: 1.5, fontFamily: 'monospace', fontWeight: 900, color: '#fff' }}>
-                          {l.code}
+                          {l.code || `${l.height}${String(l.slot).padStart(2, '0')}-${l.rackCode}-${String(l.slot).padStart(3, '0')}`}
                           <Typography variant="caption" sx={{ display: 'block', color: 'rgba(229,231,235,.75)', fontWeight: 700 }}>
-                            Área: <b>{areaLabel}</b> · Rack: <b>{l.rackCode}</b> · Altura: <b>{l.height} ({heightLabel})</b> · Slot: <b>{String(l.slot).padStart(3,'0')}</b>
+                            Área: <b>{areaLabel}</b> · Rack: <b>{l.rackCode || '—'}</b> · Altura: <b>{l.height} ({heightLabel})</b> · Slot: <b>{l._slot3}</b>
                           </Typography>
                         </Box>
 
@@ -559,7 +557,7 @@ export default function LocationsPage() {
                           </Tooltip>
                         </Box>
 
-                        <Box component="td" sx={{ p: 1.5, textAlign: 'center' }} onClick={(e)=>e.stopPropagation()}>
+                        <Box component="td" sx={{ p: 1.5, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                           <Button
                             size="small"
                             variant="outlined"
@@ -582,11 +580,11 @@ export default function LocationsPage() {
             <Paper elevation={0} sx={{
               p: 2, borderRadius: 3,
               background: 'linear-gradient(180deg, rgba(255,255,255,.04), rgba(17,24,39,.25))',
-              border:'1px solid rgba(255,255,255,.06)'
+              border: '1px solid rgba(255,255,255,.06)'
             }}>
-              <Stack direction={{ xs:'column', md:'row' }} spacing={1} alignItems={{ xs:'stretch', md:'center' }} justifyContent="space-between" sx={{ mb: 1 }}>
+              <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems={{ xs: 'stretch', md: 'center' }} justifyContent="space-between" sx={{ mb: 1 }}>
                 <Typography sx={{ fontWeight: 900 }}>
-                  Mapa del Rack {rackForMap || '—'} <span style={{ opacity:.7, fontWeight: 800 }}>(A1/B2/C3 · 001–012)</span>
+                  Mapa del Rack {rackForMap || '—'} <span style={{ opacity: .7, fontWeight: 800 }}>(A/B/C · 001–012)</span>
                 </Typography>
 
                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
@@ -599,28 +597,28 @@ export default function LocationsPage() {
               <Divider sx={{ my: 1.5 }} />
 
               {!rackForMap ? (
-                <Typography sx={{ opacity:.75 }}>
+                <Typography sx={{ opacity: .75 }}>
                   No hay resultados para mostrar mapa. Ajusta filtros o busca un rack (ej: <b>F059</b>).
                 </Typography>
               ) : (
-                <Box sx={{ display:'grid', gap: 1 }}>
-                  <Box sx={{ display:'grid', gridTemplateColumns:'70px repeat(12, 1fr)', gap: 1, alignItems:'center', mb: 0.5 }}>
+                <Box sx={{ display: 'grid', gap: 1 }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '70px repeat(12, 1fr)', gap: 1, alignItems: 'center', mb: 0.5 }}>
                     <Box />
                     {SLOTS.map(s => (
-                      <Typography key={s} sx={{ fontSize: 12, opacity:.8, fontWeight: 900, textAlign:'center' }}>
-                        {String(s).padStart(3,'0')}
+                      <Typography key={s} sx={{ fontSize: 12, opacity: .8, fontWeight: 900, textAlign: 'center' }}>
+                        {String(s).padStart(3, '0')}
                       </Typography>
                     ))}
                   </Box>
 
                   {HEIGHTS.map(h => (
-                    <Box key={h} sx={{ display:'grid', gridTemplateColumns:'70px repeat(12, 1fr)', gap: 1, alignItems:'center' }}>
-                      <Typography sx={{ fontWeight: 900, opacity:.9 }}>
+                    <Box key={h} sx={{ display: 'grid', gridTemplateColumns: '70px repeat(12, 1fr)', gap: 1, alignItems: 'center' }}>
+                      <Typography sx={{ fontWeight: 900, opacity: .9 }}>
                         {h}
                       </Typography>
 
                       {SLOTS.map(s => {
-                        const slot3 = String(s).padStart(3,'0')
+                        const slot3 = String(s).padStart(3, '0')
                         const l = mapForRack.get(`${h}-${slot3}`)
                         const st = l?._state || 'VACIO'
                         const key = `${h}-${rackForMap}-${slot3}`
@@ -635,17 +633,17 @@ export default function LocationsPage() {
                               cursor: l ? 'pointer' : 'default',
                               p: 1,
                               borderRadius: 2,
-                              textAlign:'center',
+                              textAlign: 'center',
                               bgcolor: cellBgForState(st),
                               border: isHi ? '2px solid rgba(96,165,250,.85)' : '1px solid rgba(255,255,255,.08)',
-                              transition:'transform .08s ease, box-shadow .12s ease',
-                              '&:hover': l ? { transform:'translateY(-1px)', boxShadow:'0 12px 26px rgba(0,0,0,.25)' } : {}
+                              transition: 'transform .08s ease, box-shadow .12s ease',
+                              '&:hover': l ? { transform: 'translateY(-1px)', boxShadow: '0 12px 26px rgba(0,0,0,.25)' } : {}
                             }}
                           >
-                            <Typography sx={{ fontFamily:'monospace', fontWeight: 900, fontSize: 12 }}>
+                            <Typography sx={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 12 }}>
                               {h}-{slot3}
                             </Typography>
-                            <Typography sx={{ fontWeight: 900, fontSize: 11, opacity:.9 }}>
+                            <Typography sx={{ fontWeight: 900, fontSize: 11, opacity: .9 }}>
                               {st}
                             </Typography>
                           </Box>
@@ -662,19 +660,19 @@ export default function LocationsPage() {
             <Paper elevation={0} sx={{
               p: 2, borderRadius: 3,
               background: 'linear-gradient(180deg, rgba(255,255,255,.04), rgba(17,24,39,.25))',
-              border:'1px solid rgba(255,255,255,.06)'
+              border: '1px solid rgba(255,255,255,.06)'
             }}>
               <Typography sx={{ fontWeight: 900, mb: 1 }}>
-                Resumen por Rack <span style={{ opacity:.7, fontWeight: 800 }}>(según filtros)</span>
+                Resumen por Rack <span style={{ opacity: .7, fontWeight: 800 }}>(según filtros)</span>
               </Typography>
               <Divider sx={{ my: 1.5 }} />
 
               {perRackSummary.length === 0 ? (
-                <Typography sx={{ opacity:.75 }}>No hay datos para resumir.</Typography>
+                <Typography sx={{ opacity: .75 }}>No hay datos para resumir.</Typography>
               ) : (
                 <Box sx={{
-                  display:'grid',
-                  gridTemplateColumns:{ xs:'1fr', sm:'repeat(2, 1fr)', lg:'repeat(3, 1fr)' },
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' },
                   gap: 2
                 }}>
                   {perRackSummary.map(rk => {
@@ -684,29 +682,29 @@ export default function LocationsPage() {
                         key={rk.rackCode}
                         elevation={0}
                         sx={{
-                          p:2,
-                          borderRadius:3,
-                          border:'1px solid rgba(255,255,255,.06)',
-                          background:'linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02))',
-                          cursor:'pointer'
+                          p: 2,
+                          borderRadius: 3,
+                          border: '1px solid rgba(255,255,255,.06)',
+                          background: 'linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02))',
+                          cursor: 'pointer'
                         }}
                         onClick={() => { setRack(rk.rackCode); setView('MAPA') }}
                       >
                         <Stack direction="row" justifyContent="space-between" alignItems="center">
                           <Typography sx={{ fontWeight: 900, fontSize: 18 }}>{rk.rackCode}</Typography>
-                          <Chip size="small" label={`${occPct}% Ocup.`} sx={{ bgcolor:'rgba(59,130,246,.18)', border:'1px solid rgba(59,130,246,.20)', color:'#e5e7eb', fontWeight: 900 }} />
+                          <Chip size="small" label={`${occPct}% Ocup.`} sx={{ bgcolor: 'rgba(59,130,246,.18)', border: '1px solid rgba(59,130,246,.20)', color: '#e5e7eb', fontWeight: 900 }} />
                         </Stack>
 
                         <Divider sx={{ my: 1.5 }} />
 
                         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                          <Chip size="small" label={`Total ${rk.total}`} sx={{ bgcolor:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.10)', color:'#e5e7eb' }} />
+                          <Chip size="small" label={`Total ${rk.total}`} sx={{ bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)', color: '#e5e7eb' }} />
                           <Chip size="small" label={`Vacío ${rk.VACIO}`} sx={{ ...chipSxForState('VACIO') }} />
                           <Chip size="small" label={`Ocupado ${rk.OCUPADO}`} sx={{ ...chipSxForState('OCUPADO') }} />
                           <Chip size="small" label={`Bloq. ${rk.BLOQUEADO}`} sx={{ ...chipSxForState('BLOQUEADO') }} />
                         </Stack>
 
-                        <Typography sx={{ mt: 1.2, opacity:.7, fontSize: 12 }}>
+                        <Typography sx={{ mt: 1.2, opacity: .7, fontSize: 12 }}>
                           Click para abrir mapa del rack
                         </Typography>
                       </Paper>
@@ -718,49 +716,48 @@ export default function LocationsPage() {
           )}
         </Box>
 
-        {/* DER: Panel de detalle (solo en desktop). En tablet se abre como modal. */}
-        <Box sx={{ display: { xs:'none', lg:'block' } }}>
+        <Box sx={{ display: { xs: 'none', lg: 'block' } }}>
           <Paper elevation={0} sx={{
             p: 2,
             borderRadius: 3,
             background: 'linear-gradient(180deg, rgba(255,255,255,.05), rgba(17,24,39,.25))',
-            border:'1px solid rgba(255,255,255,.06)',
-            position:'sticky',
+            border: '1px solid rgba(255,255,255,.06)',
+            position: 'sticky',
             top: 92
           }}>
             <Typography sx={{ fontWeight: 900 }}>Detalle</Typography>
             <Divider sx={{ my: 1.5 }} />
 
             {!detailItem ? (
-              <Typography sx={{ opacity:.75, fontSize: 13 }}>
+              <Typography sx={{ opacity: .75, fontSize: 13 }}>
                 Selecciona una ubicación (lista o mapa) para ver detalles aquí.
               </Typography>
             ) : (
               <Box>
-                <Typography sx={{ fontFamily:'monospace', fontWeight: 900, fontSize: 16 }}>
+                <Typography sx={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 16 }}>
                   {detailItem.code}
                 </Typography>
 
-                <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap:'wrap' }} useFlexGap>
+                <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap' }} useFlexGap>
                   <Chip size="small" label={detailItem._state} sx={{ ...chipSxForState(detailItem._state), fontWeight: 900 }} />
-                  <Chip size="small" label={`Rack ${detailItem.rackCode}`} sx={{ bgcolor:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.10)', color:'#e5e7eb', fontWeight: 900 }} />
-                  <Chip size="small" label={`${detailItem.height}-${String(detailItem.slot).padStart(3,'0')}`} sx={{ bgcolor:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.10)', color:'#e5e7eb', fontWeight: 900 }} />
+                  <Chip size="small" label={`Rack ${detailItem.rackCode}`} sx={{ bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)', color: '#e5e7eb', fontWeight: 900 }} />
+                  <Chip size="small" label={`${detailItem.height}-${detailItem._slot3}`} sx={{ bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)', color: '#e5e7eb', fontWeight: 900 }} />
                 </Stack>
 
                 <Divider sx={{ my: 1.5 }} />
 
-                <Box sx={{ display:'grid', gridTemplateColumns:'120px 1fr', rowGap: 1, columnGap: 1.5 }}>
-                  <Typography sx={{ opacity:.7, fontSize: 12 }}>Área</Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr', rowGap: 1, columnGap: 1.5 }}>
+                  <Typography sx={{ opacity: .7, fontSize: 12 }}>Área</Typography>
                   <Typography sx={{ fontSize: 12, fontWeight: 900 }}>{detailItem._area}</Typography>
 
-                  <Typography sx={{ opacity:.7, fontSize: 12 }}>Tipo</Typography>
+                  <Typography sx={{ opacity: .7, fontSize: 12 }}>Tipo</Typography>
                   <Typography sx={{ fontSize: 12, fontWeight: 900 }}>{detailItem.type || 'RACK'}</Typography>
 
-                  <Typography sx={{ opacity:.7, fontSize: 12 }}>Capacidad</Typography>
+                  <Typography sx={{ opacity: .7, fontSize: 12 }}>Capacidad</Typography>
                   <Typography sx={{ fontSize: 12, fontWeight: 900 }}>{detailItem.maxPallets || 1}</Typography>
 
-                  <Typography sx={{ opacity:.7, fontSize: 12 }}>Notas/Motivo</Typography>
-                  <Typography sx={{ fontSize: 12, fontWeight: 800, opacity:.9 }}>
+                  <Typography sx={{ opacity: .7, fontSize: 12 }}>Notas/Motivo</Typography>
+                  <Typography sx={{ fontSize: 12, fontWeight: 800, opacity: .9 }}>
                     {detailItem.blocked ? `Motivo: ${detailItem.blockedReason || 'Bloqueado'}` : (detailItem.notes || '—')}
                   </Typography>
                 </Box>
@@ -779,7 +776,7 @@ export default function LocationsPage() {
                   </Button>
                 </Stack>
 
-                <Typography sx={{ mt: 1, opacity:.6, fontSize: 11 }}>
+                <Typography sx={{ mt: 1, opacity: .6, fontSize: 11 }}>
                   *Acciones de bloquear/desbloquear/guardar se mantienen en el diálogo de edición.
                 </Typography>
               </Box>
@@ -788,9 +785,8 @@ export default function LocationsPage() {
         </Box>
       </Box>
 
-      {/* MODAL detalle (tablet / mobile) */}
       <Dialog open={detailOpen && isMobile} onClose={() => setDetailOpen(false)} fullScreen>
-        <DialogTitle sx={{ display:'flex', alignItems:'center', gap: 1 }}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           Detalle de ubicación
           <Box sx={{ flex: 1 }} />
           <IconButton onClick={() => setDetailOpen(false)}>
@@ -799,33 +795,33 @@ export default function LocationsPage() {
         </DialogTitle>
         <DialogContent>
           {!detailItem ? (
-            <Typography sx={{ opacity:.75 }}>Sin selección.</Typography>
+            <Typography sx={{ opacity: .75 }}>Sin selección.</Typography>
           ) : (
             <Box>
-              <Typography sx={{ fontFamily:'monospace', fontWeight: 900, fontSize: 18 }}>
+              <Typography sx={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 18 }}>
                 {detailItem.code}
               </Typography>
 
-              <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap:'wrap' }} useFlexGap>
+              <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap' }} useFlexGap>
                 <Chip size="small" label={detailItem._state} sx={{ ...chipSxForState(detailItem._state), fontWeight: 900 }} />
-                <Chip size="small" label={`Rack ${detailItem.rackCode}`} sx={{ bgcolor:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.10)', color:'#e5e7eb', fontWeight: 900 }} />
-                <Chip size="small" label={`${detailItem.height}-${String(detailItem.slot).padStart(3,'0')}`} sx={{ bgcolor:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.10)', color:'#e5e7eb', fontWeight: 900 }} />
+                <Chip size="small" label={`Rack ${detailItem.rackCode}`} sx={{ bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)', color: '#e5e7eb', fontWeight: 900 }} />
+                <Chip size="small" label={`${detailItem.height}-${detailItem._slot3}`} sx={{ bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)', color: '#e5e7eb', fontWeight: 900 }} />
               </Stack>
 
               <Divider sx={{ my: 2 }} />
 
-              <Box sx={{ display:'grid', gridTemplateColumns:'120px 1fr', rowGap: 1, columnGap: 1.5 }}>
-                <Typography sx={{ opacity:.7, fontSize: 12 }}>Área</Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr', rowGap: 1, columnGap: 1.5 }}>
+                <Typography sx={{ opacity: .7, fontSize: 12 }}>Área</Typography>
                 <Typography sx={{ fontSize: 12, fontWeight: 900 }}>{detailItem._area}</Typography>
 
-                <Typography sx={{ opacity:.7, fontSize: 12 }}>Tipo</Typography>
+                <Typography sx={{ opacity: .7, fontSize: 12 }}>Tipo</Typography>
                 <Typography sx={{ fontSize: 12, fontWeight: 900 }}>{detailItem.type || 'RACK'}</Typography>
 
-                <Typography sx={{ opacity:.7, fontSize: 12 }}>Capacidad</Typography>
+                <Typography sx={{ opacity: .7, fontSize: 12 }}>Capacidad</Typography>
                 <Typography sx={{ fontSize: 12, fontWeight: 900 }}>{detailItem.maxPallets || 1}</Typography>
 
-                <Typography sx={{ opacity:.7, fontSize: 12 }}>Notas/Motivo</Typography>
-                <Typography sx={{ fontSize: 12, fontWeight: 800, opacity:.9 }}>
+                <Typography sx={{ opacity: .7, fontSize: 12 }}>Notas/Motivo</Typography>
+                <Typography sx={{ fontSize: 12, fontWeight: 800, opacity: .9 }}>
                   {detailItem.blocked ? `Motivo: ${detailItem.blockedReason || 'Bloqueado'}` : (detailItem.notes || '—')}
                 </Typography>
               </Box>
@@ -836,7 +832,7 @@ export default function LocationsPage() {
                 Editar
               </Button>
 
-              <Typography sx={{ mt: 1.5, opacity:.6, fontSize: 11 }}>
+              <Typography sx={{ mt: 1.5, opacity: .6, fontSize: 11 }}>
                 *Acciones de bloquear/desbloquear/guardar se mantienen en el diálogo de edición.
               </Typography>
             </Box>
@@ -847,20 +843,19 @@ export default function LocationsPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog EDITAR (se queda igual) */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Editar ubicación</DialogTitle>
         <DialogContent>
           <Typography variant="body2" sx={{ opacity: .8, mb: 2 }}>
-            {selected ? `${selected.code} · Rack ${selected.rackCode} · ${selected.height} · Slot ${String(selected.slot).padStart(3,'0')}` : ''}
+            {selected ? `${selected.code} · Rack ${selected.rackCode} · ${selected.height} · Slot ${String(selected.slot).padStart(3, '0')}` : ''}
           </Typography>
           <Stack spacing={2}>
-            <TextField select label="Tipo" value={type} onChange={(e)=>setType(e.target.value)}>
-              {['RACK','FLOOR','QUARANTINE','RETURNS'].map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+            <TextField select label="Tipo" value={type} onChange={(e) => setType(e.target.value)}>
+              {['RACK', 'FLOOR', 'QUARANTINE', 'RETURNS'].map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
             </TextField>
-            <TextField label="Capacidad (max tarimas)" type="number" value={maxPallets} onChange={(e)=>setMaxPallets(e.target.value)} />
-            <TextField label="Notas" value={notes} onChange={(e)=>setNotes(e.target.value)} />
-            <TextField label="Motivo de bloqueo" value={reason} onChange={(e)=>setReason(e.target.value)} />
+            <TextField label="Capacidad (max tarimas)" type="number" value={maxPallets} onChange={(e) => setMaxPallets(e.target.value)} />
+            <TextField label="Notas" value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <TextField label="Motivo de bloqueo" value={reason} onChange={(e) => setReason(e.target.value)} />
           </Stack>
         </DialogContent>
         <DialogActions>
