@@ -31,7 +31,19 @@ import InsightsIcon from '@mui/icons-material/Insights'
 import CloseIcon from '@mui/icons-material/Close'
 import RestartAltIcon from '@mui/icons-material/RestartAlt'
 
-const AREAS = ['A1', 'A2', 'A3', 'A4']
+/** =========================
+ *  ZONAS por rango de rack
+ *  ========================= */
+const ZONE_RULES = [
+  { zone: 'MIDEA', from: 1, to: 12 },
+  { zone: 'ALMACEN', from: 16, to: 47 },
+  { zone: 'BOX', from: 67, to: 70 },
+  { zone: 'INSUMOS', from: 71, to: 78 },
+  { zone: 'LAMPARAS', from: 110, to: 118 },
+]
+
+// Opciones del filtro "Área (zona)"
+const AREAS = ['MIDEA', 'ALMACEN', 'BOX', 'INSUMOS', 'LAMPARAS', 'SIN ZONA']
 
 // UI label para alturas (tu DB usa A/B/C)
 const HEIGHT_LABEL = { A: 'PLANTA BAJA', B: 'MEDIA', C: 'ALTA' }
@@ -42,11 +54,8 @@ const rackOptions = Array.from({ length: 125 }, (_, i) => `F${String(i + 1).padS
 
 function rackToArea(rackCode) {
   const n = Number(String(rackCode || '').replace(/[^\d]/g, '')) || 0
-  if (n >= 1 && n <= 32) return 'A1'
-  if (n >= 33 && n <= 64) return 'A2'
-  if (n >= 65 && n <= 96) return 'A3'
-  if (n >= 97 && n <= 125) return 'A4'
-  return 'A1'
+  const rule = ZONE_RULES.find(r => n >= r.from && n <= r.to)
+  return rule?.zone || 'SIN ZONA'
 }
 
 function normalizeRackCode(input) {
@@ -85,10 +94,6 @@ function smartParse(input) {
   // A-F059-012
   let m = raw.match(/^([A-C])-(F\d{3})-(\d{3})$/)
   if (m) return { height: m[1], rackCode: m[2], slot: Number(m[3]) }
-
-  // A1-A-F059-012 (compat)
-  m = raw.match(/^(A1|A2|A3|A4)-([A-C])-(F\d{3})-(\d{3})$/)
-  if (m) return { area: m[1], height: m[2], rackCode: m[3], slot: Number(m[4]) }
 
   const cleaned = raw.replace(/[_/\\]+/g, ' ').replace(/-+/g, ' ').trim()
   const parts = cleaned.split(/\s+/).filter(Boolean)
@@ -130,8 +135,6 @@ function cellBgForState(st) {
 export default function LocationsPage() {
   const { token, user } = useAuth()
   const canEdit = ['ADMIN', 'SUPERVISOR'].includes(user?.role)
-
-  // OJO: tu api() normalmente toma token del storage; pero no rompe si se lo pasas
   const client = useMemo(() => api(token), [token])
 
   const theme = useTheme()
@@ -141,7 +144,7 @@ export default function LocationsPage() {
   const [loading, setLoading] = useState(false)
 
   // filtros
-  const [area, setArea] = useState('A1')
+  const [area, setArea] = useState('MIDEA')
   const [rack, setRack] = useState('')
   const [state, setState] = useState('')
   const [q, setQ] = useState('')
@@ -174,7 +177,14 @@ export default function LocationsPage() {
 
   useEffect(() => { load() }, [token])
 
-  // ✅ FIX: adaptar lo que viene de DB a lo que tu UI espera
+  // ✅ cuando cambia rack manualmente: ajustar zona automáticamente
+  useEffect(() => {
+    if (!rack) return
+    const zone = rackToArea(rack)
+    if (zone && zone !== area) setArea(zone)
+  }, [rack]) // a propósito sin "area" para evitar loops
+
+  // ✅ adaptar lo que viene de DB a lo que tu UI espera
   const enriched = useMemo(() => {
     return (rows || []).map((l) => {
       const fallback = parseCodeFallback(l.code)
@@ -185,14 +195,14 @@ export default function LocationsPage() {
 
       const slot3 = String(slot || 0).padStart(3, '0')
 
-      // ✅ SIEMPRE calcular por rack (no confiar en l.area)
+      // ✅ zona calculada (si tu backend luego trae l.area, aquí puedes priorizarlo)
       const computedArea = rackToArea(rackCode)
 
       const key = `${height}-${rackCode}-${slot3}`
 
       return {
         ...l,
-        _id: l.id || l._id, // por si viene id o _id
+        _id: l.id ?? l._id ?? l.code, // fallback seguro
         rackCode,
         height,
         slot,
@@ -262,7 +272,7 @@ export default function LocationsPage() {
   }
 
   const clearFilters = () => {
-    setArea('A1')
+    setArea('MIDEA')
     setRack('')
     setState('')
     setQ('')
@@ -279,16 +289,18 @@ export default function LocationsPage() {
     if (!parsed) return
 
     if (parsed.rackCode && !parsed.height) {
+      // solo rack
       setRack(parsed.rackCode)
-      setArea(rackToArea(parsed.rackCode)) // ✅ ya llevaba, ok
+      setArea(rackToArea(parsed.rackCode))
       setState('')
       setHighlightKey(null)
       setView('MAPA')
       return
     }
 
+    // búsqueda exacta height+rack+slot
     setRack(parsed.rackCode)
-    setArea(rackToArea(parsed.rackCode)) // ✅ ya llevaba, ok
+    setArea(rackToArea(parsed.rackCode))
     setState('')
     const slot3 = String(parsed.slot).padStart(3, '0')
     const key = `${parsed.height}-${parsed.rackCode}-${slot3}`
@@ -309,17 +321,6 @@ export default function LocationsPage() {
     if (k === 'VACIO') setState('VACIO')
     if (k === 'OCUPADO') setState('OCUPADO')
     if (k === 'BLOQUEADO') setState('BLOQUEADO')
-  }
-
-  // ✅ NUEVO FIX: cuando cambias RACK en el dropdown, también mover el ÁREA automáticamente
-  const handleRackChange = (value) => {
-    const v = String(value || '').toUpperCase()
-    setRack(v)
-
-    // si selecciona "Todos" (vacío) no forzamos área
-    if (v) {
-      setArea(rackToArea(v)) // ✅ esto es lo que te faltaba
-    }
   }
 
   const rackForMap = useMemo(() => {
@@ -389,7 +390,7 @@ export default function LocationsPage() {
         <Divider sx={{ my: 2 }} />
 
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'stretch', md: 'center' }}>
-          <TextField select size="small" label="Área (zona)" value={area} onChange={(e) => setArea(e.target.value)} sx={{ minWidth: 140 }}>
+          <TextField select size="small" label="Área (zona)" value={area} onChange={(e) => setArea(e.target.value)} sx={{ minWidth: 180 }}>
             {AREAS.map(a => <MenuItem key={a} value={a}>{a}</MenuItem>)}
           </TextField>
 
@@ -398,7 +399,11 @@ export default function LocationsPage() {
             size="small"
             label="Rack"
             value={rack}
-            onChange={(e) => handleRackChange(e.target.value)}   // ✅ FIX AQUÍ
+            onChange={(e) => {
+              const nextRack = e.target.value
+              setRack(nextRack)
+              if (nextRack) setArea(rackToArea(nextRack)) // ✅ FIX: cambia zona al elegir rack
+            }}
             sx={{ minWidth: 160 }}
           >
             <MenuItem value="">Todos</MenuItem>
@@ -500,12 +505,14 @@ export default function LocationsPage() {
         </Stack>
       </Paper>
 
+      {/* ====== CONTENIDO: LISTA / MAPA / RESUMEN + PANEL DETALLE ====== */}
       <Box sx={{
         display: 'grid',
         gridTemplateColumns: { xs: '1fr', lg: '1fr 360px' },
         gap: 2,
         alignItems: 'start'
       }}>
+        {/* IZQ */}
         <Box>
           {view === 'LISTA' && (
             <Paper elevation={0} sx={{ width: '100%', overflow: 'auto', borderRadius: 3, mb: 2 }}>
@@ -551,7 +558,7 @@ export default function LocationsPage() {
                         <Box component="td" sx={{ p: 1.5, fontFamily: 'monospace', fontWeight: 900, color: '#fff' }}>
                           {l.code || `${l.height}${String(l.slot).padStart(2, '0')}-${l.rackCode}-${String(l.slot).padStart(3, '0')}`}
                           <Typography variant="caption" sx={{ display: 'block', color: 'rgba(229,231,235,.75)', fontWeight: 700 }}>
-                            Área: <b>{areaLabel}</b> · Rack: <b>{l.rackCode || '—'}</b> · Altura: <b>{l.height} ({heightLabel})</b> · Slot: <b>{l._slot3}</b>
+                            Zona: <b>{areaLabel}</b> · Rack: <b>{l.rackCode || '—'}</b> · Altura: <b>{l.height} ({heightLabel})</b> · Slot: <b>{l._slot3}</b>
                           </Typography>
                         </Box>
 
@@ -700,11 +707,7 @@ export default function LocationsPage() {
                           background: 'linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02))',
                           cursor: 'pointer'
                         }}
-                        onClick={() => {
-                          setRack(rk.rackCode)
-                          setArea(rackToArea(rk.rackCode)) // ✅ FIX también aquí
-                          setView('MAPA')
-                        }}
+                        onClick={() => { setRack(rk.rackCode); setArea(rackToArea(rk.rackCode)); setView('MAPA') }}
                       >
                         <Stack direction="row" justifyContent="space-between" alignItems="center">
                           <Typography sx={{ fontWeight: 900, fontSize: 18 }}>{rk.rackCode}</Typography>
@@ -732,6 +735,7 @@ export default function LocationsPage() {
           )}
         </Box>
 
+        {/* DER: Panel de detalle (solo en desktop). En tablet se abre como modal. */}
         <Box sx={{ display: { xs: 'none', lg: 'block' } }}>
           <Paper elevation={0} sx={{
             p: 2,
@@ -758,12 +762,13 @@ export default function LocationsPage() {
                   <Chip size="small" label={detailItem._state} sx={{ ...chipSxForState(detailItem._state), fontWeight: 900 }} />
                   <Chip size="small" label={`Rack ${detailItem.rackCode}`} sx={{ bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)', color: '#e5e7eb', fontWeight: 900 }} />
                   <Chip size="small" label={`${detailItem.height}-${detailItem._slot3}`} sx={{ bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)', color: '#e5e7eb', fontWeight: 900 }} />
+                  <Chip size="small" label={`Zona ${detailItem._area}`} sx={{ bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)', color: '#e5e7eb', fontWeight: 900 }} />
                 </Stack>
 
                 <Divider sx={{ my: 1.5 }} />
 
                 <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr', rowGap: 1, columnGap: 1.5 }}>
-                  <Typography sx={{ opacity: .7, fontSize: 12 }}>Área</Typography>
+                  <Typography sx={{ opacity: .7, fontSize: 12 }}>Zona</Typography>
                   <Typography sx={{ fontSize: 12, fontWeight: 900 }}>{detailItem._area}</Typography>
 
                   <Typography sx={{ opacity: .7, fontSize: 12 }}>Tipo</Typography>
@@ -801,6 +806,7 @@ export default function LocationsPage() {
         </Box>
       </Box>
 
+      {/* MODAL detalle (tablet / mobile) */}
       <Dialog open={detailOpen && isMobile} onClose={() => setDetailOpen(false)} fullScreen>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           Detalle de ubicación
@@ -822,35 +828,14 @@ export default function LocationsPage() {
                 <Chip size="small" label={detailItem._state} sx={{ ...chipSxForState(detailItem._state), fontWeight: 900 }} />
                 <Chip size="small" label={`Rack ${detailItem.rackCode}`} sx={{ bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)', color: '#e5e7eb', fontWeight: 900 }} />
                 <Chip size="small" label={`${detailItem.height}-${detailItem._slot3}`} sx={{ bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)', color: '#e5e7eb', fontWeight: 900 }} />
+                <Chip size="small" label={`Zona ${detailItem._area}`} sx={{ bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)', color: '#e5e7eb', fontWeight: 900 }} />
               </Stack>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr', rowGap: 1, columnGap: 1.5 }}>
-                <Typography sx={{ opacity: .7, fontSize: 12 }}>Área</Typography>
-                <Typography sx={{ fontSize: 12, fontWeight: 900 }}>{detailItem._area}</Typography>
-
-                <Typography sx={{ opacity: .7, fontSize: 12 }}>Tipo</Typography>
-                <Typography sx={{ fontSize: 12, fontWeight: 900 }}>{detailItem.type || 'RACK'}</Typography>
-
-                <Typography sx={{ opacity: .7, fontSize: 12 }}>Capacidad</Typography>
-                <Typography sx={{ fontSize: 12, fontWeight: 900 }}>{detailItem.maxPallets || 1}</Typography>
-
-                <Typography sx={{ opacity: .7, fontSize: 12 }}>Notas/Motivo</Typography>
-                <Typography sx={{ fontSize: 12, fontWeight: 800, opacity: .9 }}>
-                  {detailItem.blocked ? `Motivo: ${detailItem.blockedReason || 'Bloqueado'}` : (detailItem.notes || '—')}
-                </Typography>
-              </Box>
 
               <Divider sx={{ my: 2 }} />
 
               <Button variant="contained" startIcon={<EditIcon />} onClick={() => openEdit(detailItem)} fullWidth>
                 Editar
               </Button>
-
-              <Typography sx={{ mt: 1.5, opacity: .6, fontSize: 11 }}>
-                *Acciones de bloquear/desbloquear/guardar se mantienen en el diálogo de edición.
-              </Typography>
             </Box>
           )}
         </DialogContent>
@@ -859,6 +844,7 @@ export default function LocationsPage() {
         </DialogActions>
       </Dialog>
 
+      {/* Dialog EDITAR */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Editar ubicación</DialogTitle>
         <DialogContent>
