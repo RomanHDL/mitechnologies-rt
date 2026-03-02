@@ -158,7 +158,7 @@ export default function ProductsPage() {
         Solicitudes (Operación)
       </Typography>
       <Typography variant="caption" sx={{ opacity: .75 }}>
-        P1 Incoming · P2 Sorting · P3 FFT (Accesorios) · P4 OpenCell
+        P1 Incoming · P2 Sorting · P3 FFT (Accesoríos) · P4 OpenCell
       </Typography>
 
       {/* Resumen superior */}
@@ -298,7 +298,7 @@ export default function ProductsPage() {
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ p: 2, pb: 0 }}>
           <TextField
             select
-            label="Filtrar status"
+            label="Filtrar estatus"
             value={filtroStatus}
             onChange={e => setFiltroStatus(e.target.value)}
             sx={{ minWidth: 200 }}
@@ -325,7 +325,7 @@ export default function ProductsPage() {
 
           <TableBody>
             {filteredRows.map((r, idx) => {
-              // Icono de estado
+              // Ícono de estado
               let statusIcon = <HourglassEmptyIcon sx={{ color: '#eab308', verticalAlign: 'middle' }} fontSize="small" />
               if (r.status === 'EN PROCESO') statusIcon = <EditIcon sx={{ color: '#0369a1', verticalAlign: 'middle' }} fontSize="small" />
               if (r.status === 'COMPLETADA') statusIcon = <CheckCircleIcon sx={{ color: '#22c55e', verticalAlign: 'middle' }} fontSize="small" />
