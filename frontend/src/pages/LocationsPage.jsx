@@ -82,10 +82,11 @@ function smartParse(input) {
   const raw = String(input || '').trim().toUpperCase()
   if (!raw) return null
 
-  // A-F059-012  ó  A1-F059-012
+  // A-F059-012
   let m = raw.match(/^([A-C])-(F\d{3})-(\d{3})$/)
   if (m) return { height: m[1], rackCode: m[2], slot: Number(m[3]) }
 
+  // A2-A-F059-012 (area + height + rack + slot)
   m = raw.match(/^(A1|A2|A3|A4)-([A-C])-(F\d{3})-(\d{3})$/)
   if (m) return { area: m[1], height: m[2], rackCode: m[3], slot: Number(m[4]) }
 
@@ -173,28 +174,29 @@ export default function LocationsPage() {
 
   useEffect(() => { load() }, [token])
 
-  // ✅ AQUÍ ESTÁ EL FIX: adaptar lo que viene de DB a lo que tu UI espera
+  // ✅ FIX REAL: SIEMPRE calcular área por rack (no confiar en l.area)
+  // ✅ Y normalizar lo que venga de DB (rack/level/position/slot)
   const enriched = useMemo(() => {
     return (rows || []).map((l) => {
       const fallback = parseCodeFallback(l.code)
 
-      const rackCode = String(l.rack || fallback.rack || '').toUpperCase()
-      const height = String(l.level || fallback.level || '').toUpperCase() // A/B/C
-      const slot = Number(l.position ?? fallback.position ?? 0) // 1..12
+      const rackCode = String(l.rackCode || l.rack || fallback.rack || '').toUpperCase()
+      const height = String(l.level || l.height || fallback.level || '').toUpperCase() || 'A' // A/B/C
+      const slot = Number(
+        l.position ?? l.slot ?? fallback.position ?? 0
+      )
 
       const slot3 = String(slot || 0).padStart(3, '0')
 
-      // área a nivel UI: si DB trae area úsala; si no, calcula por rack
-      const computedArea = l.area || rackToArea(rackCode)
-
+      const computedArea = rackToArea(rackCode)
       const key = `${height}-${rackCode}-${slot3}`
 
       return {
         ...l,
-        _id: l.id,          // compat para tu UI
-        rackCode,           // compat para tu UI
-        height,             // compat para tu UI
-        slot,               // compat para tu UI
+        _id: l._id || l.id, // para que patch use selected._id y key de lista funcione
+        rackCode,
+        height,
+        slot,
         _area: computedArea,
         _state: l.state || 'VACIO',
         _slot3: slot3,
