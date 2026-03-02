@@ -31,14 +31,16 @@ import * as XLSX from 'xlsx'
 const AREAS = [
   { code: 'P1', label: 'Sorting' },
   { code: 'P2', label: 'FFT' },
-  { code: 'P3', label: 'Palletizing' },
+  { code: 'P3', label: 'Shipping' }, // ✅ antes: Palletizing
   { code: 'P4', label: 'OpenCell' },
 ]
 
 const SUBAREAS_BY_AREA = {
   P1: ['Sorting'],
-  P2: ['Palletizado', 'Produccion'],
-  P3: ['Midea', 'O.C', 'ACC', 'OC'],
+  // ✅ Quitamos "Palletizado" y agregamos "Accesorios" (tu default)
+  P2: ['Accesorios', 'Produccion'],
+  // ✅ Shipping como área nueva
+  P3: ['Shipping'],
   P4: ['OpenCell', 'Technical'],
 }
 
@@ -68,7 +70,10 @@ export default function ProductionPage() {
     setRows(Array.isArray(res.data) ? res.data : [])
   }
 
-  useEffect(() => { load() }, [token])
+  useEffect(() => {
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
 
   // ✅ si cambia area, elegir subarea default válida
   useEffect(() => {
@@ -87,6 +92,9 @@ export default function ProductionPage() {
     setNote('')
     await load()
   }
+
+  const [filtroStatus, setFiltroStatus] = useState('')
+  const filteredRows = rows.filter(r => !filtroStatus || r.status === filtroStatus)
 
   // Exportar a Excel
   const exportExcel = () => {
@@ -121,9 +129,6 @@ export default function ProductionPage() {
     completadas: rows.filter(r => r.status === 'COMPLETADA').length,
     canceladas: rows.filter(r => r.status === 'CANCELADA').length
   }), [rows])
-
-  const [filtroStatus, setFiltroStatus] = useState('')
-  const filteredRows = rows.filter(r => !filtroStatus || r.status === filtroStatus)
 
   const headerSubtitle = useMemo(() => {
     const title = `${areaLabel(area)} > ${subarea}`
@@ -182,10 +187,34 @@ export default function ProductionPage() {
             ))}
           </TextField>
 
-          <TextField label="PalletID" value={sku} onChange={(e) => setSku(e.target.value)} sx={{ flex: '2 1 200px' }} />
-          <TextField label="Items" type="number" value={qty} onChange={(e) => setQty(e.target.value)} sx={{ minWidth: 100, flex: '1 1 100px' }} inputProps={{ min: 1 }} />
-          <TextField label="Nota" value={note} onChange={(e) => setNote(e.target.value)} sx={{ flex: '2 1 200px' }} />
-          <Button variant="contained" onClick={create} sx={{ height: 56, px: 4, whiteSpace: 'nowrap' }}>Crear</Button>
+          <TextField
+            label="PalletID"
+            value={sku}
+            onChange={(e) => setSku(e.target.value)}
+            sx={{ flex: '2 1 200px' }}
+          />
+          <TextField
+            label="Items"
+            type="number"
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+            sx={{ minWidth: 100, flex: '1 1 100px' }}
+            inputProps={{ min: 1 }}
+          />
+          <TextField
+            label="Nota"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            sx={{ flex: '2 1 200px' }}
+          />
+          <Button
+            variant="contained"
+            onClick={create}
+            sx={{ height: 56, px: 4, whiteSpace: 'nowrap' }}
+            disabled={!area || !subarea || !sku || Number(qty) <= 0}
+          >
+            Crear
+          </Button>
         </Stack>
 
         {isFftAccesorios(area, subarea) && (
