@@ -4,7 +4,7 @@ const UiCtx = createContext(null)
 
 export function UiProvider({ children }) {
   // ✅ Solo cambia el default a 'dark' (no afecta toggle ni localStorage)
-  const [mode, setMode] = useState(localStorage.getItem('ui_mode') || 'dark')
+  const [mode, setMode] = useState(localStorage.getItem('ui_mode') || 'light')
 
   const value = useMemo(() => ({
     mode,

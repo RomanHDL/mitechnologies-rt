@@ -31,8 +31,29 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center', px: 2, background: '#0b1220' }}>
-      <Paper sx={{ width: 'min(520px, 100%)', p: 4, borderRadius: 4 }}>
+    <Box sx={{
+      minHeight: '100vh',
+      display: 'grid',
+      placeItems: 'center',
+      px: 2,
+      backgroundImage: `
+        radial-gradient(1200px 500px at 15% 20%, rgba(21,101,192,0.30), transparent 60%),
+        radial-gradient(900px 420px at 85% 15%, rgba(2,136,209,0.22), transparent 60%),
+        linear-gradient(135deg, rgba(10,37,64,0.30), rgba(10,37,64,0.08)),
+        url("https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=2000&q=60")
+      `,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundBlendMode: 'screen, screen, normal, normal',
+    }}>
+      <Paper elevation={0} sx={{
+        width: 'min(520px, 100%)',
+        p: 4,
+        borderRadius: 4,
+        backdropFilter: 'blur(10px)',
+        background: 'rgba(255,255,255,0.88)',
+        border: '1px solid rgba(21,101,192,0.12)',
+      }}>
         <Typography variant="h5" sx={{ fontWeight: 900, mb: 2 }}>Recuperar contraseña</Typography>
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         {ok && <Alert severity="success" sx={{ mb: 2 }}>{ok}</Alert>}

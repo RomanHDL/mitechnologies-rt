@@ -30,6 +30,7 @@ import DownloadIcon from '@mui/icons-material/Download'
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
 import CancelIcon from '@mui/icons-material/Cancel'
 import * as XLSX from 'xlsx'
+import { useTheme } from '@mui/material/styles'
 
 // ✅ NUEVO (Centro de control)
 import dayjs from 'dayjs'
@@ -40,6 +41,8 @@ import SearchIcon from '@mui/icons-material/Search'
 export default function ProductsPage() {
   const { token, user } = useAuth()
   const isWriter = ['ADMIN', 'SUPERVISOR'].includes(user?.role)
+  const theme = useTheme()
+  const isDark = theme.palette.mode === 'dark'
 
   const [q, setQ] = useState('')
   const [rows, setRows] = useState([])
@@ -204,17 +207,13 @@ export default function ProductsPage() {
       </Stack>
 
       {/* ✅ Centro de control: Trazabilidad rápida */}
-      <Paper elevation={1} sx={{ p: 2, borderRadius: 3, mb: 2, background: '#101c2b', color: '#fff' }}>
+      <Paper elevation={0} sx={{ p: 2, borderRadius: 3, mb: 2 }}>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'stretch', md: 'center' }}>
           <TextField
             label="Rastreo (SKU o Código de tarima)"
             value={traceQ}
             onChange={(e) => setTraceQ(e.target.value)}
             fullWidth
-            sx={{
-              '& .MuiInputBase-root': { bgcolor: 'rgba(255,255,255,.06)', color: '#fff' },
-              '& .MuiInputLabel-root': { color: 'rgba(255,255,255,.7)' }
-            }}
           />
           <Button
             variant="contained"
@@ -240,7 +239,7 @@ export default function ProductsPage() {
 
         {!!traceRows.length && (
           <Box sx={{ mt: 2 }}>
-            <Divider sx={{ borderColor: 'rgba(255,255,255,.10)', mb: 2 }} />
+            <Divider sx={{ mb: 2 }} />
 
             <Typography sx={{ fontWeight: 900, mb: 1 }}>
               Últimos movimientos ({traceRows.length})
@@ -254,8 +253,8 @@ export default function ProductsPage() {
                     p: 1.2,
                     mb: 1,
                     borderRadius: 2,
-                    border: '1px solid rgba(255,255,255,.10)',
-                    background: 'rgba(255,255,255,.04)',
+                    border: isDark ? '1px solid rgba(255,255,255,.10)' : '1px solid rgba(21,101,192,.12)',
+                    background: isDark ? 'rgba(255,255,255,.04)' : 'rgba(21,101,192,.03)',
                     display: 'grid',
                     gridTemplateColumns: { xs: '1fr', md: '180px 120px 1fr' },
                     gap: 1,
@@ -271,9 +270,9 @@ export default function ProductsPage() {
                     label={m.type || '—'}
                     sx={{
                       bgcolor: m.type === 'IN' ? 'rgba(34,197,94,.15)' : 'rgba(239,68,68,.15)',
-                      color: '#fff',
-                      border: '1px solid rgba(255,255,255,.12)',
-                      fontWeight: 900
+                      color: m.type === 'IN' ? (isDark ? '#e5e7eb' : '#1b5e20') : (isDark ? '#e5e7eb' : '#b71c1c'),
+                      border: m.type === 'IN' ? '1px solid rgba(34,197,94,.25)' : '1px solid rgba(239,68,68,.25)',
+                      fontWeight: 900,
                     }}
                   />
 

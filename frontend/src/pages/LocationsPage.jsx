@@ -120,16 +120,16 @@ function smartParse(input) {
   return null
 }
 
-function chipSxForState(st) {
-  if (st === 'OCUPADO') return { bgcolor: 'rgba(34,197,94,.18)', border: '1px solid rgba(34,197,94,.22)', color: '#e5e7eb' }
-  if (st === 'BLOQUEADO') return { bgcolor: 'rgba(239,68,68,.16)', border: '1px solid rgba(239,68,68,.22)', color: '#e5e7eb' }
-  return { bgcolor: 'rgba(148,163,184,.16)', border: '1px solid rgba(255,255,255,.10)', color: '#e5e7eb' }
+function chipSxForState(st, isDark = false) {
+  if (st === 'OCUPADO') return { bgcolor: 'rgba(34,197,94,.18)', border: '1px solid rgba(34,197,94,.25)', color: isDark ? '#e5e7eb' : '#1b5e20' }
+  if (st === 'BLOQUEADO') return { bgcolor: 'rgba(239,68,68,.16)', border: '1px solid rgba(239,68,68,.25)', color: isDark ? '#e5e7eb' : '#b71c1c' }
+  return { bgcolor: isDark ? 'rgba(148,163,184,.16)' : 'rgba(21,101,192,.10)', border: isDark ? '1px solid rgba(255,255,255,.10)' : '1px solid rgba(21,101,192,.20)', color: isDark ? '#e5e7eb' : '#1565C0' }
 }
 
-function cellBgForState(st) {
+function cellBgForState(st, isDark = false) {
   if (st === 'OCUPADO') return 'rgba(34,197,94,.14)'
   if (st === 'BLOQUEADO') return 'rgba(239,68,68,.12)'
-  return 'rgba(255,255,255,.04)'
+  return isDark ? 'rgba(255,255,255,.04)' : 'rgba(21,101,192,.04)'
 }
 
 export default function LocationsPage() {
@@ -138,6 +138,7 @@ export default function LocationsPage() {
   const client = useMemo(() => api(token), [token])
 
   const theme = useTheme()
+  const isDark = theme.palette.mode === 'dark'
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
 
   const [rows, setRows] = useState([])
@@ -339,7 +340,7 @@ export default function LocationsPage() {
   }, [filtered, rackForMap])
 
   return (
-    <Box sx={{ color: '#e5e7eb' }}>
+    <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
         <Typography variant="h6" sx={{ fontWeight: 900 }}>Ubicaciones</Typography>
 
@@ -347,16 +348,12 @@ export default function LocationsPage() {
           <Chip
             size="small"
             label={view === 'LISTA' ? 'Lista' : view === 'MAPA' ? 'Mapa' : 'Resumen'}
-            sx={{ bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)', color: '#e5e7eb', fontWeight: 900 }}
+            sx={{ ...chipSxForState('VACIO', isDark), fontWeight: 900 }}
           />
         </Stack>
       </Box>
 
-      <Paper elevation={0} sx={{
-        p: 2, borderRadius: 3, mb: 2,
-        background: 'linear-gradient(180deg, rgba(255,255,255,.05), rgba(17,24,39,.25))',
-        border: '1px solid rgba(255,255,255,.06)'
-      }}>
+      <Paper elevation={0} sx={{ p: 2, borderRadius: 3, mb: 2 }}>
         {!canEdit && (
           <Alert severity="warning" sx={{ mb: 2 }}>
             Solo ADMIN/SUPERVISOR puede editar ubicaciones y bloquear/desbloquear.
@@ -377,8 +374,8 @@ export default function LocationsPage() {
           </Button>
 
           <Tooltip title="Limpiar filtros">
-            <IconButton onClick={clearFilters} sx={{ bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)' }}>
-              <RestartAltIcon sx={{ color: '#e5e7eb' }} />
+            <IconButton onClick={clearFilters} sx={{ bgcolor: isDark ? 'rgba(255,255,255,.07)' : 'rgba(21,101,192,.08)', border: isDark ? '1px solid rgba(255,255,255,.12)' : '1px solid rgba(21,101,192,.20)' }}>
+              <RestartAltIcon color="primary" />
             </IconButton>
           </Tooltip>
 
@@ -463,10 +460,10 @@ export default function LocationsPage() {
             size="small"
             label={`Total: ${summary.total}`}
             sx={{
-              bgcolor: state === '' ? 'rgba(59,130,246,.22)' : 'rgba(255,255,255,.06)',
-              border: '1px solid rgba(255,255,255,.10)',
-              color: '#e5e7eb',
-              fontWeight: 900
+              bgcolor: state === '' ? 'rgba(21,101,192,.22)' : (isDark ? 'rgba(255,255,255,.06)' : 'rgba(21,101,192,.08)'),
+              border: isDark ? '1px solid rgba(255,255,255,.10)' : '1px solid rgba(21,101,192,.20)',
+              color: isDark ? '#e5e7eb' : '#1565C0',
+              fontWeight: 900,
             }}
           />
           <Chip
@@ -475,9 +472,9 @@ export default function LocationsPage() {
             size="small"
             label={`VACÍO: ${summary.VACIO}`}
             sx={{
-              ...(chipSxForState('VACIO')),
-              bgcolor: state === 'VACIO' ? 'rgba(148,163,184,.28)' : chipSxForState('VACIO').bgcolor,
-              fontWeight: 900
+              ...chipSxForState('VACIO', isDark),
+              bgcolor: state === 'VACIO' ? (isDark ? 'rgba(148,163,184,.28)' : 'rgba(21,101,192,.20)') : chipSxForState('VACIO', isDark).bgcolor,
+              fontWeight: 900,
             }}
           />
           <Chip
@@ -486,9 +483,9 @@ export default function LocationsPage() {
             size="small"
             label={`OCUPADO: ${summary.OCUPADO}`}
             sx={{
-              ...(chipSxForState('OCUPADO')),
-              bgcolor: state === 'OCUPADO' ? 'rgba(34,197,94,.28)' : chipSxForState('OCUPADO').bgcolor,
-              fontWeight: 900
+              ...chipSxForState('OCUPADO', isDark),
+              bgcolor: state === 'OCUPADO' ? 'rgba(34,197,94,.28)' : chipSxForState('OCUPADO', isDark).bgcolor,
+              fontWeight: 900,
             }}
           />
           <Chip
@@ -497,9 +494,9 @@ export default function LocationsPage() {
             size="small"
             label={`BLOQUEADO: ${summary.BLOQUEADO}`}
             sx={{
-              ...(chipSxForState('BLOQUEADO')),
-              bgcolor: state === 'BLOQUEADO' ? 'rgba(239,68,68,.26)' : chipSxForState('BLOQUEADO').bgcolor,
-              fontWeight: 900
+              ...chipSxForState('BLOQUEADO', isDark),
+              bgcolor: state === 'BLOQUEADO' ? 'rgba(239,68,68,.26)' : chipSxForState('BLOQUEADO', isDark).bgcolor,
+              fontWeight: 900,
             }}
           />
         </Stack>
@@ -517,14 +514,14 @@ export default function LocationsPage() {
           {view === 'LISTA' && (
             <Paper elevation={0} sx={{ width: '100%', overflow: 'auto', borderRadius: 3, mb: 2 }}>
               <Box component="table" sx={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
-                <Box component="thead" sx={{ background: 'rgba(15,23,42,.65)', position: 'sticky', top: 0, zIndex: 1 }}>
+                <Box component="thead" sx={{ background: isDark ? 'rgba(15,23,42,.65)' : 'rgba(21,101,192,.07)', position: 'sticky', top: 0, zIndex: 1 }}>
                   <Box component="tr">
-                    <Box component="th" sx={{ color: '#fff', fontWeight: 900, p: 1.5, textAlign: 'left', minWidth: 140 }}>Ubicación</Box>
-                    <Box component="th" sx={{ color: '#fff', fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 110 }}>Estado</Box>
-                    <Box component="th" sx={{ color: '#fff', fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 90 }}>Tipo</Box>
-                    <Box component="th" sx={{ color: '#fff', fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 90 }}>Capacidad</Box>
-                    <Box component="th" sx={{ color: '#fff', fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 160 }}>Notas / Motivo</Box>
-                    <Box component="th" sx={{ color: '#fff', fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 120 }}>Acción</Box>
+                    <Box component="th" sx={{ fontWeight: 900, p: 1.5, textAlign: 'left', minWidth: 140, color: isDark ? '#fff' : '#1565C0' }}>Ubicación</Box>
+                    <Box component="th" sx={{ fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 110, color: isDark ? '#fff' : '#1565C0' }}>Estado</Box>
+                    <Box component="th" sx={{ fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 90, color: isDark ? '#fff' : '#1565C0' }}>Tipo</Box>
+                    <Box component="th" sx={{ fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 90, color: isDark ? '#fff' : '#1565C0' }}>Capacidad</Box>
+                    <Box component="th" sx={{ fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 160, color: isDark ? '#fff' : '#1565C0' }}>Notas / Motivo</Box>
+                    <Box component="th" sx={{ fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 120, color: isDark ? '#fff' : '#1565C0' }}>Acción</Box>
                   </Box>
                 </Box>
 
@@ -548,29 +545,31 @@ export default function LocationsPage() {
                         onClick={() => openDetail(l)}
                         sx={{
                           cursor: 'pointer',
-                          background: idx % 2 === 0 ? 'rgba(255,255,255,.03)' : 'rgba(255,255,255,.02)',
+                          background: idx % 2 === 0
+                            ? (isDark ? 'rgba(255,255,255,.03)' : 'rgba(21,101,192,.025)')
+                            : 'transparent',
                           transition: 'background 0.15s ease, box-shadow .15s ease',
-                          outline: isHi ? '2px solid rgba(96,165,250,.85)' : 'none',
+                          outline: isHi ? '2px solid rgba(59,130,246,.85)' : 'none',
                           outlineOffset: -2,
-                          '&:hover': { background: 'rgba(255,255,255,.06)' }
+                          '&:hover': { background: isDark ? 'rgba(255,255,255,.06)' : 'rgba(21,101,192,.06)' },
                         }}
                       >
-                        <Box component="td" sx={{ p: 1.5, fontFamily: 'monospace', fontWeight: 900, color: '#fff' }}>
+                        <Box component="td" sx={{ p: 1.5, fontFamily: 'monospace', fontWeight: 900 }}>
                           {l.code || `${l.height}${String(l.slot).padStart(2, '0')}-${l.rackCode}-${String(l.slot).padStart(3, '0')}`}
-                          <Typography variant="caption" sx={{ display: 'block', color: 'rgba(229,231,235,.75)', fontWeight: 700 }}>
+                          <Typography variant="caption" sx={{ display: 'block', opacity: 0.72, fontWeight: 700 }}>
                             Zona: <b>{areaLabel}</b> · Rack: <b>{l.rackCode || '—'}</b> · Altura: <b>{l.height} ({heightLabel})</b> · Slot: <b>{l._slot3}</b>
                           </Typography>
                         </Box>
 
                         <Box component="td" sx={{ p: 1.5, textAlign: 'center' }}>
                           <Tooltip title={st} arrow>{stateIcon}</Tooltip>
-                          <Typography variant="caption" sx={{ display: 'block', color: '#fff', fontWeight: 900 }}>{st}</Typography>
+                          <Typography variant="caption" sx={{ display: 'block', fontWeight: 900 }}>{st}</Typography>
                         </Box>
 
-                        <Box component="td" sx={{ p: 1.5, textAlign: 'center', color: '#fff', fontWeight: 800 }}>{l.type || 'RACK'}</Box>
-                        <Box component="td" sx={{ p: 1.5, textAlign: 'center', color: '#fff', fontWeight: 800 }}>{l.maxPallets || 1}</Box>
+                        <Box component="td" sx={{ p: 1.5, textAlign: 'center', fontWeight: 800 }}>{l.type || 'RACK'}</Box>
+                        <Box component="td" sx={{ p: 1.5, textAlign: 'center', fontWeight: 800 }}>{l.maxPallets || 1}</Box>
 
-                        <Box component="td" sx={{ p: 1.5, textAlign: 'center', color: '#fff', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <Box component="td" sx={{ p: 1.5, textAlign: 'center', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           <Tooltip title={noteText} arrow>
                             <span>{noteText.length > 30 ? noteText.slice(0, 30) + '…' : noteText}</span>
                           </Tooltip>
@@ -582,7 +581,7 @@ export default function LocationsPage() {
                             variant="outlined"
                             startIcon={<EditIcon />}
                             onClick={() => openEdit(l)}
-                            sx={{ color: '#e5e7eb', borderColor: 'rgba(255,255,255,.18)', '&:hover': { borderColor: 'rgba(255,255,255,.35)', background: 'rgba(255,255,255,.06)' } }}
+                            sx={{ borderRadius: 2 }}
                           >
                             Editar
                           </Button>
@@ -596,20 +595,16 @@ export default function LocationsPage() {
           )}
 
           {view === 'MAPA' && (
-            <Paper elevation={0} sx={{
-              p: 2, borderRadius: 3,
-              background: 'linear-gradient(180deg, rgba(255,255,255,.04), rgba(17,24,39,.25))',
-              border: '1px solid rgba(255,255,255,.06)'
-            }}>
+            <Paper elevation={0} sx={{ p: 2, borderRadius: 3 }}>
               <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems={{ xs: 'stretch', md: 'center' }} justifyContent="space-between" sx={{ mb: 1 }}>
                 <Typography sx={{ fontWeight: 900 }}>
                   Mapa del Rack {rackForMap || '—'} <span style={{ opacity: .7, fontWeight: 800 }}>(A/B/C · 001–012)</span>
                 </Typography>
 
                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                  <Chip size="small" label="VACÍO" sx={{ ...chipSxForState('VACIO') }} />
-                  <Chip size="small" label="OCUPADO" sx={{ ...chipSxForState('OCUPADO') }} />
-                  <Chip size="small" label="BLOQUEADO" sx={{ ...chipSxForState('BLOQUEADO') }} />
+                  <Chip size="small" label="VACÍO" sx={{ ...chipSxForState('VACIO', isDark) }} />
+                  <Chip size="small" label="OCUPADO" sx={{ ...chipSxForState('OCUPADO', isDark) }} />
+                  <Chip size="small" label="BLOQUEADO" sx={{ ...chipSxForState('BLOQUEADO', isDark) }} />
                 </Stack>
               </Stack>
 
@@ -653,8 +648,8 @@ export default function LocationsPage() {
                               p: 1,
                               borderRadius: 2,
                               textAlign: 'center',
-                              bgcolor: cellBgForState(st),
-                              border: isHi ? '2px solid rgba(96,165,250,.85)' : '1px solid rgba(255,255,255,.08)',
+                              bgcolor: cellBgForState(st, isDark),
+                              border: isHi ? '2px solid rgba(59,130,246,.85)' : (isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(21,101,192,.15)'),
                               transition: 'transform .08s ease, box-shadow .12s ease',
                               '&:hover': l ? { transform: 'translateY(-1px)', boxShadow: '0 12px 26px rgba(0,0,0,.25)' } : {}
                             }}
@@ -676,11 +671,7 @@ export default function LocationsPage() {
           )}
 
           {view === 'RESUMEN' && (
-            <Paper elevation={0} sx={{
-              p: 2, borderRadius: 3,
-              background: 'linear-gradient(180deg, rgba(255,255,255,.04), rgba(17,24,39,.25))',
-              border: '1px solid rgba(255,255,255,.06)'
-            }}>
+            <Paper elevation={0} sx={{ p: 2, borderRadius: 3 }}>
               <Typography sx={{ fontWeight: 900, mb: 1 }}>
                 Resumen por Rack <span style={{ opacity: .7, fontWeight: 800 }}>(según filtros)</span>
               </Typography>
@@ -703,24 +694,24 @@ export default function LocationsPage() {
                         sx={{
                           p: 2,
                           borderRadius: 3,
-                          border: '1px solid rgba(255,255,255,.06)',
-                          background: 'linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02))',
-                          cursor: 'pointer'
+                          cursor: 'pointer',
+                          transition: 'transform .1s ease',
+                          '&:hover': { transform: 'translateY(-2px)' },
                         }}
                         onClick={() => { setRack(rk.rackCode); setArea(rackToArea(rk.rackCode)); setView('MAPA') }}
                       >
                         <Stack direction="row" justifyContent="space-between" alignItems="center">
                           <Typography sx={{ fontWeight: 900, fontSize: 18 }}>{rk.rackCode}</Typography>
-                          <Chip size="small" label={`${occPct}% Ocup.`} sx={{ bgcolor: 'rgba(59,130,246,.18)', border: '1px solid rgba(59,130,246,.20)', color: '#e5e7eb', fontWeight: 900 }} />
+                          <Chip size="small" label={`${occPct}% Ocup.`} sx={{ bgcolor: 'rgba(21,101,192,.18)', border: '1px solid rgba(21,101,192,.25)', color: isDark ? '#64B5F6' : '#1565C0', fontWeight: 900 }} />
                         </Stack>
 
                         <Divider sx={{ my: 1.5 }} />
 
                         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                          <Chip size="small" label={`Total ${rk.total}`} sx={{ bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)', color: '#e5e7eb' }} />
-                          <Chip size="small" label={`Vacío ${rk.VACIO}`} sx={{ ...chipSxForState('VACIO') }} />
-                          <Chip size="small" label={`Ocupado ${rk.OCUPADO}`} sx={{ ...chipSxForState('OCUPADO') }} />
-                          <Chip size="small" label={`Bloq. ${rk.BLOQUEADO}`} sx={{ ...chipSxForState('BLOQUEADO') }} />
+                          <Chip size="small" label={`Total ${rk.total}`} sx={{ ...chipSxForState('VACIO', isDark) }} />
+                          <Chip size="small" label={`Vacío ${rk.VACIO}`} sx={{ ...chipSxForState('VACIO', isDark) }} />
+                          <Chip size="small" label={`Ocupado ${rk.OCUPADO}`} sx={{ ...chipSxForState('OCUPADO', isDark) }} />
+                          <Chip size="small" label={`Bloq. ${rk.BLOQUEADO}`} sx={{ ...chipSxForState('BLOQUEADO', isDark) }} />
                         </Stack>
 
                         <Typography sx={{ mt: 1.2, opacity: .7, fontSize: 12 }}>
@@ -740,10 +731,8 @@ export default function LocationsPage() {
           <Paper elevation={0} sx={{
             p: 2,
             borderRadius: 3,
-            background: 'linear-gradient(180deg, rgba(255,255,255,.05), rgba(17,24,39,.25))',
-            border: '1px solid rgba(255,255,255,.06)',
             position: 'sticky',
-            top: 92
+            top: 92,
           }}>
             <Typography sx={{ fontWeight: 900 }}>Detalle</Typography>
             <Divider sx={{ my: 1.5 }} />
@@ -759,10 +748,10 @@ export default function LocationsPage() {
                 </Typography>
 
                 <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap' }} useFlexGap>
-                  <Chip size="small" label={detailItem._state} sx={{ ...chipSxForState(detailItem._state), fontWeight: 900 }} />
-                  <Chip size="small" label={`Rack ${detailItem.rackCode}`} sx={{ bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)', color: '#e5e7eb', fontWeight: 900 }} />
-                  <Chip size="small" label={`${detailItem.height}-${detailItem._slot3}`} sx={{ bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)', color: '#e5e7eb', fontWeight: 900 }} />
-                  <Chip size="small" label={`Zona ${detailItem._area}`} sx={{ bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)', color: '#e5e7eb', fontWeight: 900 }} />
+                  <Chip size="small" label={detailItem._state} sx={{ ...chipSxForState(detailItem._state, isDark), fontWeight: 900 }} />
+                  <Chip size="small" label={`Rack ${detailItem.rackCode}`} sx={{ ...chipSxForState('VACIO', isDark), fontWeight: 900 }} />
+                  <Chip size="small" label={`${detailItem.height}-${detailItem._slot3}`} sx={{ ...chipSxForState('VACIO', isDark), fontWeight: 900 }} />
+                  <Chip size="small" label={`Zona ${detailItem._area}`} sx={{ ...chipSxForState('VACIO', isDark), fontWeight: 900 }} />
                 </Stack>
 
                 <Divider sx={{ my: 1.5 }} />
