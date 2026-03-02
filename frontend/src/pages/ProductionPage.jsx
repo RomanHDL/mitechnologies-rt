@@ -37,9 +37,9 @@ const AREAS = [
 
 const SUBAREAS_BY_AREA = {
   P1: ['Sorting'],
-  P2: ['PNP/POC/PEN', 'BOX PREP', 'Accesorios'],
+  P2: ['Palletizado', 'Produccion'],
   P3: ['Midea', 'O.C', 'ACC', 'OC'],
-  P4: ['OpenCell'],
+  P4: ['OpenCell', 'Technical'],
 }
 
 function areaLabel(code) {
@@ -59,7 +59,7 @@ export default function ProductionPage() {
   const [area, setArea] = useState('P2') // FFT por default
   const [subarea, setSubarea] = useState('Accesorios')
 
-  const [sku, setSku] = useState('TV-55-4K')
+  const [sku, setSku] = useState('')
   const [qty, setQty] = useState(1)
   const [note, setNote] = useState('')
 
@@ -157,13 +157,13 @@ export default function ProductionPage() {
           Nueva solicitud
         </Typography>
 
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
           <TextField
             select
             label="Área"
             value={area}
             onChange={(e) => setArea(e.target.value)}
-            sx={{ minWidth: 180 }}
+            sx={{ minWidth: 150, flex: '1 1 150px' }}
           >
             {AREAS.map(a => (
               <MenuItem key={a.code} value={a.code}>{a.label}</MenuItem>
@@ -175,17 +175,17 @@ export default function ProductionPage() {
             label="Sub-área"
             value={subarea}
             onChange={(e) => setSubarea(e.target.value)}
-            sx={{ minWidth: 220 }}
+            sx={{ minWidth: 160, flex: '1 1 160px' }}
           >
             {(SUBAREAS_BY_AREA[area] || []).map(s => (
               <MenuItem key={s} value={s}>{s}</MenuItem>
             ))}
           </TextField>
 
-          <TextField label="SKU" value={sku} onChange={(e) => setSku(e.target.value)} fullWidth />
-          <TextField label="Qty" type="number" value={qty} onChange={(e) => setQty(e.target.value)} sx={{ width: 120 }} />
-          <TextField label="Nota" value={note} onChange={(e) => setNote(e.target.value)} fullWidth />
-          <Button variant="contained" onClick={create}>Crear</Button>
+          <TextField label="PalletID" value={sku} onChange={(e) => setSku(e.target.value)} sx={{ flex: '2 1 200px' }} />
+          <TextField label="Items" type="number" value={qty} onChange={(e) => setQty(e.target.value)} sx={{ minWidth: 100, flex: '1 1 100px' }} inputProps={{ min: 1 }} />
+          <TextField label="Nota" value={note} onChange={(e) => setNote(e.target.value)} sx={{ flex: '2 1 200px' }} />
+          <Button variant="contained" onClick={create} sx={{ height: 56, px: 4, whiteSpace: 'nowrap' }}>Crear</Button>
         </Stack>
 
         {isFftAccesorios(area, subarea) && (

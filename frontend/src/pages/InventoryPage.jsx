@@ -635,7 +635,7 @@ export default function InventoryPage() {
 
           <TextField
             size="small"
-            label="Rack (F###)"
+            label="Rack / BIN"
             value={rackFilter}
             onChange={(e) => setRackFilter(normalizeRackCode(e.target.value))}
             sx={{ minWidth: 170 }}
@@ -643,7 +643,7 @@ export default function InventoryPage() {
 
           <TextField
             size="small"
-            label="Lote"
+            label="SKU"
             value={lotFilter}
             onChange={(e) => setLotFilter(e.target.value)}
             sx={{ minWidth: 160 }}

@@ -154,7 +154,12 @@ export default function ProductsPage() {
 
   return (
     <Box>
-      <Typography variant="h6" sx={{ fontWeight: 900, mb:2 }}>Productos (Centro de Control)</Typography>
+      <Typography variant="h6" sx={{ fontWeight: 900, mb: .5 }}>
+        Solicitudes (Operación)
+      </Typography>
+      <Typography variant="caption" sx={{ opacity: .75 }}>
+        P1 Incoming · P2 Sorting · P3 FFT (Accesorios) · P4 OpenCell
+      </Typography>
 
       {/* Resumen superior */}
       <Stack direction="row" spacing={2} sx={{ mb:2 }}>
@@ -289,45 +294,69 @@ export default function ProductsPage() {
         )}
       </Paper>
 
-      {/* Vista alternable */}
-      {view==='table' ? (
-        <Paper elevation={1} sx={{ p:0, borderRadius:3 }}>
-          <Table size="small" sx={{ minWidth:1000 }}>
-            <TableHead>
-              <TableRow sx={{ background:'#101c2b', position:'sticky', top:0, zIndex:1 }}>
-                <TableCell sx={{ color:'#fff', fontWeight:700 }}>SKU</TableCell>
-                <TableCell sx={{ color:'#fff', fontWeight:700 }}>Descripción</TableCell>
-                <TableCell sx={{ color:'#fff', fontWeight:700 }}>Categoría</TableCell>
-                <TableCell sx={{ color:'#fff', fontWeight:700 }}>Marca/Modelo</TableCell>
-                <TableCell sx={{ color:'#fff', fontWeight:700 }}>Unidad</TableCell>
-                <TableCell sx={{ color:'#fff', fontWeight:700 }}>Activo</TableCell>
-                {showImages && <TableCell sx={{ color:'#fff', fontWeight:700 }}>Imagen</TableCell>}
-                <TableCell sx={{ color:'#fff', fontWeight:700, textAlign:'center' }}>Acción</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filtered.map((r, idx) => (
-                <TableRow key={r._id} sx={{ background: idx % 2 === 0 ? '#19233a' : '#101c2b', transition:'background 0.2s', '&:hover': { background:'#22304d' } }}>
-                  <TableCell sx={{ fontFamily:'monospace', fontWeight:800, color:'#fff' }}>{r.sku}</TableCell>
-                  <TableCell sx={{ color:'#fff' }}>{r.description || '—'}</TableCell>
-                  <TableCell sx={{ color:'#fff' }}>{r.category || '—'}</TableCell>
-                  <TableCell sx={{ color:'#fff' }}>{[r.brand, r.model].filter(Boolean).join(' / ') || '—'}</TableCell>
-                  <TableCell sx={{ color:'#fff' }}>{r.unit || 'pz'}</TableCell>
-                  <TableCell sx={{ color:'#fff' }}>
-                    <Tooltip title={r.isActive ? 'Activo' : 'Inactivo'} arrow>
-                      {r.isActive ? <CheckCircleIcon sx={{ color:'#22c55e' }} /> : <BlockIcon sx={{ color:'#ef4444' }} />}
+      <Paper elevation={1} sx={{ p: 0, borderRadius: 3 }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ p: 2, pb: 0 }}>
+          <TextField
+            select
+            label="Filtrar status"
+            value={filtroStatus}
+            onChange={e => setFiltroStatus(e.target.value)}
+            sx={{ minWidth: 200 }}
+          >
+            <MenuItem value="">Todos</MenuItem>
+            <MenuItem value="PENDIENTE">Pendiente</MenuItem>
+            <MenuItem value="EN PROCESO">En proceso</MenuItem>
+            <MenuItem value="COMPLETADA">Completada</MenuItem>
+            <MenuItem value="CANCELADA">Cancelada</MenuItem>
+          </TextField>
+        </Stack>
+
+        <Table size="small" sx={{ minWidth: 900 }}>
+          <TableHead>
+            <TableRow sx={{ background: '#101c2b', position: 'sticky', top: 0, zIndex: 1 }}>
+              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Área</TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Status</TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Items</TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Solicitó</TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Nota</TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 700, textAlign: 'center' }}>Acción</TableCell>
+            </TableRow>
+          </TableHead>
+
+          <TableBody>
+            {filteredRows.map((r, idx) => {
+              // Icono de estado
+              let statusIcon = <HourglassEmptyIcon sx={{ color: '#eab308', verticalAlign: 'middle' }} fontSize="small" />
+              if (r.status === 'EN PROCESO') statusIcon = <EditIcon sx={{ color: '#0369a1', verticalAlign: 'middle' }} fontSize="small" />
+              if (r.status === 'COMPLETADA') statusIcon = <CheckCircleIcon sx={{ color: '#22c55e', verticalAlign: 'middle' }} fontSize="small" />
+              if (r.status === 'CANCELADA') statusIcon = <CancelIcon sx={{ color: '#ef4444', verticalAlign: 'middle' }} fontSize="small" />
+
+              const itemsText = (r.items || []).map(i => `${i.sku}(${i.qty})`).join(', ')
+
+              return (
+                <TableRow key={r._id} sx={{ background: idx % 2 === 0 ? '#19233a' : '#101c2b', '&:hover': { background: '#22304d' } }}>
+                  <TableCell sx={{ color: '#fff' }}>
+                    {r.area} — {areaLabel(r.area)}
+                  </TableCell>
+
+                  <TableCell sx={{ color: '#fff' }}>
+                    <Tooltip title={r.status} arrow>{statusIcon}</Tooltip>
+                    <Typography variant="caption" sx={{ ml: 1, color: '#fff' }}>{r.status}</Typography>
+                  </TableCell>
+
+                  <TableCell sx={{ color: '#fff', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Tooltip title={itemsText} arrow>
+                      <span>{itemsText.length > 35 ? itemsText.slice(0, 35) + '…' : itemsText}</span>
                     </Tooltip>
                   </TableCell>
 
-                  {showImages && (
-                    <TableCell sx={{ color:'#fff' }}>
-                      {r.imageUrl ? (
-                        <img src={r.imageUrl} alt={r.sku} style={{ width:48, height:48, borderRadius:8 }} />
-                      ) : (
-                        <ImageIcon sx={{ color:'#64748b' }} />
-                      )}
-                    </TableCell>
-                  )}
+                  <TableCell sx={{ color: '#fff' }}>{r.requestedBy?.email || '—'}</TableCell>
+
+                  <TableCell sx={{ color: '#fff', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Tooltip title={r.note || '—'} arrow>
+                      <span>{(r.note || '—').length > 35 ? (r.note || '—').slice(0, 35) + '…' : (r.note || '—')}</span>
+                    </Tooltip>
+                  </TableCell>
 
                   <TableCell sx={{ textAlign:'center' }}>
                     <Tooltip title="Editar (pendiente)"><IconButton size="small" sx={{ color:'#0369a1' }}><EditIcon fontSize="small" /></IconButton></Tooltip>
