@@ -244,12 +244,12 @@ router.get('/fft/accesorios', requireAuth, async(req, res, next) => {
             return {
                 height: heightLabel,
                 rackCode: h.rackCode,
-                state: raw?.state || 'VACIO',
-                code: raw?.code || null,
-                blockedReason: raw?.blockedReason || raw?.blocked_reason || '',
-                pallet: raw?.pallet || null,
-                lastMoveAt: raw?.lastMoveAt || null,
-                lastMoveBy: raw?.lastMoveBy || null
+                state: (raw?.state) || 'VACIO',
+                code: (raw?.code) || null,
+                blockedReason: (raw?.blockedReason) || (raw?.blocked_reason) || '',
+                pallet: (raw?.pallet) || null,
+                lastMoveAt: (raw?.lastMoveAt) || null,
+                lastMoveBy: (raw?.lastMoveBy) || null
             };
         });
 
@@ -371,9 +371,9 @@ router.post(
     requireRole('ADMIN', 'SUPERVISOR'),
     async(req, res, next) => {
         try {
-            const area = String(req.body?.area || 'A1').trim();
-            const level = String(req.body?.level || 'A').trim().toUpperCase();
-            const startPosition = Number(req.body?.startPosition || 800);
+            const area = String((req.body?.area) || 'A1').trim();
+            const level = String((req.body?.level) || 'A').trim().toUpperCase();
+            const startPosition = Number((req.body?.startPosition) || 800);
 
             // Validaciones suaves (para no romper)
             const validAreas = new Set(['A1', 'A2', 'A3', 'A4']);
@@ -466,6 +466,157 @@ router.post(
                 existing,
             });
         } catch (e) {
+            next(e);
+        }
+    }
+);
+
+/**
+ * =====================================================
+ * ✅ NUEVO: POST /api/locations/rebalance-racks
+ * Reacomoda racks 120 (30 por área):
+ * A1: F001-F030
+ * A2: F031-F060
+ * A3: F061-F090
+ * A4: F091-F120
+ *
+ * - NO borra nada
+ * - Detecta colisiones (unique area+rack+level+position)
+ * - Usa transacción
+ *
+ * Body opcional:
+ * { "dryRun": true }  // solo simula
+ * =====================================================
+ */
+router.post(
+    '/rebalance-racks',
+    requireAuth,
+    requireRole('ADMIN', 'SUPERVISOR'),
+    async(req, res, next) => {
+        const t = await Location.sequelize.transaction();
+        try {
+            const dryRun = !!(req.body?.dryRun);
+
+            const all = await Location.findAll({ raw: true, transaction: t });
+
+            // Solo ubicaciones que son racks (rack = F###)
+            const rackLocs = all.filter(l => {
+                const r = String(l.rack || '').toUpperCase().trim();
+                return /^F\d{3}$/.test(r);
+            });
+
+            const parseRackNum = (rack) => Number(String(rack).replace(/^F/i, ''));
+
+            const targetAreaByRack = (rackCode) => {
+                const n = parseRackNum(rackCode);
+                if (n >= 1 && n <= 30) return 'A1';
+                if (n >= 31 && n <= 60) return 'A2';
+                if (n >= 61 && n <= 90) return 'A3';
+                if (n >= 91 && n <= 120) return 'A4';
+                return null; // fuera de 120 no tocamos
+            };
+
+            // 1) Detectar qué se movería
+            const changes = [];
+            for (const l of rackLocs) {
+                const rackCode = String(l.rack).toUpperCase().trim();
+                const targetArea = targetAreaByRack(rackCode);
+                if (!targetArea) continue; // no tocar F121+ o raros
+                if (String(l.area) !== targetArea) {
+                    changes.push({
+                        id: l.id,
+                        fromArea: l.area,
+                        toArea: targetArea,
+                        rack: rackCode,
+                        level: l.level,
+                        position: l.position
+                    });
+                }
+            }
+
+            // 2) Checar colisiones por índice único: area+rack+level+position
+            // Vamos a simular el estado final en memoria.
+            const key = (area, rack, level, position) =>
+                `${area}|${String(rack || '').toUpperCase()}|${String(level || '').toUpperCase()}|${Number(position || 0)}`;
+
+            // estado actual
+            const finalMap = new Map();
+            for (const l of rackLocs) {
+                const k = key(l.area, l.rack, l.level, l.position);
+                if (!finalMap.has(k)) finalMap.set(k, []);
+                finalMap.get(k).push(l.id);
+            }
+
+            // aplicar cambios en memoria (remover clave vieja y agregar clave nueva)
+            const idToLoc = new Map(rackLocs.map(l => [l.id, l]));
+            const collisions = [];
+
+            for (const ch of changes) {
+                const loc = idToLoc.get(ch.id);
+                if (!loc) continue;
+
+                const oldK = key(loc.area, loc.rack, loc.level, loc.position);
+                const newK = key(ch.toArea, loc.rack, loc.level, loc.position);
+
+                // quitar de oldK
+                const arrOld = finalMap.get(oldK) || [];
+                finalMap.set(oldK, arrOld.filter(x => x !== loc.id));
+
+                // agregar a newK
+                const arrNew = finalMap.get(newK) || [];
+                arrNew.push(loc.id);
+                finalMap.set(newK, arrNew);
+
+                // si newK queda con 2+ ids => colisión
+                if (arrNew.length > 1) {
+                    collisions.push({
+                        key: newK,
+                        rack: String(loc.rack).toUpperCase(),
+                        level: loc.level,
+                        position: loc.position,
+                        ids: arrNew.slice()
+                    });
+                }
+            }
+
+            if (collisions.length) {
+                await t.rollback();
+                return res.status(409).json({
+                    ok: false,
+                    message: 'Se detectaron colisiones (area+rack+level+position). No se aplicó nada.',
+                    collisions,
+                    previewChangesCount: changes.length,
+                    previewFirstChanges: changes.slice(0, 20)
+                });
+            }
+
+            // 3) Si dryRun, no aplicar
+            if (dryRun) {
+                await t.rollback();
+                return res.json({
+                    ok: true,
+                    dryRun: true,
+                    wouldChangeCount: changes.length,
+                    sample: changes.slice(0, 30)
+                });
+            }
+
+            // 4) Aplicar updates
+            let updatedCount = 0;
+            for (const ch of changes) {
+                const [u] = await Location.update({ area: ch.toArea }, { where: { id: ch.id }, transaction: t });
+                updatedCount += Number(u || 0);
+            }
+
+            await t.commit();
+            return res.json({
+                ok: true,
+                updatedCount,
+                totalCandidates: rackLocs.length,
+                changesCount: changes.length
+            });
+        } catch (e) {
+            await t.rollback();
             next(e);
         }
     }

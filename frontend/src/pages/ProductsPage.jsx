@@ -27,6 +27,8 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import BlockIcon from '@mui/icons-material/Block'
 import ImageIcon from '@mui/icons-material/Image'
 import DownloadIcon from '@mui/icons-material/Download'
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
+import CancelIcon from '@mui/icons-material/Cancel'
 import * as XLSX from 'xlsx'
 
 // ✅ NUEVO (Centro de control)
@@ -49,6 +51,7 @@ export default function ProductsPage() {
   const [filterCategory, setFilterCategory] = useState('')
   const [filterActive, setFilterActive] = useState('')
   const [filterUnit, setFilterUnit] = useState('')
+  const [filtroStatus, setFiltroStatus] = useState('')
 
   // ✅ Centro de control (trazabilidad)
   const [traceQ, setTraceQ] = useState('')
@@ -151,6 +154,12 @@ export default function ProductsPage() {
 
   // Vista alternable
   const [showImages, setShowImages] = useState(false)
+
+  // Helper function for area labels
+  const areaLabel = (area) => {
+    const labels = { 'P1': 'Incoming', 'P2': 'Sorting', 'P3': 'FFT', 'P4': 'OpenCell' }
+    return labels[area] || area
+  }
 
   return (
     <Box>
@@ -294,24 +303,25 @@ export default function ProductsPage() {
         )}
       </Paper>
 
-      <Paper elevation={1} sx={{ p: 0, borderRadius: 3 }}>
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ p: 2, pb: 0 }}>
-          <TextField
-            select
-            label="Filtrar estatus"
-            value={filtroStatus}
-            onChange={e => setFiltroStatus(e.target.value)}
-            sx={{ minWidth: 200 }}
-          >
-            <MenuItem value="">Todos</MenuItem>
-            <MenuItem value="PENDIENTE">Pendiente</MenuItem>
-            <MenuItem value="EN PROCESO">En proceso</MenuItem>
-            <MenuItem value="COMPLETADA">Completada</MenuItem>
-            <MenuItem value="CANCELADA">Cancelada</MenuItem>
-          </TextField>
-        </Stack>
+      {view === 'table' ? (
+        <Paper elevation={1} sx={{ p: 0, borderRadius: 3 }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ p: 2, pb: 0 }}>
+            <TextField
+              select
+              label="Filtrar estatus"
+              value={filtroStatus}
+              onChange={e => setFiltroStatus(e.target.value)}
+              sx={{ minWidth: 200 }}
+            >
+              <MenuItem value="">Todos</MenuItem>
+              <MenuItem value="PENDIENTE">Pendiente</MenuItem>
+              <MenuItem value="EN PROCESO">En proceso</MenuItem>
+              <MenuItem value="COMPLETADA">Completada</MenuItem>
+              <MenuItem value="CANCELADA">Cancelada</MenuItem>
+            </TextField>
+          </Stack>
 
-        <Table size="small" sx={{ minWidth: 900 }}>
+          <Table size="small" sx={{ minWidth: 900 }}>
           <TableHead>
             <TableRow sx={{ background: '#101c2b', position: 'sticky', top: 0, zIndex: 1 }}>
               <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Área</TableCell>
@@ -324,7 +334,7 @@ export default function ProductsPage() {
           </TableHead>
 
           <TableBody>
-            {filteredRows.map((r, idx) => {
+            {filtered.map((r, idx) => {
               // Ícono de estado
               let statusIcon = <HourglassEmptyIcon sx={{ color: '#eab308', verticalAlign: 'middle' }} fontSize="small" />
               if (r.status === 'EN PROCESO') statusIcon = <EditIcon sx={{ color: '#0369a1', verticalAlign: 'middle' }} fontSize="small" />
