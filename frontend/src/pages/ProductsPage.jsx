@@ -39,12 +39,12 @@ import SearchIcon from '@mui/icons-material/Search'
 
 export default function ProductsPage() {
   const { token, user } = useAuth()
-  const isWriter = ['ADMIN','SUPERVISOR'].includes(user?.role)
+  const isWriter = ['ADMIN', 'SUPERVISOR'].includes(user?.role)
 
   const [q, setQ] = useState('')
   const [rows, setRows] = useState([])
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({ sku:'', description:'', brand:'', model:'', category:'', unit:'pz' })
+  const [form, setForm] = useState({ sku: '', description: '', brand: '', model: '', category: '', unit: 'pz' })
   const [err, setErr] = useState('')
 
   const [view, setView] = useState('table')
@@ -59,7 +59,6 @@ export default function ProductsPage() {
   const [traceLoading, setTraceLoading] = useState(false)
   const [traceErr, setTraceErr] = useState('')
 
-  // ✅ OJO: tu api() NO recibe token, lo toma de localStorage
   const load = async () => {
     const res = await api().get('/api/products', { params: { q } })
     setRows(res.data)
@@ -72,7 +71,7 @@ export default function ProductsPage() {
     try {
       await api().post('/api/products', form)
       setOpen(false)
-      setForm({ sku:'', description:'', brand:'', model:'', category:'', unit:'pz' })
+      setForm({ sku: '', description: '', brand: '', model: '', category: '', unit: 'pz' })
       await load()
     } catch (e) {
       setErr(e?.response?.data?.message || 'Error')
@@ -171,46 +170,50 @@ export default function ProductsPage() {
       </Typography>
 
       {/* Resumen superior */}
-      <Stack direction="row" spacing={2} sx={{ mb:2 }}>
+      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Chip label={`Total: ${resumen.total}`} color="primary" />
-        <Chip label={`Activos: ${resumen.activos}`} sx={{ bgcolor:'#dcfce7', color:'#166534' }} />
-        <Chip label={`Categorías: ${resumen.categorias}`} sx={{ bgcolor:'#bae6fd', color:'#0369a1' }} />
+        <Chip label={`Activos: ${resumen.activos}`} sx={{ bgcolor: '#dcfce7', color: '#166534' }} />
+        <Chip label={`Categorías: ${resumen.categorias}`} sx={{ bgcolor: '#bae6fd', color: '#0369a1' }} />
         <Box sx={{ flex: 1 }} />
         <Tooltip title="Exportar a Excel"><IconButton onClick={exportExcel}><DownloadIcon /></IconButton></Tooltip>
-        <Button variant="outlined" onClick={()=>setView(view==='table'?'cards':'table')}>{view==='table'?'Vista tarjetas':'Vista tabla'}</Button>
-        <Button variant="outlined" onClick={()=>setShowImages(v=>!v)}>{showImages?'Ocultar imágenes':'Mostrar imágenes'}</Button>
+        <Button variant="outlined" onClick={() => setView(view === 'table' ? 'cards' : 'table')}>
+          {view === 'table' ? 'Vista tarjetas' : 'Vista tabla'}
+        </Button>
+        <Button variant="outlined" onClick={() => setShowImages(v => !v)}>
+          {showImages ? 'Ocultar imágenes' : 'Mostrar imágenes'}
+        </Button>
       </Stack>
 
       {/* Filtros */}
-      <Stack direction="row" spacing={2} sx={{ mb:2 }}>
-        <TextField label="Buscar (SKU, descripción, marca)" value={q} onChange={(e)=>setQ(e.target.value)} sx={{ minWidth:220 }} />
-        <TextField select label="Categoría" value={filterCategory} onChange={e=>setFilterCategory(e.target.value)} sx={{ minWidth:140 }}>
+      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+        <TextField label="Buscar (SKU, descripción, marca)" value={q} onChange={(e) => setQ(e.target.value)} sx={{ minWidth: 220 }} />
+        <TextField select label="Categoría" value={filterCategory} onChange={e => setFilterCategory(e.target.value)} sx={{ minWidth: 140 }}>
           <MenuItem value="">Todas</MenuItem>
-          {Array.from(new Set(rows.map(r=>r.category))).map(c=><MenuItem key={c} value={c}>{c}</MenuItem>)}
+          {Array.from(new Set(rows.map(r => r.category))).map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
         </TextField>
-        <TextField select label="Activo" value={filterActive} onChange={e=>setFilterActive(e.target.value)} sx={{ minWidth:120 }}>
+        <TextField select label="Activo" value={filterActive} onChange={e => setFilterActive(e.target.value)} sx={{ minWidth: 120 }}>
           <MenuItem value="">Todos</MenuItem>
           <MenuItem value="Sí">Sí</MenuItem>
           <MenuItem value="No">No</MenuItem>
         </TextField>
-        <TextField select label="Unidad" value={filterUnit} onChange={e=>setFilterUnit(e.target.value)} sx={{ minWidth:120 }}>
+        <TextField select label="Unidad" value={filterUnit} onChange={e => setFilterUnit(e.target.value)} sx={{ minWidth: 120 }}>
           <MenuItem value="">Todas</MenuItem>
-          {Array.from(new Set(rows.map(r=>r.unit))).map(u=><MenuItem key={u} value={u}>{u}</MenuItem>)}
+          {Array.from(new Set(rows.map(r => r.unit))).map(u => <MenuItem key={u} value={u}>{u}</MenuItem>)}
         </TextField>
-        <Button disabled={!isWriter} variant="contained" onClick={()=>setOpen(true)}>Nuevo SKU</Button>
+        <Button disabled={!isWriter} variant="contained" onClick={() => setOpen(true)}>Nuevo SKU</Button>
       </Stack>
 
       {/* ✅ Centro de control: Trazabilidad rápida */}
-      <Paper elevation={1} sx={{ p:2, borderRadius:3, mb:2, background:'#101c2b', color:'#fff' }}>
-        <Stack direction={{ xs:'column', md:'row' }} spacing={2} alignItems={{ xs:'stretch', md:'center' }}>
+      <Paper elevation={1} sx={{ p: 2, borderRadius: 3, mb: 2, background: '#101c2b', color: '#fff' }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'stretch', md: 'center' }}>
           <TextField
             label="Rastreo (SKU o Código de tarima)"
             value={traceQ}
-            onChange={(e)=>setTraceQ(e.target.value)}
+            onChange={(e) => setTraceQ(e.target.value)}
             fullWidth
             sx={{
-              '& .MuiInputBase-root': { bgcolor:'rgba(255,255,255,.06)', color:'#fff' },
-              '& .MuiInputLabel-root': { color:'rgba(255,255,255,.7)' }
+              '& .MuiInputBase-root': { bgcolor: 'rgba(255,255,255,.06)', color: '#fff' },
+              '& .MuiInputLabel-root': { color: 'rgba(255,255,255,.7)' }
             }}
           />
           <Button
@@ -230,20 +233,20 @@ export default function ProductsPage() {
         )}
 
         {traceErr && (
-          <Alert severity="error" sx={{ mt:2 }}>
+          <Alert severity="error" sx={{ mt: 2 }}>
             {traceErr}
           </Alert>
         )}
 
         {!!traceRows.length && (
-          <Box sx={{ mt:2 }}>
-            <Divider sx={{ borderColor:'rgba(255,255,255,.10)', mb:2 }} />
+          <Box sx={{ mt: 2 }}>
+            <Divider sx={{ borderColor: 'rgba(255,255,255,.10)', mb: 2 }} />
 
             <Typography sx={{ fontWeight: 900, mb: 1 }}>
               Últimos movimientos ({traceRows.length})
             </Typography>
 
-            <Box sx={{ maxHeight: 320, overflow:'auto' }}>
+            <Box sx={{ maxHeight: 320, overflow: 'auto' }}>
               {traceRows.slice(0, 60).map((m, i) => (
                 <Box
                   key={m.id || i}
@@ -253,10 +256,10 @@ export default function ProductsPage() {
                     borderRadius: 2,
                     border: '1px solid rgba(255,255,255,.10)',
                     background: 'rgba(255,255,255,.04)',
-                    display:'grid',
-                    gridTemplateColumns: { xs:'1fr', md:'180px 120px 1fr' },
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', md: '180px 120px 1fr' },
                     gap: 1,
-                    alignItems:'center'
+                    alignItems: 'center'
                   }}
                 >
                   <Typography sx={{ fontSize: 12, opacity: .85 }}>
@@ -275,17 +278,17 @@ export default function ProductsPage() {
                   />
 
                   <Box sx={{ minWidth: 0 }}>
-                    <Typography sx={{ fontFamily:'monospace', fontWeight: 900, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                    <Typography sx={{ fontFamily: 'monospace', fontWeight: 900, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {m.pallet?.code || '—'}
                     </Typography>
-                    <Typography sx={{ fontSize: 12, opacity: .8, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                    <Typography sx={{ fontSize: 12, opacity: .8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {m.fromLocation ? (m.fromLocation.code || `${m.fromLocation.area}-${m.fromLocation.level}${m.fromLocation.position}`) : '—'}
                       {'  →  '}
                       {m.toLocation ? (m.toLocation.code || `${m.toLocation.area}-${m.toLocation.level}${m.toLocation.position}`) : '—'}
                       {m.user?.email ? ` · ${m.user.email}` : ''}
                     </Typography>
                     {!!m.note && (
-                      <Typography sx={{ fontSize: 12, opacity: .7, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                      <Typography sx={{ fontSize: 12, opacity: .7, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {m.note}
                       </Typography>
                     )}
@@ -297,7 +300,7 @@ export default function ProductsPage() {
         )}
 
         {!traceLoading && !traceRows.length && (
-          <Typography sx={{ mt:2, opacity:.75, fontSize: 13 }}>
+          <Typography sx={{ mt: 2, opacity: .75, fontSize: 13 }}>
             Tip: escribe un SKU o un código de tarima para ver su historial de movimientos.
           </Typography>
         )}
@@ -322,83 +325,125 @@ export default function ProductsPage() {
           </Stack>
 
           <Table size="small" sx={{ minWidth: 900 }}>
-          <TableHead>
-            <TableRow sx={{ background: '#101c2b', position: 'sticky', top: 0, zIndex: 1 }}>
-              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Área</TableCell>
-              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Status</TableCell>
-              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Items</TableCell>
-              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Solicitó</TableCell>
-              <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Nota</TableCell>
-              <TableCell sx={{ color: '#fff', fontWeight: 700, textAlign: 'center' }}>Acción</TableCell>
-            </TableRow>
-          </TableHead>
+            <TableHead>
+              <TableRow sx={{ background: '#101c2b', position: 'sticky', top: 0, zIndex: 1 }}>
+                <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Área</TableCell>
+                <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Status</TableCell>
+                <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Items</TableCell>
+                <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Solicitó</TableCell>
+                <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Nota</TableCell>
+                <TableCell sx={{ color: '#fff', fontWeight: 700, textAlign: 'center' }}>Acción</TableCell>
+              </TableRow>
+            </TableHead>
 
-          <TableBody>
-            {filtered.map((r, idx) => {
-              // Ícono de estado
-              let statusIcon = <HourglassEmptyIcon sx={{ color: '#eab308', verticalAlign: 'middle' }} fontSize="small" />
-              if (r.status === 'EN PROCESO') statusIcon = <EditIcon sx={{ color: '#0369a1', verticalAlign: 'middle' }} fontSize="small" />
-              if (r.status === 'COMPLETADA') statusIcon = <CheckCircleIcon sx={{ color: '#22c55e', verticalAlign: 'middle' }} fontSize="small" />
-              if (r.status === 'CANCELADA') statusIcon = <CancelIcon sx={{ color: '#ef4444', verticalAlign: 'middle' }} fontSize="small" />
+            <TableBody>
+              {filtered.map((r, idx) => {
+                // Ícono de estado
+                let statusIcon = <HourglassEmptyIcon sx={{ color: '#eab308', verticalAlign: 'middle' }} fontSize="small" />
+                if (r.status === 'EN PROCESO') statusIcon = <EditIcon sx={{ color: '#0369a1', verticalAlign: 'middle' }} fontSize="small" />
+                if (r.status === 'COMPLETADA') statusIcon = <CheckCircleIcon sx={{ color: '#22c55e', verticalAlign: 'middle' }} fontSize="small" />
+                if (r.status === 'CANCELADA') statusIcon = <CancelIcon sx={{ color: '#ef4444', verticalAlign: 'middle' }} fontSize="small" />
 
-              const itemsText = (r.items || []).map(i => `${i.sku}(${i.qty})`).join(', ')
+                const itemsText = (r.items || []).map(i => `${i.sku}(${i.qty})`).join(', ')
 
-              return (
-                <TableRow key={r._id} sx={{ background: idx % 2 === 0 ? '#19233a' : '#101c2b', '&:hover': { background: '#22304d' } }}>
-                  <TableCell sx={{ color: '#fff' }}>
-                    {r.area} — {areaLabel(r.area)}
-                  </TableCell>
+                return (
+                  <TableRow
+                    key={r._id || idx}
+                    sx={{
+                      background: idx % 2 === 0 ? '#19233a' : '#101c2b',
+                      '&:hover': { background: '#22304d' }
+                    }}
+                  >
+                    <TableCell sx={{ color: '#fff' }}>
+                      {r.area} — {areaLabel(r.area)}
+                    </TableCell>
 
-                  <TableCell sx={{ color: '#fff' }}>
-                    <Tooltip title={r.status} arrow>{statusIcon}</Tooltip>
-                    <Typography variant="caption" sx={{ ml: 1, color: '#fff' }}>{r.status}</Typography>
-                  </TableCell>
+                    <TableCell sx={{ color: '#fff' }}>
+                      <Tooltip title={r.status} arrow>{statusIcon}</Tooltip>
+                      <Typography variant="caption" sx={{ ml: 1, color: '#fff' }}>{r.status}</Typography>
+                    </TableCell>
 
-                  <TableCell sx={{ color: '#fff', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <Tooltip title={itemsText} arrow>
-                      <span>{itemsText.length > 35 ? itemsText.slice(0, 35) + '…' : itemsText}</span>
-                    </Tooltip>
-                  </TableCell>
+                    <TableCell sx={{ color: '#fff', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <Tooltip title={itemsText} arrow>
+                        <span>{itemsText.length > 35 ? itemsText.slice(0, 35) + '…' : itemsText}</span>
+                      </Tooltip>
+                    </TableCell>
 
-                  <TableCell sx={{ color: '#fff' }}>{r.requestedBy?.email || '—'}</TableCell>
+                    <TableCell sx={{ color: '#fff' }}>{r.requestedBy?.email || '—'}</TableCell>
 
-                  <TableCell sx={{ color: '#fff', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <Tooltip title={r.note || '—'} arrow>
-                      <span>{(r.note || '—').length > 35 ? (r.note || '—').slice(0, 35) + '…' : (r.note || '—')}</span>
-                    </Tooltip>
-                  </TableCell>
+                    <TableCell sx={{ color: '#fff', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <Tooltip title={r.note || '—'} arrow>
+                        <span>{(r.note || '—').length > 35 ? (r.note || '—').slice(0, 35) + '…' : (r.note || '—')}</span>
+                      </Tooltip>
+                    </TableCell>
 
-                  <TableCell sx={{ textAlign:'center' }}>
-                    <Tooltip title="Editar (pendiente)"><IconButton size="small" sx={{ color:'#0369a1' }}><EditIcon fontSize="small" /></IconButton></Tooltip>
-                    <Tooltip title="Eliminar"><IconButton size="small" sx={{ color:'#ef4444' }} onClick={()=>deleteProduct(r._id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
-                    <Tooltip title={r.isActive ? 'Desactivar' : 'Activar'}>
-                      <IconButton size="small" sx={{ color:'#22c55e' }} onClick={()=>toggleActive(r._id, r.isActive)}>
-                        {r.isActive ? <BlockIcon fontSize="small" /> : <CheckCircleIcon fontSize="small" />}
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    <TableCell sx={{ textAlign: 'center' }}>
+                      <Tooltip title="Editar (pendiente)">
+                        <IconButton size="small" sx={{ color: '#0369a1' }}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+
+                      <Tooltip title="Eliminar">
+                        <IconButton size="small" sx={{ color: '#ef4444' }} onClick={() => deleteProduct(r._id)}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+
+                      <Tooltip title={r.isActive ? 'Desactivar' : 'Activar'}>
+                        <IconButton size="small" sx={{ color: '#22c55e' }} onClick={() => toggleActive(r._id, r.isActive)}>
+                          {r.isActive ? <BlockIcon fontSize="small" /> : <CheckCircleIcon fontSize="small" />}
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </Paper>
       ) : (
         <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-          {filtered.map(r => (
-            <Paper key={r._id} elevation={2} sx={{ width:260, p:2, borderRadius:3, mb:2, background:'#19233a', color:'#fff', transition:'background 0.2s', '&:hover': { background:'#22304d' } }}>
+          {filtered.map((r, idx) => (
+            <Paper
+              key={r._id || idx}
+              elevation={2}
+              sx={{
+                width: 260,
+                p: 2,
+                borderRadius: 3,
+                mb: 2,
+                background: '#19233a',
+                color: '#fff',
+                transition: 'background 0.2s',
+                '&:hover': { background: '#22304d' }
+              }}
+            >
               <Stack spacing={1} alignItems="center">
-                {showImages && (r.imageUrl ? <img src={r.imageUrl} alt={r.sku} style={{ width:64, height:64, borderRadius:8 }} /> : <ImageIcon sx={{ color:'#64748b', fontSize:48 }} />)}
-                <Typography sx={{ fontFamily:'monospace', fontWeight:800 }}>{r.sku}</Typography>
+                {showImages && (
+                  r.imageUrl
+                    ? <img src={r.imageUrl} alt={r.sku} style={{ width: 64, height: 64, borderRadius: 8 }} />
+                    : <ImageIcon sx={{ color: '#64748b', fontSize: 48 }} />
+                )}
+                <Typography sx={{ fontFamily: 'monospace', fontWeight: 800 }}>{r.sku}</Typography>
                 <Typography variant="body2">{r.description || '—'}</Typography>
                 <Typography variant="caption">{r.category || '—'}</Typography>
                 <Typography variant="caption">{[r.brand, r.model].filter(Boolean).join(' / ') || '—'}</Typography>
                 <Typography variant="caption">Unidad: {r.unit || 'pz'}</Typography>
                 <Chip size="small" label={r.isActive ? 'Activo' : 'Inactivo'} color={r.isActive ? 'success' : 'error'} />
                 <Stack direction="row" spacing={1}>
-                  <Tooltip title="Editar (pendiente)"><IconButton size="small" sx={{ color:'#0369a1' }}><EditIcon fontSize="small" /></IconButton></Tooltip>
-                  <Tooltip title="Eliminar"><IconButton size="small" sx={{ color:'#ef4444' }} onClick={()=>deleteProduct(r._id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
+                  <Tooltip title="Editar (pendiente)">
+                    <IconButton size="small" sx={{ color: '#0369a1' }}>
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Eliminar">
+                    <IconButton size="small" sx={{ color: '#ef4444' }} onClick={() => deleteProduct(r._id)}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                   <Tooltip title={r.isActive ? 'Desactivar' : 'Activar'}>
-                    <IconButton size="small" sx={{ color:'#22c55e' }} onClick={()=>toggleActive(r._id, r.isActive)}>
+                    <IconButton size="small" sx={{ color: '#22c55e' }} onClick={() => toggleActive(r._id, r.isActive)}>
                       {r.isActive ? <BlockIcon fontSize="small" /> : <CheckCircleIcon fontSize="small" />}
                     </IconButton>
                   </Tooltip>
@@ -409,22 +454,22 @@ export default function ProductsPage() {
         </Stack>
       )}
 
-      <Dialog open={open} onClose={()=>setOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Nuevo SKU</DialogTitle>
         <DialogContent>
-          {!isWriter && <Alert severity="warning" sx={{ mb:2 }}>Solo ADMIN/SUPERVISOR puede crear SKUs.</Alert>}
-          {err && <Alert severity="error" sx={{ mb:2 }}>{err}</Alert>}
-          <Stack spacing={2} sx={{ mt:1 }}>
-            <TextField label="SKU" value={form.sku} onChange={(e)=>setForm({ ...form, sku: e.target.value })} />
-            <TextField label="Descripción" value={form.description} onChange={(e)=>setForm({ ...form, description: e.target.value })} />
-            <TextField label="Categoría" value={form.category} onChange={(e)=>setForm({ ...form, category: e.target.value })} />
-            <TextField label="Marca" value={form.brand} onChange={(e)=>setForm({ ...form, brand: e.target.value })} />
-            <TextField label="Modelo" value={form.model} onChange={(e)=>setForm({ ...form, model: e.target.value })} />
-            <TextField label="Unidad" value={form.unit} onChange={(e)=>setForm({ ...form, unit: e.target.value })} />
+          {!isWriter && <Alert severity="warning" sx={{ mb: 2 }}>Solo ADMIN/SUPERVISOR puede crear SKUs.</Alert>}
+          {err && <Alert severity="error" sx={{ mb: 2 }}>{err}</Alert>}
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField label="SKU" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} />
+            <TextField label="Descripción" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            <TextField label="Categoría" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+            <TextField label="Marca" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} />
+            <TextField label="Modelo" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
+            <TextField label="Unidad" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={()=>setOpen(false)}>Cancelar</Button>
+          <Button onClick={() => setOpen(false)}>Cancelar</Button>
           <Button disabled={!isWriter} variant="contained" onClick={create}>Guardar</Button>
         </DialogActions>
       </Dialog>
