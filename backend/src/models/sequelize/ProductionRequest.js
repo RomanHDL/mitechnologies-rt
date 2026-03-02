@@ -9,35 +9,43 @@ const ProductionRequest = sequelize.define('ProductionRequest', {
     },
 
     area: {
-        type: DataTypes.ENUM('P1', 'P2', 'P3', 'P4'),
+        type: DataTypes.STRING(10),
         allowNull: false,
+        defaultValue: 'P1',
+    },
+
+    subarea: {
+        type: DataTypes.STRING(60),
+        allowNull: true,
+        defaultValue: null,
     },
 
     items: {
         type: DataTypes.JSON,
         allowNull: false,
+        defaultValue: [],
     },
 
     note: {
         type: DataTypes.TEXT,
-        allowNull: false,
+        allowNull: true,
         defaultValue: '',
     },
 
     status: {
-        type: DataTypes.ENUM('OPEN', 'FULFILLED', 'CANCELLED'),
+        type: DataTypes.STRING(20),
         allowNull: false,
-        defaultValue: 'OPEN',
+        defaultValue: 'PENDIENTE',
     },
 
-    // 🔥 CLAVE: debe ser CHAR(36) porque users.id es char(36)
     requestedByUserId: {
-        type: DataTypes.CHAR(36),
+        type: DataTypes.STRING(36),
         allowNull: false,
     },
 }, {
     tableName: 'production_requests',
     underscored: false,
+    timestamps: true,
 });
 
 module.exports = ProductionRequest;
