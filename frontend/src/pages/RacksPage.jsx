@@ -13,20 +13,21 @@ import MenuItem from '@mui/material/MenuItem'
 import Divider from '@mui/material/Divider'
 import Button from '@mui/material/Button'
 import LinearProgress from '@mui/material/LinearProgress'
+import { useTheme } from '@mui/material/styles'
 
 const levels = ['A','B','C']
 const positions = Array.from({ length: 12 }, (_, i) => i + 1)
 
-function cellColor(state) {
-  if (state === 'BLOQUEADO') return '#3b0a0a' // rojo oscuro
-  if (state === 'OCUPADO') return '#083a1f'   // verde oscuro
-  return '#111827'                            // gris/azul oscuro
+function cellColor(state, isDark = false) {
+  if (state === 'BLOQUEADO') return isDark ? '#3b0a0a' : 'rgba(239,68,68,.10)'
+  if (state === 'OCUPADO') return isDark ? '#083a1f' : 'rgba(34,197,94,.12)'
+  return isDark ? '#111827' : 'rgba(21,101,192,.05)'
 }
 
-function cellBorder(state) {
+function cellBorder(state, isDark = false) {
   if (state === 'BLOQUEADO') return '1px solid rgba(239,68,68,.35)'
   if (state === 'OCUPADO') return '1px solid rgba(34,197,94,.35)'
-  return '1px solid rgba(255,255,255,.08)'
+  return isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(21,101,192,.15)'
 }
 
 const rackOptions = Array.from({ length: 125 }, (_, i) => `F${String(i+1).padStart(3,'0')}`)
@@ -34,6 +35,8 @@ const rackOptions = Array.from({ length: 125 }, (_, i) => `F${String(i+1).padSta
 export default function RacksPage() {
   const client = useMemo(() => api(), [])
   const routerLoc = useLocation() // ✅ NUEVO: para recibir state desde Inventory
+  const theme = useTheme()
+  const isDark = theme.palette.mode === 'dark'
 
   const [rackCode, setRackCode] = useState('F001')
   const [locs, setLocs] = useState([])
@@ -177,31 +180,19 @@ export default function RacksPage() {
               mb: 2
             }}
           >
-            <Paper elevation={0} sx={{
-              p:2, borderRadius:3,
-              background: 'linear-gradient(180deg, rgba(59,130,246,.18), rgba(17,24,39,.35))',
-              border:'1px solid rgba(255,255,255,.06)'
-            }}>
+            <Paper elevation={0} sx={{ p:2, borderRadius:3, background: 'linear-gradient(135deg, rgba(21,101,192,.18), rgba(21,101,192,.05))', border:'1px solid rgba(21,101,192,.20)' }}>
               <Typography sx={{ opacity:.8, fontSize:12 }}>Rack</Typography>
               <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1 }}>{rackCode}</Typography>
               <Typography sx={{ opacity:.7, fontSize:12, mt:.5 }}>Activo</Typography>
             </Paper>
 
-            <Paper elevation={0} sx={{
-              p:2, borderRadius:3,
-              background: 'linear-gradient(180deg, rgba(255,255,255,.06), rgba(17,24,39,.35))',
-              border:'1px solid rgba(255,255,255,.06)'
-            }}>
+            <Paper elevation={0} sx={{ p:2, borderRadius:3 }}>
               <Typography sx={{ opacity:.8, fontSize:12 }}>Capacidad</Typography>
               <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1 }}>{capacity}</Typography>
               <Typography sx={{ opacity:.7, fontSize:12, mt:.5 }}>Posiciones</Typography>
             </Paper>
 
-            <Paper elevation={0} sx={{
-              p:2, borderRadius:3,
-              background: 'linear-gradient(180deg, rgba(34,197,94,.18), rgba(17,24,39,.35))',
-              border:'1px solid rgba(34,197,94,.20)'
-            }}>
+            <Paper elevation={0} sx={{ p:2, borderRadius:3, background: 'linear-gradient(135deg, rgba(34,197,94,.16), rgba(34,197,94,.04))', border:'1px solid rgba(34,197,94,.22)' }}>
               <Typography sx={{ opacity:.8, fontSize:12 }}>Ocupadas</Typography>
               <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1 }}>{stats.ocupadas}</Typography>
               <Typography sx={{ opacity:.7, fontSize:12, mt:.5 }}>
@@ -209,11 +200,7 @@ export default function RacksPage() {
               </Typography>
             </Paper>
 
-            <Paper elevation={0} sx={{
-              p:2, borderRadius:3,
-              background: 'linear-gradient(180deg, rgba(148,163,184,.18), rgba(17,24,39,.35))',
-              border:'1px solid rgba(255,255,255,.06)'
-            }}>
+            <Paper elevation={0} sx={{ p:2, borderRadius:3 }}>
               <Typography sx={{ opacity:.8, fontSize:12 }}>Vacías</Typography>
               <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1 }}>{stats.vacias}</Typography>
               <Typography sx={{ opacity:.7, fontSize:12, mt:.5 }}>
@@ -221,11 +208,7 @@ export default function RacksPage() {
               </Typography>
             </Paper>
 
-            <Paper elevation={0} sx={{
-              p:2, borderRadius:3,
-              background: 'linear-gradient(180deg, rgba(239,68,68,.16), rgba(17,24,39,.35))',
-              border:'1px solid rgba(239,68,68,.20)'
-            }}>
+            <Paper elevation={0} sx={{ p:2, borderRadius:3, background: 'linear-gradient(135deg, rgba(239,68,68,.14), rgba(239,68,68,.04))', border:'1px solid rgba(239,68,68,.22)' }}>
               <Typography sx={{ opacity:.8, fontSize:12 }}>Bloqueadas</Typography>
               <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1 }}>{stats.bloqueadas}</Typography>
               <Typography sx={{ opacity:.7, fontSize:12, mt:.5 }}>
@@ -235,11 +218,7 @@ export default function RacksPage() {
           </Box>
 
           {/* Barra superior: Rack + búsqueda + filtros */}
-          <Paper elevation={0} sx={{
-            p:2, borderRadius:3, mb:2,
-            background: 'linear-gradient(180deg, rgba(255,255,255,.05), rgba(17,24,39,.35))',
-            border:'1px solid rgba(255,255,255,.06)'
-          }}>
+          <Paper elevation={0} sx={{ p:2, borderRadius:3, mb:2 }}>
             <Stack direction={{ xs:'column', md:'row' }} spacing={2} alignItems={{ xs:'stretch', md:'center' }}>
               <TextField
                 select
@@ -247,10 +226,7 @@ export default function RacksPage() {
                 label="Rack"
                 value={rackCode}
                 onChange={(e)=>setRackCode(e.target.value)}
-                sx={{
-                  width: { xs:'100%', md: 220 },
-                  '& .MuiInputBase-root': { bgcolor:'rgba(0,0,0,.18)' }
-                }}
+                sx={{ width: { xs:'100%', md: 220 } }}
               >
                 {rackOptions.map(r => <MenuItem key={r} value={r}>{r}</MenuItem>)}
               </TextField>
@@ -261,10 +237,7 @@ export default function RacksPage() {
                 value={q}
                 onChange={(e)=>setQ(e.target.value)}
                 onKeyDown={(e)=> e.key === 'Enter' && onSearch()}
-                sx={{
-                  flex:1,
-                  '& .MuiInputBase-root': { bgcolor:'rgba(0,0,0,.18)' }
-                }}
+                sx={{ flex:1 }}
               />
 
               <Button
@@ -282,7 +255,7 @@ export default function RacksPage() {
               </Button>
             </Stack>
 
-            <Divider sx={{ my:2, borderColor:'rgba(255,255,255,.06)' }} />
+            <Divider sx={{ my:2 }} />
 
             <Stack direction={{ xs:'column', md:'row' }} spacing={2} alignItems={{ xs:'stretch', md:'center' }} justifyContent="space-between">
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
@@ -291,9 +264,9 @@ export default function RacksPage() {
                   label="Todos"
                   onClick={() => setFilter('TODOS')}
                   sx={{
-                    bgcolor: filter==='TODOS' ? 'rgba(59,130,246,.22)' : 'rgba(255,255,255,.06)',
-                    color:'#e5e7eb',
-                    border:'1px solid rgba(255,255,255,.08)'
+                    bgcolor: filter==='TODOS' ? 'rgba(21,101,192,.22)' : (isDark ? 'rgba(255,255,255,.06)' : 'rgba(21,101,192,.08)'),
+                    color: isDark ? '#e5e7eb' : '#1565C0',
+                    border: isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(21,101,192,.20)',
                   }}
                 />
                 <Chip
@@ -301,9 +274,9 @@ export default function RacksPage() {
                   label="Vacíos"
                   onClick={() => setFilter('VACIO')}
                   sx={{
-                    bgcolor: filter==='VACIO' ? 'rgba(148,163,184,.22)' : 'rgba(255,255,255,.06)',
-                    color:'#e5e7eb',
-                    border:'1px solid rgba(255,255,255,.08)'
+                    bgcolor: filter==='VACIO' ? 'rgba(148,163,184,.22)' : (isDark ? 'rgba(255,255,255,.06)' : 'rgba(21,101,192,.08)'),
+                    color: isDark ? '#e5e7eb' : '#1565C0',
+                    border: isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(21,101,192,.20)',
                   }}
                 />
                 <Chip
@@ -311,9 +284,9 @@ export default function RacksPage() {
                   label="Ocupados"
                   onClick={() => setFilter('OCUPADO')}
                   sx={{
-                    bgcolor: filter==='OCUPADO' ? 'rgba(34,197,94,.22)' : 'rgba(255,255,255,.06)',
-                    color:'#e5e7eb',
-                    border:'1px solid rgba(255,255,255,.08)'
+                    bgcolor: filter==='OCUPADO' ? 'rgba(34,197,94,.22)' : (isDark ? 'rgba(255,255,255,.06)' : 'rgba(21,101,192,.08)'),
+                    color: filter==='OCUPADO' ? '#1b5e20' : (isDark ? '#e5e7eb' : '#1565C0'),
+                    border: isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(21,101,192,.20)',
                   }}
                 />
                 <Chip
@@ -321,33 +294,29 @@ export default function RacksPage() {
                   label="Bloqueados"
                   onClick={() => setFilter('BLOQUEADO')}
                   sx={{
-                    bgcolor: filter==='BLOQUEADO' ? 'rgba(239,68,68,.20)' : 'rgba(255,255,255,.06)',
-                    color:'#e5e7eb',
-                    border:'1px solid rgba(255,255,255,.08)'
+                    bgcolor: filter==='BLOQUEADO' ? 'rgba(239,68,68,.20)' : (isDark ? 'rgba(255,255,255,.06)' : 'rgba(21,101,192,.08)'),
+                    color: filter==='BLOQUEADO' ? '#b71c1c' : (isDark ? '#e5e7eb' : '#1565C0'),
+                    border: isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(21,101,192,.20)',
                   }}
                 />
               </Stack>
 
               {/* Leyenda */}
               <Box sx={{ display:'flex', gap:1, justifyContent:'flex-end', flexWrap:'wrap' }}>
-                <Chip size="small" label="VACÍO" sx={{ bgcolor:'rgba(148,163,184,.18)', color:'#e5e7eb', border:'1px solid rgba(255,255,255,.08)' }} />
-                <Chip size="small" label="OCUPADO" sx={{ bgcolor:'rgba(34,197,94,.18)', color:'#e5e7eb', border:'1px solid rgba(34,197,94,.22)' }} />
-                <Chip size="small" label="BLOQUEADO" sx={{ bgcolor:'rgba(239,68,68,.16)', color:'#e5e7eb', border:'1px solid rgba(239,68,68,.22)' }} />
+                <Chip size="small" label="VACÍO" sx={{ bgcolor: isDark ? 'rgba(148,163,184,.18)' : 'rgba(21,101,192,.10)', color: isDark ? '#e5e7eb' : '#1565C0', border: isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(21,101,192,.20)' }} />
+                <Chip size="small" label="OCUPADO" sx={{ bgcolor:'rgba(34,197,94,.18)', color: isDark ? '#e5e7eb' : '#1b5e20', border:'1px solid rgba(34,197,94,.25)' }} />
+                <Chip size="small" label="BLOQUEADO" sx={{ bgcolor:'rgba(239,68,68,.16)', color: isDark ? '#e5e7eb' : '#b71c1c', border:'1px solid rgba(239,68,68,.25)' }} />
               </Box>
             </Stack>
           </Paper>
 
           {/* Mapa */}
-          <Paper elevation={0} sx={{
-            p:2, borderRadius:3,
-            background: 'linear-gradient(180deg, rgba(255,255,255,.04), rgba(17,24,39,.35))',
-            border:'1px solid rgba(255,255,255,.06)'
-          }}>
+          <Paper elevation={0} sx={{ p:2, borderRadius:3 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 1 }}>
               Mapa del Rack {rackCode} <span style={{ opacity:.75 }}>(A–C / 01–12)</span>
             </Typography>
 
-            <Divider sx={{ my:1.5, borderColor:'rgba(255,255,255,.06)' }} />
+            <Divider sx={{ my:1.5 }} />
 
             {/* Encabezado de columnas */}
             <Box sx={{
@@ -395,8 +364,8 @@ export default function RacksPage() {
                             ? '2px solid #60a5fa'
                             : isSelected
                               ? '2px solid rgba(59,130,246,.75)'
-                              : cellBorder(state),
-                          bgcolor: cellColor(state),
+                              : cellBorder(state, isDark),
+                          bgcolor: cellColor(state, isDark),
                           textAlign: 'center',
                           fontSize: 12,
                           transition: 'transform .08s ease, box-shadow .15s ease, opacity .15s ease',
@@ -420,7 +389,7 @@ export default function RacksPage() {
               ))}
             </Box>
 
-            <Divider sx={{ my:2, borderColor:'rgba(255,255,255,.06)' }} />
+            <Divider sx={{ my:2 }} />
 
             <Typography variant="caption" sx={{ opacity: 0.75 }}>
               Tip: escribe un código como <b>A01-F059-012</b> y te cambia al rack automáticamente.
@@ -430,13 +399,9 @@ export default function RacksPage() {
 
         {/* =================== DERECHA (PANEL) =================== */}
         <Box>
-          <Paper elevation={0} sx={{
-            p:2, borderRadius:3, mb:2,
-            background: 'linear-gradient(180deg, rgba(255,255,255,.05), rgba(17,24,39,.35))',
-            border:'1px solid rgba(255,255,255,.06)'
-          }}>
+          <Paper elevation={0} sx={{ p:2, borderRadius:3, mb:2 }}>
             <Typography sx={{ fontWeight: 900, mb: 1 }}>Detalles de Ubicación</Typography>
-            <Divider sx={{ mb: 2, borderColor:'rgba(255,255,255,.06)' }} />
+            <Divider sx={{ mb: 2 }} />
 
             {!selected ? (
               <Typography sx={{ opacity:.75, fontSize: 13 }}>
@@ -458,9 +423,14 @@ export default function RacksPage() {
                           ? 'rgba(34,197,94,.20)'
                           : selected.state === 'BLOQUEADO'
                             ? 'rgba(239,68,68,.18)'
-                            : 'rgba(148,163,184,.18)',
-                      color:'#e5e7eb',
-                      border:'1px solid rgba(255,255,255,.08)'
+                            : (isDark ? 'rgba(148,163,184,.18)' : 'rgba(21,101,192,.10)'),
+                      color:
+                        selected.state === 'OCUPADO' ? (isDark ? '#e5e7eb' : '#1b5e20')
+                          : selected.state === 'BLOQUEADO' ? (isDark ? '#e5e7eb' : '#b71c1c')
+                          : (isDark ? '#e5e7eb' : '#1565C0'),
+                      border: selected.state === 'OCUPADO' ? '1px solid rgba(34,197,94,.28)'
+                        : selected.state === 'BLOQUEADO' ? '1px solid rgba(239,68,68,.28)'
+                        : (isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(21,101,192,.20)'),
                     }}
                   />
                   <Typography sx={{ opacity:.8, fontSize: 12 }}>
@@ -483,7 +453,7 @@ export default function RacksPage() {
                   <Typography sx={{ fontSize: 12 }}>{selected.raw?.lastMoveBy || '--'}</Typography>
                 </Box>
 
-                <Divider sx={{ my:2, borderColor:'rgba(255,255,255,.06)' }} />
+                <Divider sx={{ my:2 }} />
 
                 <Stack direction="row" spacing={1}>
                   <Button
@@ -503,13 +473,9 @@ export default function RacksPage() {
             )}
           </Paper>
 
-          <Paper elevation={0} sx={{
-            p:2, borderRadius:3,
-            background: 'linear-gradient(180deg, rgba(255,255,255,.04), rgba(17,24,39,.35))',
-            border:'1px solid rgba(255,255,255,.06)'
-          }}>
+          <Paper elevation={0} sx={{ p:2, borderRadius:3 }}>
             <Typography sx={{ fontWeight: 900, mb: 1 }}>Estadísticas del Rack</Typography>
-            <Divider sx={{ mb: 2, borderColor:'rgba(255,255,255,.06)' }} />
+            <Divider sx={{ mb: 2 }} />
 
             <Stack spacing={1.2}>
               <Box>
@@ -523,8 +489,8 @@ export default function RacksPage() {
                   sx={{
                     height: 10,
                     borderRadius: 99,
-                    bgcolor: 'rgba(255,255,255,.08)',
-                    '& .MuiLinearProgress-bar': { borderRadius: 99 }
+                    bgcolor: isDark ? 'rgba(255,255,255,.08)' : 'rgba(21,101,192,.12)',
+                    '& .MuiLinearProgress-bar': { borderRadius: 99 },
                   }}
                 />
               </Box>

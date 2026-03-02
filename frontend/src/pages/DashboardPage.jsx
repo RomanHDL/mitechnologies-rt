@@ -29,18 +29,19 @@ import BlockIcon from '@mui/icons-material/Block'
 import Inventory2Icon from '@mui/icons-material/Inventory2'
 
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
+import { useTheme } from '@mui/material/styles'
 
-function kpiCard({ title, value, subtitle, children, accent = 'default', onClick }) {
+function kpiCard({ title, value, subtitle, children, accent = 'default', onClick, isDark }) {
   const accentStyles =
     accent === 'blue'
-      ? { border: '1px solid rgba(59,130,246,.25)', boxShadow: '0 18px 45px rgba(59,130,246,.12)' }
+      ? { border: '1px solid rgba(59,130,246,.28)', boxShadow: isDark ? '0 18px 45px rgba(59,130,246,.14)' : '0 8px 28px rgba(21,101,192,.12)' }
       : accent === 'green'
-        ? { border: '1px solid rgba(34,197,94,.22)', boxShadow: '0 18px 45px rgba(34,197,94,.10)' }
+        ? { border: '1px solid rgba(34,197,94,.25)', boxShadow: isDark ? '0 18px 45px rgba(34,197,94,.12)' : '0 8px 28px rgba(34,197,94,.10)' }
         : accent === 'red'
-          ? { border: '1px solid rgba(239,68,68,.22)', boxShadow: '0 18px 45px rgba(239,68,68,.10)' }
+          ? { border: '1px solid rgba(239,68,68,.25)', boxShadow: isDark ? '0 18px 45px rgba(239,68,68,.12)' : '0 8px 28px rgba(239,68,68,.10)' }
           : accent === 'amber'
-            ? { border: '1px solid rgba(245,158,11,.22)', boxShadow: '0 18px 45px rgba(245,158,11,.10)' }
-            : { border: '1px solid rgba(255,255,255,0.06)' }
+            ? { border: '1px solid rgba(245,158,11,.25)', boxShadow: isDark ? '0 18px 45px rgba(245,158,11,.12)' : '0 8px 28px rgba(245,158,11,.10)' }
+            : { border: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(21,101,192,0.10)' }
 
   return (
     <Paper
@@ -64,16 +65,16 @@ function kpiCard({ title, value, subtitle, children, accent = 'default', onClick
   )
 }
 
-function pill(label, icon, sx = {}) {
+function pill(label, icon, sx = {}, isDark = false) {
   return (
     <Chip
       size="small"
       icon={icon}
       label={label}
       sx={{
-        bgcolor: 'rgba(255,255,255,.06)',
-        border: '1px solid rgba(255,255,255,.10)',
-        color: 'rgba(229,231,235,0.95)',
+        bgcolor: isDark ? 'rgba(255,255,255,.07)' : 'rgba(21,101,192,.08)',
+        border: isDark ? '1px solid rgba(255,255,255,.12)' : '1px solid rgba(21,101,192,.20)',
+        color: isDark ? 'rgba(226,234,244,0.95)' : 'rgba(10,37,64,.85)',
         fontWeight: 900,
         ...sx
       }}
@@ -85,6 +86,8 @@ function pill(label, icon, sx = {}) {
 export default function DashboardPage() {
   const { token } = useAuth()
   const nav = useNavigate()
+  const theme = useTheme()
+  const isDark = theme.palette.mode === 'dark'
 
   // ✅ No lo quitamos, pero evitamos que falle por “unused”
   useMemo(() => io, [])
@@ -236,12 +239,12 @@ export default function DashboardPage() {
             <IconButton
               onClick={refresh}
               sx={{
-                bgcolor: 'rgba(255,255,255,.06)',
-                border: '1px solid rgba(255,255,255,.10)',
-                borderRadius: 2
+                bgcolor: isDark ? 'rgba(255,255,255,.07)' : 'rgba(21,101,192,.08)',
+                border: isDark ? '1px solid rgba(255,255,255,.12)' : '1px solid rgba(21,101,192,.20)',
+                borderRadius: 2,
               }}
             >
-              <RefreshIcon sx={{ color: 'rgba(229,231,235,0.95)' }} />
+              <RefreshIcon sx={{ color: isDark ? 'rgba(226,234,244,0.95)' : 'primary.main' }} />
             </IconButton>
           </TooltipMUI>
         </Stack>
@@ -261,15 +264,16 @@ export default function DashboardPage() {
             value: `${occupancyPct}%`,
             subtitle: `${stats.occupied || 0} / ${stats.total || 0} ubicaciones ocupadas`,
             accent: 'blue',
+            isDark,
             onClick: () => nav('/ubicaciones'),
             children: (
               <Box sx={{ mt: 0.5 }}>
                 <Box sx={{
                   height: 10,
                   borderRadius: 999,
-                  bgcolor: 'rgba(255,255,255,.06)',
-                  border: '1px solid rgba(255,255,255,.08)',
-                  overflow: 'hidden'
+                  bgcolor: isDark ? 'rgba(255,255,255,.07)' : 'rgba(21,101,192,.10)',
+                  border: isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(21,101,192,.15)',
+                  overflow: 'hidden',
                 }}>
                   <Box sx={{
                     height: '100%',
@@ -299,6 +303,7 @@ export default function DashboardPage() {
             value: `${stats.entradasHoy || 0}`,
             subtitle: 'Movimientos de tipo ENTRADA',
             accent: 'green',
+            isDark,
             onClick: () => nav('/movimientos'),
             children: (
               <Box sx={{ height: 90 }}>
@@ -321,6 +326,7 @@ export default function DashboardPage() {
             value: `${stats.salidasHoy || 0}`,
             subtitle: 'Movimientos de tipo SALIDA',
             accent: 'default',
+            isDark,
             onClick: () => nav('/movimientos')
           })}
         </Grid>
@@ -331,6 +337,7 @@ export default function DashboardPage() {
             value: `${blockedCount || 0}`,
             subtitle: 'Revisar mantenimiento / auditoría',
             accent: 'red',
+            isDark,
             onClick: () => nav('/ubicaciones')
           })}
         </Grid>
@@ -341,6 +348,7 @@ export default function DashboardPage() {
             value: `${top?.length || 0}`,
             subtitle: 'Más inventario por SKU',
             accent: 'default',
+            isDark,
             onClick: () => nav('/inventario')
           })}
         </Grid>
@@ -351,6 +359,7 @@ export default function DashboardPage() {
             value: `${alertsCount || 0}`,
             subtitle: 'Pendientes por validar',
             accent: 'amber',
+            isDark,
             onClick: () => nav('/ubicaciones')
           })}
         </Grid>
@@ -381,9 +390,12 @@ export default function DashboardPage() {
                   borderRadius: 3,
                   py: 1.6,
                   justifyContent: 'flex-start',
-                  borderColor: 'rgba(255,255,255,.14)',
-                  bgcolor: 'rgba(255,255,255,.04)',
-                  '&:hover': { bgcolor: 'rgba(255,255,255,.08)', borderColor: 'rgba(255,255,255,.22)' }
+                  borderColor: isDark ? 'rgba(255,255,255,.14)' : 'rgba(21,101,192,.22)',
+                  bgcolor: isDark ? 'rgba(255,255,255,.04)' : 'rgba(21,101,192,.04)',
+                  '&:hover': {
+                    bgcolor: isDark ? 'rgba(255,255,255,.08)' : 'rgba(21,101,192,.09)',
+                    borderColor: isDark ? 'rgba(255,255,255,.22)' : 'rgba(21,101,192,.40)',
+                  },
                 }}
               >
                 {a.label}
@@ -403,8 +415,8 @@ export default function DashboardPage() {
                 Actividad (Movimientos)
               </Typography>
               <Stack direction="row" spacing={1} alignItems="center">
-                {pill(`${latest?.length || 0} recientes`, <SwapHorizIcon fontSize="small" />)}
-                {pill(`${orders?.length || 0} órdenes`, <AssignmentIcon fontSize="small" />)}
+                {pill(`${latest?.length || 0} recientes`, <SwapHorizIcon fontSize="small" />, {}, isDark)}
+                {pill(`${orders?.length || 0} órdenes`, <AssignmentIcon fontSize="small" />, {}, isDark)}
               </Stack>
             </Stack>
 
@@ -446,7 +458,7 @@ export default function DashboardPage() {
                       borderRadius: 2,
                       cursor: 'pointer',
                       transition: 'transform .12s ease, background .12s ease',
-                      '&:hover': { transform: 'translateY(-1px)', background: 'rgba(255,255,255,.04)' }
+                      '&:hover': { transform: 'translateY(-1px)', background: isDark ? 'rgba(255,255,255,.04)' : 'rgba(21,101,192,.04)' }
                     }}
                     onClick={() => nav('/movimientos')}
                   >
@@ -486,7 +498,7 @@ export default function DashboardPage() {
             <Stack spacing={1}>
               <Paper
                 variant="outlined"
-                sx={{ p: 1.2, borderRadius: 2, cursor:'pointer', '&:hover': { background:'rgba(255,255,255,.04)' } }}
+                sx={{ p: 1.2, borderRadius: 2, cursor:'pointer', '&:hover': { background: isDark ? 'rgba(255,255,255,.04)' : 'rgba(21,101,192,.04)' } }}
                 onClick={() => nav('/ubicaciones')}
               >
                 <Stack direction="row" spacing={1} alignItems="center">
@@ -500,7 +512,7 @@ export default function DashboardPage() {
 
               <Paper
                 variant="outlined"
-                sx={{ p: 1.2, borderRadius: 2, cursor:'pointer', '&:hover': { background:'rgba(255,255,255,.04)' } }}
+                sx={{ p: 1.2, borderRadius: 2, cursor:'pointer', '&:hover': { background: isDark ? 'rgba(255,255,255,.04)' : 'rgba(21,101,192,.04)' } }}
                 onClick={() => nav('/ordenes')}
               >
                 <Stack direction="row" spacing={1} alignItems="center">
@@ -514,7 +526,7 @@ export default function DashboardPage() {
 
               <Paper
                 variant="outlined"
-                sx={{ p: 1.2, borderRadius: 2, cursor:'pointer', '&:hover': { background:'rgba(255,255,255,.04)' } }}
+                sx={{ p: 1.2, borderRadius: 2, cursor:'pointer', '&:hover': { background: isDark ? 'rgba(255,255,255,.04)' : 'rgba(21,101,192,.04)' } }}
                 onClick={() => nav('/inventario')}
               >
                 <Stack direction="row" spacing={1} alignItems="center">
@@ -542,7 +554,7 @@ export default function DashboardPage() {
                 <Paper
                   key={t.sku}
                   variant="outlined"
-                  sx={{ p: 1.2, borderRadius: 2, cursor:'pointer', '&:hover': { background:'rgba(255,255,255,.04)' } }}
+                  sx={{ p: 1.2, borderRadius: 2, cursor:'pointer', '&:hover': { background: isDark ? 'rgba(255,255,255,.04)' : 'rgba(21,101,192,.04)' } }}
                   onClick={() => nav('/inventario')}
                 >
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -571,7 +583,7 @@ export default function DashboardPage() {
                 <Paper
                   key={o._id || o.id || o.orderNumber}
                   variant="outlined"
-                  sx={{ p: 1.1, borderRadius: 2, cursor:'pointer', '&:hover': { background:'rgba(255,255,255,.04)' } }}
+                  sx={{ p: 1.1, borderRadius: 2, cursor:'pointer', '&:hover': { background: isDark ? 'rgba(255,255,255,.04)' : 'rgba(21,101,192,.04)' } }}
                   onClick={() => nav('/ordenes')}
                 >
                   <Stack direction="row" justifyContent="space-between" alignItems="center">

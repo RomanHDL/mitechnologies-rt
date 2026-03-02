@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { api } from '../lib/api'
 import { socket } from '../lib/socket'
+import { useTheme } from '@mui/material/styles'
 
 import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
@@ -13,15 +14,15 @@ import Divider from '@mui/material/Divider'
 import LinearProgress from '@mui/material/LinearProgress'
 import Button from '@mui/material/Button'
 
-function cellColor(state) {
-  if (state === 'BLOQUEADO') return '#3b0a0a'
-  if (state === 'OCUPADO') return '#083a1f'
-  return '#111827'
+function cellColor(state, isDark = false) {
+  if (state === 'BLOQUEADO') return isDark ? '#3b0a0a' : 'rgba(239,68,68,.10)'
+  if (state === 'OCUPADO') return isDark ? '#083a1f' : 'rgba(34,197,94,.12)'
+  return isDark ? '#111827' : 'rgba(21,101,192,.05)'
 }
-function cellBorder(state) {
+function cellBorder(state, isDark = false) {
   if (state === 'BLOQUEADO') return '1px solid rgba(239,68,68,.35)'
   if (state === 'OCUPADO') return '1px solid rgba(34,197,94,.35)'
-  return '1px solid rgba(255,255,255,.08)'
+  return isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(21,101,192,.15)'
 }
 
 // ✅ Mapeo UI Profesional (NO rompe DB)
@@ -57,6 +58,8 @@ function buildSubareaKey(areaDb, subarea) {
 
 export default function FftPage() {
   const client = useMemo(() => api(), [])
+  const theme = useTheme()
+  const isDark = theme.palette.mode === 'dark'
 
   // ✅ selector principal
   const [areaDb, setAreaDb] = useState('A3') // FFT por default
@@ -165,8 +168,8 @@ export default function FftPage() {
           userSelect: 'none',
           p: 1.3,
           borderRadius: 2,
-          border: isSel ? '2px solid rgba(59,130,246,.75)' : cellBorder(state),
-          bgcolor: cellColor(state),
+          border: isSel ? '2px solid rgba(59,130,246,.75)' : cellBorder(state, isDark),
+          bgcolor: cellColor(state, isDark),
           opacity: dim ? 0.35 : 1,
           transition: 'transform .08s ease, box-shadow .15s ease',
           '&:hover': { transform: dim ? 'none' : 'translateY(-1px)', boxShadow: dim ? 'none' : '0 10px 25px rgba(0,0,0,.25)' }
@@ -191,10 +194,10 @@ export default function FftPage() {
             size="small"
             label={state}
             sx={{
-              bgcolor: 'rgba(255,255,255,.06)',
-              color: '#e5e7eb',
-              border: '1px solid rgba(255,255,255,.10)',
-              fontWeight: 900
+              bgcolor: state === 'OCUPADO' ? 'rgba(34,197,94,.18)' : state === 'BLOQUEADO' ? 'rgba(239,68,68,.16)' : (isDark ? 'rgba(255,255,255,.06)' : 'rgba(21,101,192,.08)'),
+              color: state === 'OCUPADO' ? (isDark ? '#a7f3d0' : '#1b5e20') : state === 'BLOQUEADO' ? (isDark ? '#fca5a5' : '#b71c1c') : (isDark ? '#e5e7eb' : '#1565C0'),
+              border: state === 'OCUPADO' ? '1px solid rgba(34,197,94,.28)' : state === 'BLOQUEADO' ? '1px solid rgba(239,68,68,.28)' : (isDark ? '1px solid rgba(255,255,255,.10)' : '1px solid rgba(21,101,192,.20)'),
+              fontWeight: 900,
             }}
           />
         </Stack>
@@ -221,8 +224,8 @@ export default function FftPage() {
           userSelect: 'none',
           p: 1.3,
           borderRadius: 2,
-          border: isSel ? '2px solid rgba(59,130,246,.75)' : cellBorder(state),
-          bgcolor: cellColor(state),
+          border: isSel ? '2px solid rgba(59,130,246,.75)' : cellBorder(state, isDark),
+          bgcolor: cellColor(state, isDark),
           opacity: dim ? 0.35 : 1,
           transition: 'transform .08s ease, box-shadow .15s ease',
           '&:hover': { transform: dim ? 'none' : 'translateY(-1px)', boxShadow: dim ? 'none' : '0 10px 25px rgba(0,0,0,.25)' }
@@ -257,10 +260,10 @@ export default function FftPage() {
             size="small"
             label={state}
             sx={{
-              bgcolor: 'rgba(255,255,255,.06)',
-              color: '#e5e7eb',
-              border: '1px solid rgba(255,255,255,.10)',
-              fontWeight: 900
+              bgcolor: state === 'OCUPADO' ? 'rgba(34,197,94,.18)' : state === 'BLOQUEADO' ? 'rgba(239,68,68,.16)' : (isDark ? 'rgba(255,255,255,.06)' : 'rgba(21,101,192,.08)'),
+              color: state === 'OCUPADO' ? (isDark ? '#a7f3d0' : '#1b5e20') : state === 'BLOQUEADO' ? (isDark ? '#fca5a5' : '#b71c1c') : (isDark ? '#e5e7eb' : '#1565C0'),
+              border: state === 'OCUPADO' ? '1px solid rgba(34,197,94,.28)' : state === 'BLOQUEADO' ? '1px solid rgba(239,68,68,.28)' : (isDark ? '1px solid rgba(255,255,255,.10)' : '1px solid rgba(21,101,192,.20)'),
+              fontWeight: 900,
             }}
           />
         </Stack>
@@ -269,7 +272,7 @@ export default function FftPage() {
   }
 
   return (
-    <Box sx={{ color: '#e5e7eb' }}>
+    <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
         <Typography variant="h6" sx={{ fontWeight: 900 }}>
           {headerTitle}
@@ -280,7 +283,7 @@ export default function FftPage() {
           label="Tiempo real"
           sx={{
             bgcolor: 'rgba(34,197,94,.15)',
-            color: '#a7f3d0',
+            color: isDark ? '#a7f3d0' : '#1b5e20',
             border: '1px solid rgba(34,197,94,.25)'
           }}
         />
@@ -291,14 +294,14 @@ export default function FftPage() {
         <Box>
           {/* KPIs */}
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', md: 'repeat(4,1fr)' }, gap: 2, mb: 2 }}>
-            <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.04)' }}>
+            <Paper elevation={0} sx={{ p: 2, borderRadius: 3, }}>
               <Typography sx={{ opacity: .75, fontSize: 12 }}>Área</Typography>
               <Typography sx={{ fontWeight: 900, fontSize: 22 }}>
                 {AREAS.find(a => a.db === areaDb)?.label}
               </Typography>
             </Paper>
 
-            <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.04)' }}>
+            <Paper elevation={0} sx={{ p: 2, borderRadius: 3, }}>
               <Typography sx={{ opacity: .75, fontSize: 12 }}>Capacidad visible</Typography>
               <Typography sx={{ fontWeight: 900, fontSize: 22 }}>{stats.cap}</Typography>
               <Typography sx={{ opacity: .7, fontSize: 12, mt: .5 }}>
@@ -318,7 +321,7 @@ export default function FftPage() {
           </Box>
 
           {/* Controles */}
-          <Paper elevation={0} sx={{ p: 2, borderRadius: 3, mb: 2, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.04)' }}>
+          <Paper elevation={0} sx={{ p: 2, borderRadius: 3, mb: 2, }}>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'stretch', md: 'center' }}>
               <TextField
                 select
@@ -371,11 +374,11 @@ export default function FftPage() {
           </Paper>
 
           {/* Centro: Grid o Estantes */}
-          <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.04)' }}>
+          <Paper elevation={0} sx={{ p: 2, borderRadius: 3, }}>
             <Typography sx={{ fontWeight: 900, mb: 1 }}>
               {isFftAccesorios(areaDb, subarea) ? 'Accesorios (FFT) — Estantes por altura' : 'Mapa/Grid de BINs'}
             </Typography>
-            <Divider sx={{ my: 1.5, borderColor: 'rgba(255,255,255,.06)' }} />
+            <Divider sx={{ my: 1.5, }} />
 
             {isFftAccesorios(areaDb, subarea) ? (
               <Box sx={{ display: 'grid', gap: 1 }}>
@@ -397,9 +400,9 @@ export default function FftPage() {
 
         {/* DER (detalle) */}
         <Box>
-          <Paper elevation={0} sx={{ p: 2, borderRadius: 3, mb: 2, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.04)' }}>
+          <Paper elevation={0} sx={{ p: 2, borderRadius: 3, mb: 2, }}>
             <Typography sx={{ fontWeight: 900, mb: 1 }}>Detalle</Typography>
-            <Divider sx={{ mb: 2, borderColor: 'rgba(255,255,255,.06)' }} />
+            <Divider sx={{ mb: 2, }} />
 
             {!selected ? (
               <Typography sx={{ opacity: .75, fontSize: 13 }}>
@@ -412,9 +415,9 @@ export default function FftPage() {
                 </Typography>
 
                 <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap' }} useFlexGap>
-                  <Chip size="small" label={`Área ${AREAS.find(a => a.db === areaDb)?.label}`} sx={{ bgcolor: 'rgba(255,255,255,.06)', color: '#e5e7eb' }} />
-                  <Chip size="small" label={`Sub-área ${subarea}`} sx={{ bgcolor: 'rgba(255,255,255,.06)', color: '#e5e7eb' }} />
-                  <Chip size="small" label={selected.data?.state || 'VACIO'} sx={{ bgcolor: 'rgba(255,255,255,.06)', color: '#e5e7eb', fontWeight: 900 }} />
+                  <Chip size="small" label={`Área ${AREAS.find(a => a.db === areaDb)?.label}`} sx={{ bgcolor: isDark ? 'rgba(255,255,255,.06)' : 'rgba(21,101,192,.08)', color: isDark ? '#e5e7eb' : '#1565C0', border: isDark ? '1px solid rgba(255,255,255,.10)' : '1px solid rgba(21,101,192,.20)' }} />
+                  <Chip size="small" label={`Sub-área ${subarea}`} sx={{ bgcolor: isDark ? 'rgba(255,255,255,.06)' : 'rgba(21,101,192,.08)', color: isDark ? '#e5e7eb' : '#1565C0', border: isDark ? '1px solid rgba(255,255,255,.10)' : '1px solid rgba(21,101,192,.20)' }} />
+                  <Chip size="small" label={selected.data?.state || 'VACIO'} sx={{ bgcolor: isDark ? 'rgba(255,255,255,.06)' : 'rgba(21,101,192,.08)', color: isDark ? '#e5e7eb' : '#1565C0', border: isDark ? '1px solid rgba(255,255,255,.10)' : '1px solid rgba(21,101,192,.20)', fontWeight: 900 }} />
                 </Stack>
 
                 <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr', rowGap: 1, columnGap: 1.5 }}>
@@ -447,9 +450,9 @@ export default function FftPage() {
             )}
           </Paper>
 
-          <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.04)' }}>
+          <Paper elevation={0} sx={{ p: 2, borderRadius: 3, }}>
             <Typography sx={{ fontWeight: 900, mb: 1 }}>Ocupación</Typography>
-            <Divider sx={{ mb: 2, borderColor: 'rgba(255,255,255,.06)' }} />
+            <Divider sx={{ mb: 2, }} />
 
             <Stack spacing={1.2}>
               <Box>

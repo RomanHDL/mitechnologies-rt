@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/auth'
 import { api } from '../lib/api'
+import { useTheme } from '@mui/material/styles'
 
 import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
@@ -185,6 +186,8 @@ function daysSince(dt) {
 export default function InventoryPage() {
   const { token, user } = useAuth()
   const nav = useNavigate()
+  const theme = useTheme()
+  const isDark = theme.palette.mode === 'dark'
 
   // ✅ lo tuyo
   const [q, setQ] = useState('')
@@ -511,12 +514,12 @@ export default function InventoryPage() {
             <IconButton
               onClick={load}
               sx={{
-                bgcolor: 'rgba(255,255,255,.06)',
-                border: '1px solid rgba(255,255,255,.10)',
-                borderRadius: 2
+                bgcolor: isDark ? 'rgba(255,255,255,.07)' : 'rgba(21,101,192,.08)',
+                border: isDark ? '1px solid rgba(255,255,255,.12)' : '1px solid rgba(21,101,192,.20)',
+                borderRadius: 2,
               }}
             >
-              <RefreshIcon sx={{ color: 'rgba(229,231,235,0.95)' }} />
+              <RefreshIcon color="primary" />
             </IconButton>
           </Tooltip>
 
@@ -524,12 +527,12 @@ export default function InventoryPage() {
             <IconButton
               onClick={exportFilteredCSV}
               sx={{
-                bgcolor: 'rgba(255,255,255,.06)',
-                border: '1px solid rgba(255,255,255,.10)',
-                borderRadius: 2
+                bgcolor: isDark ? 'rgba(255,255,255,.07)' : 'rgba(21,101,192,.08)',
+                border: isDark ? '1px solid rgba(255,255,255,.12)' : '1px solid rgba(21,101,192,.20)',
+                borderRadius: 2,
               }}
             >
-              <DownloadIcon sx={{ color: 'rgba(229,231,235,0.95)' }} />
+              <DownloadIcon color="primary" />
             </IconButton>
           </Tooltip>
         </Stack>
