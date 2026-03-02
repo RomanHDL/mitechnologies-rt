@@ -19,6 +19,7 @@ import ProductsPage from './pages/ProductsPage'
 import OrdersPage from './pages/OrdersPage'
 import CountsPage from './pages/CountsPage'
 import LocationsPage from './pages/LocationsPage'
+import PaletizadoPage from './pages/PaletizadoPage'
 
 import AdminUsers from "./pages/AdminUsers";
 
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="inventario" element={<InventoryPage />} />
         <Route path="racks" element={<RacksPage />} />
         <Route path="produccion" element={<ProductionPage />} />
+        <Route path="paletizado" element={<PaletizadoPage />} />
         <Route path="movimientos" element={<MovementsPage />} />
         <Route path="productos" element={<ProductsPage />} />
         <Route path="ordenes" element={<OrdersPage />} />

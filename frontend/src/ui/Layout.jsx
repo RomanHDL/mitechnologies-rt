@@ -21,6 +21,7 @@ import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner'
 import Inventory2Icon from '@mui/icons-material/Inventory2'
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt'
 import PrecisionManufacturingIcon from '@mui/icons-material/PrecisionManufacturing'
+import ViewInArIcon from '@mui/icons-material/ViewInAr'
 import AssignmentIcon from '@mui/icons-material/Assignment'
 import FactCheckIcon from '@mui/icons-material/FactCheck'
 import PlaceIcon from '@mui/icons-material/Place'
@@ -174,6 +175,7 @@ export default function Layout() {
           <NavItem to="/inventario" icon={<Inventory2Icon fontSize="small" />} label="Inventario" />
           <NavItem to="/racks" icon={<GridViewIcon fontSize="small" />} label="Racks" />
           <NavItem to="/produccion" icon={<PrecisionManufacturingIcon fontSize="small" />} label="Producción" />
+          <NavItem to="/paletizado" icon={<ViewInArIcon fontSize="small" />} label="Paletizado" />
           <NavItem to="/movimientos" icon={<SwapHorizIcon fontSize="small" />} label="Movimientos" />
           <NavItem to="/productos" icon={<Inventory2Icon fontSize="small" />} label="Pallet Items" />
           <NavItem to="/ordenes" icon={<AssignmentIcon fontSize="small" />} label="Órdenes" />
