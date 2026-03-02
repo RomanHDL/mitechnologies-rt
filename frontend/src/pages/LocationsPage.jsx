@@ -36,14 +36,16 @@ const HEIGHT_LABEL = { A1: 'PLANTA BAJA', B2: 'MEDIA', C3: 'ALTA' }
 const HEIGHTS = ['A1','B2','C3']
 const SLOTS = Array.from({ length: 12 }, (_, i) => i + 1)
 
+// ✅ Mantengo tu select de racks (125), pero el cálculo por área lo dejamos en 30 por área (120)
 const rackOptions = Array.from({ length: 125 }, (_, i) => `F${String(i + 1).padStart(3, '0')}`)
 
+// ✅ 30 por área (como pediste): 120 total
 function rackToArea(rackCode) {
   const n = Number(String(rackCode || '').replace(/[^\d]/g, '')) || 0
-  if (n >= 1 && n <= 32) return 'A1'
-  if (n >= 33 && n <= 64) return 'A2'
-  if (n >= 65 && n <= 96) return 'A3'
-  if (n >= 97 && n <= 125) return 'A4'
+  if (n >= 1 && n <= 30) return 'A1'
+  if (n >= 31 && n <= 60) return 'A2'
+  if (n >= 61 && n <= 90) return 'A3'
+  if (n >= 91 && n <= 120) return 'A4'
   return 'A1'
 }
 
@@ -105,6 +107,37 @@ function cellBgForState(st) {
   return 'rgba(255,255,255,.04)'
 }
 
+/* =========================================================
+   ✅ NUEVO: Adaptador de forma (NO quita nada)
+   Asegura: _id, rackCode, height, slot aunque backend mande:
+   - id (UUID)
+   - rack (columna) o code contiene F###
+   - level/position en vez de height/slot
+   ========================================================= */
+function extractRackFromAny(loc) {
+  const r = String(loc?.rack || loc?.rackCode || '').trim().toUpperCase()
+  if (/^F\d{3}$/.test(r)) return r
+
+  const c = String(loc?.code || '').trim().toUpperCase()
+  const m = c.match(/F\d{3}/)
+  return m ? m[0] : ''
+}
+
+function adaptLocationShape(loc) {
+  const rackCode = extractRackFromAny(loc)
+  const height = loc?.height || loc?.level || '' // backend suele traer level (A/B/C)
+  const slot = loc?.slot ?? loc?.position ?? null // backend suele traer position (1..12)
+  const id = loc?._id || loc?.id
+
+  return {
+    ...loc,
+    _id: id,
+    rackCode,
+    height,
+    slot
+  }
+}
+
 export default function LocationsPage() {
   const { token, user } = useAuth()
   const canEdit = ['ADMIN', 'SUPERVISOR'].includes(user?.role)
@@ -142,7 +175,9 @@ export default function LocationsPage() {
     setLoading(true)
     try {
       const res = await client.get('/api/locations')
-      setRows(Array.isArray(res.data) ? res.data : [])
+      const raw = Array.isArray(res.data) ? res.data : []
+      const shaped = raw.map(adaptLocationShape)
+      setRows(shaped)
     } finally {
       setLoading(false)
     }
@@ -153,10 +188,11 @@ export default function LocationsPage() {
   const enriched = useMemo(() => {
     return rows.map(l => ({
       ...l,
-      _area: rackToArea(l.rackCode),
+      // ✅ usa el area real de BD si existe, si no calcula por rackCode
+      _area: l.area || rackToArea(l.rackCode),
       _state: l.state || 'VACIO',
-      _slot3: String(l.slot).padStart(3,'0'),
-      _key: `${l.height}-${String(l.rackCode).toUpperCase()}-${String(l.slot).padStart(3,'0')}`
+      _slot3: String(l.slot ?? '').padStart(3,'0'),
+      _key: `${l.height}-${String(l.rackCode).toUpperCase()}-${String(l.slot ?? '').padStart(3,'0')}`
     }))
   }, [rows])
 
@@ -199,19 +235,19 @@ export default function LocationsPage() {
   }
 
   const save = async () => {
-    await client.patch(`/api/locations/${selected._id}`, { type, maxPallets: Number(maxPallets), notes })
+    await client.patch(`/api/locations/${selected?._id || selected?.id}`, { type, maxPallets: Number(maxPallets), notes })
     await load()
     setOpen(false)
   }
 
   const block = async () => {
-    await client.patch(`/api/locations/${selected._id}/block`, { reason })
+    await client.patch(`/api/locations/${selected?._id || selected?.id}/block`, { reason })
     await load()
     setOpen(false)
   }
 
   const unblock = async () => {
-    await client.patch(`/api/locations/${selected._id}/unblock`)
+    await client.patch(`/api/locations/${selected?._id || selected?.id}/unblock`)
     await load()
     setOpen(false)
   }
@@ -239,7 +275,6 @@ export default function LocationsPage() {
       setArea(rackToArea(parsed.rackCode))
       setState('')
       setHighlightKey(null)
-      // sugerido: en búsquedas por rack, vista MAPA ayuda a operador
       setView('MAPA')
       return
     }
@@ -253,7 +288,6 @@ export default function LocationsPage() {
     setHighlightKey(key)
     setView('MAPA')
 
-    // si existe en datos, abre detalle automáticamente
     const found = enriched.find(x => x._key === key)
     if (found) {
       openDetail(found)
@@ -507,7 +541,7 @@ export default function LocationsPage() {
                         <Box component="td" sx={{ p: 1.5, fontFamily: 'monospace', fontWeight: 900, color: '#fff' }}>
                           {l.code}
                           <Typography variant="caption" sx={{ display: 'block', color: 'rgba(229,231,235,.75)', fontWeight: 700 }}>
-                            Área: <b>{areaLabel}</b> · Rack: <b>{l.rackCode}</b> · Altura: <b>{l.height} ({heightLabel})</b> · Slot: <b>{l._slot3}</b>
+                            Área: <b>{areaLabel}</b> · Rack: <b>{l.rackCode}</b> · Altura: <b>{l.height} ({heightLabel})</b> · Slot: <b>{String(l.slot).padStart(3,'0')}</b>
                           </Typography>
                         </Box>
 
@@ -570,7 +604,6 @@ export default function LocationsPage() {
                 </Typography>
               ) : (
                 <Box sx={{ display:'grid', gap: 1 }}>
-                  {/* encabezado slots */}
                   <Box sx={{ display:'grid', gridTemplateColumns:'70px repeat(12, 1fr)', gap: 1, alignItems:'center', mb: 0.5 }}>
                     <Box />
                     {SLOTS.map(s => (
@@ -711,7 +744,7 @@ export default function LocationsPage() {
                 <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap:'wrap' }} useFlexGap>
                   <Chip size="small" label={detailItem._state} sx={{ ...chipSxForState(detailItem._state), fontWeight: 900 }} />
                   <Chip size="small" label={`Rack ${detailItem.rackCode}`} sx={{ bgcolor:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.10)', color:'#e5e7eb', fontWeight: 900 }} />
-                  <Chip size="small" label={`${detailItem.height}-${detailItem._slot3}`} sx={{ bgcolor:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.10)', color:'#e5e7eb', fontWeight: 900 }} />
+                  <Chip size="small" label={`${detailItem.height}-${String(detailItem.slot).padStart(3,'0')}`} sx={{ bgcolor:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.10)', color:'#e5e7eb', fontWeight: 900 }} />
                 </Stack>
 
                 <Divider sx={{ my: 1.5 }} />
@@ -776,7 +809,7 @@ export default function LocationsPage() {
               <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap:'wrap' }} useFlexGap>
                 <Chip size="small" label={detailItem._state} sx={{ ...chipSxForState(detailItem._state), fontWeight: 900 }} />
                 <Chip size="small" label={`Rack ${detailItem.rackCode}`} sx={{ bgcolor:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.10)', color:'#e5e7eb', fontWeight: 900 }} />
-                <Chip size="small" label={`${detailItem.height}-${detailItem._slot3}`} sx={{ bgcolor:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.10)', color:'#e5e7eb', fontWeight: 900 }} />
+                <Chip size="small" label={`${detailItem.height}-${String(detailItem.slot).padStart(3,'0')}`} sx={{ bgcolor:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.10)', color:'#e5e7eb', fontWeight: 900 }} />
               </Stack>
 
               <Divider sx={{ my: 2 }} />

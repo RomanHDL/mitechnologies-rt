@@ -44,9 +44,11 @@ async function enrichLocations(rawLocations, { rackCodeForCompute } = {}) {
     const pallets = await Pallet.findAll({
         where: {
             locationId: {
-                [Op.in]: locIds },
+                [Op.in]: locIds
+            },
             status: {
-                [Op.in]: ACTIVE_PALLET_STATUS }
+                [Op.in]: ACTIVE_PALLET_STATUS
+            }
         },
         raw: true
     });
@@ -60,8 +62,11 @@ async function enrichLocations(rawLocations, { rackCodeForCompute } = {}) {
 
     if (palletIds.length) {
         const movements = await Movement.findAll({
-            where: { palletId: {
-                    [Op.in]: palletIds } },
+            where: {
+                palletId: {
+                    [Op.in]: palletIds
+                }
+            },
             include: [{ model: User, as: 'user', attributes: ['email'] }],
             order: [
                 ['createdAt', 'DESC']
@@ -110,16 +115,14 @@ async function enrichLocations(rawLocations, { rackCodeForCompute } = {}) {
             ...loc,
             code: computedCode || loc.code || null,
             state,
-            pallet: pallet ?
-                {
-                    id: pallet.id,
-                    code: pallet.code,
-                    lot: pallet.lot,
-                    sku: firstItem?.sku || null,
-                    qty: firstItem?.qty || 0,
-                    status: pallet.status
-                } :
-                null,
+            pallet: pallet ? {
+                id: pallet.id,
+                code: pallet.code,
+                lot: pallet.lot,
+                sku: firstItem?.sku || null,
+                qty: firstItem?.qty || 0,
+                status: pallet.status
+            } : null,
             lastMoveAt,
             lastMoveBy
         };
@@ -207,7 +210,8 @@ router.get('/fft/accesorios', requireAuth, async(req, res, next) => {
 
         const where = {
             rack: {
-                [Op.in]: ['F001', 'F002', 'F003', 'F004', 'F005'] }
+                [Op.in]: ['F001', 'F002', 'F003', 'F004', 'F005']
+            }
         };
         if (area) where.area = String(area).trim();
 
@@ -240,12 +244,12 @@ router.get('/fft/accesorios', requireAuth, async(req, res, next) => {
             return {
                 height: heightLabel,
                 rackCode: h.rackCode,
-                state: raw?.state || 'VACIO',
-                code: raw?.code || null,
-                blockedReason: raw?.blockedReason || raw?.blocked_reason || '',
-                pallet: raw?.pallet || null,
-                lastMoveAt: raw?.lastMoveAt || null,
-                lastMoveBy: raw?.lastMoveBy || null
+                state: (raw?.state) || 'VACIO',
+                code: (raw?.code) || null,
+                blockedReason: (raw?.blockedReason) || (raw?.blocked_reason) || '',
+                pallet: (raw?.pallet) || null,
+                lastMoveAt: (raw?.lastMoveAt) || null,
+                lastMoveBy: (raw?.lastMoveBy) || null
             };
         });
 
@@ -275,9 +279,11 @@ router.get('/', requireAuth, async(req, res, next) => {
         const pallets = await Pallet.findAll({
             where: {
                 locationId: {
-                    [Op.in]: locIds },
+                    [Op.in]: locIds
+                },
                 status: {
-                    [Op.in]: ACTIVE_PALLET_STATUS }
+                    [Op.in]: ACTIVE_PALLET_STATUS
+                }
             },
             attributes: ['locationId'],
             raw: true
@@ -343,5 +349,304 @@ router.patch('/:id/unblock', requireAuth, requireRole('ADMIN', 'SUPERVISOR'), as
         next(e);
     }
 });
+
+/**
+ * =====================================================
+ * ✅ NUEVO: POST /api/locations/seed-tech-opencell-bins
+ * Crea bines TECHNICAL y OPENCELL (entrada/salida)
+ * - No elimina nada
+ * - No duplica (busca por code)
+ * =====================================================
+ *
+ * Body opcional:
+ * {
+ *   "area": "A1",          // A1..A4 (default A1)
+ *   "level": "A",          // A|B|C (default A)
+ *   "startPosition": 800   // (default 800) para evitar choques
+ * }
+ */
+router.post(
+    '/seed-tech-opencell-bins',
+    requireAuth,
+    requireRole('ADMIN', 'SUPERVISOR'),
+    async(req, res, next) => {
+        try {
+            const area = String((req.body?.area) || 'A1').trim();
+            const level = String((req.body?.level) || 'A').trim().toUpperCase();
+            const startPosition = Number((req.body?.startPosition) || 800);
+
+            // Validaciones suaves (para no romper)
+            const validAreas = new Set(['A1', 'A2', 'A3', 'A4']);
+            const validLevels = new Set(['A', 'B', 'C']);
+
+            if (!validAreas.has(area)) {
+                return res.status(400).json({ message: 'area inválida. Usa A1, A2, A3 o A4' });
+            }
+            if (!validLevels.has(level)) {
+                return res.status(400).json({ message: 'level inválido. Usa A, B o C' });
+            }
+
+            // Helpers
+            const makeList = (prefix, from, to) => {
+                const out = [];
+                for (let i = from; i <= to; i++) {
+                    out.push(`${prefix}${String(i).padStart(2, '0')}`);
+                }
+                return out;
+            };
+
+            const TECH_IN = makeList('MTY-MAXX-TECH-AREA', 1, 5);
+            const TECH_OUT = makeList('MTY-MAXX-TECH-RETURN', 1, 5);
+
+            const OPEN_IN = makeList('MTY-MAXX-OPENCELL-AREA', 1, 5);
+            const OPEN_OUT = makeList('MTY-MAXX-OPENCELL-RETURN', 1, 5);
+
+            // Armado final (type FLOOR para ENTRADA, RETURNS para SALIDA)
+            const desired = [
+                ...TECH_IN.map((code) => ({ code, subarea: 'TECHNICAL', type: 'FLOOR' })),
+                ...TECH_OUT.map((code) => ({ code, subarea: 'TECHNICAL', type: 'RETURNS' })),
+                ...OPEN_IN.map((code) => ({ code, subarea: 'OPENCELL', type: 'FLOOR' })),
+                ...OPEN_OUT.map((code) => ({ code, subarea: 'OPENCELL', type: 'RETURNS' })),
+            ];
+
+            let pos = startPosition;
+
+            const created = [];
+            const updated = [];
+            const existing = [];
+
+            for (const item of desired) {
+                const found = await Location.findOne({ where: { code: item.code } });
+
+                if (!found) {
+                    // ✅ Creamos nuevo, sin tocar racks (rack=null)
+                    const row = await Location.create({
+                        area,
+                        subarea: item.subarea,
+                        rack: null,
+                        level,
+                        position: pos++,
+                        type: item.type,
+                        maxPallets: 1,
+                        notes: `${item.subarea} - ${item.type === 'FLOOR' ? 'ENTRADA' : 'SALIDA'}`,
+                        blocked: false,
+                        blockedReason: '',
+                        code: item.code,
+                    });
+                    created.push(row.code);
+                    continue;
+                }
+
+                // ✅ Ya existe: NO lo borramos.
+                // Solo lo "completamos" si le faltan campos clave (sin corromper)
+                const patch = {};
+                if (!found.subarea) patch.subarea = item.subarea;
+                if (!found.type) patch.type = item.type;
+                if (!found.area) patch.area = area;
+                if (!found.level) patch.level = level;
+                if (!found.position) patch.position = pos++; // solo si le falta
+
+                const patchKeys = Object.keys(patch);
+                if (patchKeys.length) {
+                    await Location.update(patch, { where: { id: found.id } });
+                    updated.push(item.code);
+                } else {
+                    existing.push(item.code);
+                }
+            }
+
+            return res.json({
+                ok: true,
+                total: desired.length,
+                createdCount: created.length,
+                updatedCount: updated.length,
+                existingCount: existing.length,
+                created,
+                updated,
+                existing,
+            });
+        } catch (e) {
+            next(e);
+        }
+    }
+);
+
+/**
+ * =====================================================
+ * ✅ NUEVO: POST /api/locations/rebalance-racks
+ * Reacomoda racks 120 (30 por área):
+ * A1: F001-F030
+ * A2: F031-F060
+ * A3: F061-F090
+ * A4: F091-F120
+ *
+ * - NO borra nada
+ * - Detecta colisiones (unique area+rack+level+position)
+ * - Usa transacción
+ *
+ * Body opcional:
+ * { "dryRun": true }  // solo simula
+ * =====================================================
+ */
+/**
+ * =====================================================
+ * ✅ POST /api/locations/rebalance-racks
+ * Reacomoda racks 120 (30 por área):
+ * A1: F001-F030
+ * A2: F031-F060
+ * A3: F061-F090
+ * A4: F091-F120
+ *
+ * ✅ Soporta rack en:
+ * - loc.rack = "F059"
+ * - loc.code contiene "-F059-" o "F059" (ej: A01-F059-012, FFT-ACC-F001-001)
+ *
+ * Body opcional:
+ * { "dryRun": true }
+ * =====================================================
+ */
+router.post(
+    '/rebalance-racks',
+    requireAuth,
+    requireRole('ADMIN', 'SUPERVISOR'),
+    async(req, res, next) => {
+        const t = await Location.sequelize.transaction();
+        try {
+            const dryRun = !!(req.body?.dryRun);
+
+            const all = await Location.findAll({ raw: true, transaction: t });
+
+            const getRackCode = (loc) => {
+                const r = String(loc.rack || '').trim().toUpperCase();
+                if (/^F\d{3}$/.test(r)) return r;
+
+                const c = String(loc.code || '').trim().toUpperCase();
+                // Busca F### dentro de code (cualquier formato)
+                const m = c.match(/F\d{3}/);
+                if (m && /^F\d{3}$/.test(m[0])) return m[0];
+
+                return null;
+            };
+
+            const rackNum = (rackCode) => Number(String(rackCode).replace(/^F/i, ''));
+
+            const targetAreaByRack = (rackCode) => {
+                const n = rackNum(rackCode);
+                if (n >= 1 && n <= 30) return 'A1';
+                if (n >= 31 && n <= 60) return 'A2';
+                if (n >= 61 && n <= 90) return 'A3';
+                if (n >= 91 && n <= 120) return 'A4';
+                return null; // fuera de rango no tocamos
+            };
+
+            // Solo locations que realmente pertenecen a un rack dentro de 1..120
+            const candidates = all
+                .map(l => ({...l, _rackCode: getRackCode(l) }))
+                .filter(l => l._rackCode && targetAreaByRack(l._rackCode));
+
+            // Detectar cambios necesarios
+            const changes = [];
+            for (const l of candidates) {
+                const toArea = targetAreaByRack(l._rackCode);
+                if (String(l.area) !== toArea) {
+                    changes.push({
+                        id: l.id,
+                        fromArea: l.area,
+                        toArea,
+                        rackCode: l._rackCode,
+                        level: l.level,
+                        position: l.position
+                    });
+                }
+            }
+
+            // ✅ Detectar colisiones por tu índice único:
+            // uniq_locations_area_rack_level_pos (area, rack, level, position)
+            const key = (area, rack, level, position) =>
+                `${area}|${String(rack || '').toUpperCase()}|${String(level || '').toUpperCase()}|${Number(position || 0)}`;
+
+            // Armamos mapa del "estado final" (usando rack real que usamos para balanceo)
+            const finalMap = new Map();
+            for (const l of candidates) {
+                const rack = (String(l.rack || '').trim().toUpperCase() || null); // rack real en columna
+                const k = key(l.area, rack, l.level, l.position);
+                if (!finalMap.has(k)) finalMap.set(k, []);
+                finalMap.get(k).push(l.id);
+            }
+
+            const idToLoc = new Map(candidates.map(l => [l.id, l]));
+            const collisions = [];
+
+            for (const ch of changes) {
+                const loc = idToLoc.get(ch.id);
+                if (!loc) continue;
+
+                const rack = (String(loc.rack || '').trim().toUpperCase() || null);
+
+                const oldK = key(loc.area, rack, loc.level, loc.position);
+                const newK = key(ch.toArea, rack, loc.level, loc.position);
+
+                // quitar del viejo
+                const oldArr = finalMap.get(oldK) || [];
+                finalMap.set(oldK, oldArr.filter(x => x !== loc.id));
+
+                // agregar al nuevo
+                const newArr = finalMap.get(newK) || [];
+                newArr.push(loc.id);
+                finalMap.set(newK, newArr);
+
+                if (newArr.length > 1) {
+                    collisions.push({
+                        key: newK,
+                        rack,
+                        level: loc.level,
+                        position: loc.position,
+                        ids: newArr.slice()
+                    });
+                }
+            }
+
+            if (collisions.length) {
+                await t.rollback();
+                return res.status(409).json({
+                    ok: false,
+                    message: 'Se detectaron colisiones (area+rack+level+position). No se aplicó nada.',
+                    collisions,
+                    wouldChangeCount: changes.length,
+                    sample: changes.slice(0, 25),
+                });
+            }
+
+            if (dryRun) {
+                await t.rollback();
+                return res.json({
+                    ok: true,
+                    dryRun: true,
+                    candidates: candidates.length,
+                    wouldChangeCount: changes.length,
+                    sample: changes.slice(0, 50),
+                });
+            }
+
+            // Aplicar update
+            let updatedCount = 0;
+            for (const ch of changes) {
+                const [u] = await Location.update({ area: ch.toArea }, { where: { id: ch.id }, transaction: t });
+                updatedCount += Number(u || 0);
+            }
+
+            await t.commit();
+            return res.json({
+                ok: true,
+                updatedCount,
+                candidates: candidates.length,
+                changesCount: changes.length,
+            });
+        } catch (e) {
+            await t.rollback();
+            next(e);
+        }
+    }
+);
 
 module.exports = router;

@@ -55,4 +55,34 @@ router.patch('/:id', requireAuth, requireRole('ADMIN','SUPERVISOR'), async (req,
   } catch (e) { next(e); }
 });
 
+/**
+ * ✅ NUEVO: PATCH /api/products/:id/active
+ * (Tu frontend ya lo llama)
+ */
+router.patch('/:id/active', requireAuth, requireRole('ADMIN','SUPERVISOR'), async (req, res, next) => {
+  try {
+    const { isActive } = req.body || {};
+    const [updated] = await Product.update(
+      { isActive: !!isActive },
+      { where: { id: req.params.id } }
+    );
+    if (!updated) return res.status(404).json({ message: 'No encontrado' });
+
+    const row = await Product.findByPk(req.params.id, { raw: true });
+    res.json(row);
+  } catch (e) { next(e); }
+});
+
+/**
+ * ✅ NUEVO: DELETE /api/products/:id
+ * (Tu frontend ya lo llama)
+ */
+router.delete('/:id', requireAuth, requireRole('ADMIN','SUPERVISOR'), async (req, res, next) => {
+  try {
+    const deleted = await Product.destroy({ where: { id: req.params.id } });
+    if (!deleted) return res.status(404).json({ message: 'No encontrado' });
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
 module.exports = router;
