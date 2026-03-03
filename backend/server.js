@@ -20,6 +20,9 @@ const movementRoutes = require('./src/routes/movement.routes');
 const dashboardRoutes = require('./src/routes/dashboard.routes');
 const productionRoutes = require('./src/routes/production.routes'); // ✅ ACTIVADO
 
+// ✅ NUEVO: Paletizado Dashboard (FFT > Paletizado)
+const palletDashboardRoutes = require('./src/routes/palletDashboard.routes');
+
 const { connectDB } = require('./src/config/db');
 const { sequelize } = require('./src/config/mysql'); // ✅ IMPORTANTE
 
@@ -119,6 +122,9 @@ app.use('/api/movements', movementRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/production', productionRoutes); // ✅ AHORA SÍ ACTIVO
+
+// ✅ NUEVO: monta /api/pallet-dashboard y /api/pallet-dashboard/:id/status
+app.use('/api', palletDashboardRoutes);
 
 /**
  * Error handler
