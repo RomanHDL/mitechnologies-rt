@@ -52,6 +52,27 @@ function isFftAccesorios(areaCode, subarea) {
   return areaCode === 'P2' && String(subarea || '').toLowerCase() === 'accesorios'
 }
 
+// ✅ FIX: normaliza día a YYYY-MM-DD (tu DB guarda así)
+function toIsoDay(input) {
+  if (!input) return ''
+  const s = String(input).trim()
+
+  // ya viene en ISO
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+
+  // viene como DD/MM/YYYY
+  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  if (m) {
+    const [, dd, mm, yyyy] = m
+    return `${yyyy}-${mm}-${dd}`
+  }
+
+  // fallback: intentar Date()
+  const d = new Date(s)
+  if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10)
+  return ''
+}
+
 export default function ProductionPage() {
   const { token } = useAuth()
 
@@ -81,7 +102,12 @@ export default function ProductionPage() {
 
   const loadDash = async (d) => {
     try {
-      const res = await api(token).get(`/api/pallet-dashboard?day=${d}`)
+      const iso = toIsoDay(d)
+      if (!iso) {
+        setDash({ resumen: { total: 0, pendientes: 0, procesados: 0 }, rows: [] })
+        return
+      }
+      const res = await api(token).get(`/api/pallet-dashboard?day=${encodeURIComponent(iso)}`)
       setDash(res.data)
     } catch (e) {
       // si aún no existe el endpoint o falla, no rompemos Producción
@@ -90,7 +116,8 @@ export default function ProductionPage() {
   }
 
   const setDashStatus = async (id, status) => {
-    await api(token).patch(`/api/pallet-dashboard/${id}/status`, { status })
+    // (mandar day NO rompe aunque el backend no lo use)
+    await api(token).patch(`/api/pallet-dashboard/${id}/status`, { status, day: toIsoDay(dashDay) })
     await loadDash(dashDay)
   }
 
@@ -200,7 +227,7 @@ export default function ProductionPage() {
             <TextField
               type="date"
               label="Día"
-              value={dashDay}
+              value={toIsoDay(dashDay) || todayISO}
               onChange={(e) => setDashDay(e.target.value)}
               sx={{ minWidth: 180 }}
               InputLabelProps={{ shrink: true }}
