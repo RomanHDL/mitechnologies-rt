@@ -65,9 +65,33 @@ export default function ProductionPage() {
   const [qty, setQty] = useState(1)
   const [note, setNote] = useState('')
 
+  // ✅ Paletizado dashboard (FFT > Paletizado)
+  const isFftPaletizado = area === 'P2' && subarea === 'Paletizado'
+  const todayISO = new Date().toISOString().slice(0, 10)
+  const [dashDay, setDashDay] = useState(todayISO)
+  const [dash, setDash] = useState({
+    resumen: { total: 0, pendientes: 0, procesados: 0 },
+    rows: []
+  })
+
   const load = async () => {
     const res = await api(token).get('/api/production')
     setRows(Array.isArray(res.data) ? res.data : [])
+  }
+
+  const loadDash = async (d) => {
+    try {
+      const res = await api(token).get(`/api/pallet-dashboard?day=${d}`)
+      setDash(res.data)
+    } catch (e) {
+      // si aún no existe el endpoint o falla, no rompemos Producción
+      setDash({ resumen: { total: 0, pendientes: 0, procesados: 0 }, rows: [] })
+    }
+  }
+
+  const setDashStatus = async (id, status) => {
+    await api(token).patch(`/api/pallet-dashboard/${id}/status`, { status })
+    await loadDash(dashDay)
   }
 
   useEffect(() => {
@@ -81,6 +105,12 @@ export default function ProductionPage() {
     if (!list.includes(subarea)) setSubarea(list[0] || '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [area])
+
+  // ✅ cargar dashboard SOLO cuando esté en FFT > Paletizado
+  useEffect(() => {
+    if (isFftPaletizado) loadDash(dashDay)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFftPaletizado, dashDay, token])
 
   const create = async () => {
     await api(token).post('/api/production', {
@@ -133,8 +163,9 @@ export default function ProductionPage() {
   const headerSubtitle = useMemo(() => {
     const title = `${areaLabel(area)} > ${subarea}`
     if (isFftAccesorios(area, subarea)) return `${title}  (modo especial: estantes H1–H5)`
+    if (isFftPaletizado) return `${title}  (control diario)`
     return `${title}  (modo normal)`
-  }, [area, subarea])
+  }, [area, subarea, isFftPaletizado])
 
   return (
     <Box>
@@ -155,57 +186,68 @@ export default function ProductionPage() {
           <IconButton onClick={exportExcel}><DownloadIcon /></IconButton>
         </Tooltip>
       </Stack>
-{isFftPaletizado && (
-  <Paper elevation={1} sx={{ p: 2, borderRadius: 3, mb: 2 }}>
-    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
-      <Typography variant="subtitle2" sx={{ fontWeight: 900 }}>
-        FFT &gt; Paletizado — Control diario
-      </Typography>
 
-      <Box sx={{ flex: 1 }} />
+      {/* ✅ FFT > Paletizado — Dashboard Diario */}
+      {isFftPaletizado && (
+        <Paper elevation={1} sx={{ p: 2, borderRadius: 3, mb: 2 }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
+            <Typography variant="subtitle2" sx={{ fontWeight: 900 }}>
+              FFT &gt; Paletizado — Control diario
+            </Typography>
 
-      <TextField
-        type="date"
-        label="Día"
-        value={dashDay}
-        onChange={(e) => setDashDay(e.target.value)}
-        sx={{ minWidth: 180 }}
-        InputLabelProps={{ shrink: true }}
-      />
+            <Box sx={{ flex: 1 }} />
 
-      <Chip label={`Total: ${dash.resumen?.total ?? 0}`} />
-      <Chip label={`Pendientes: ${dash.resumen?.pendientes ?? 0}`} />
-      <Chip label={`Procesados: ${dash.resumen?.procesados ?? 0}`} />
-    </Stack>
+            <TextField
+              type="date"
+              label="Día"
+              value={dashDay}
+              onChange={(e) => setDashDay(e.target.value)}
+              sx={{ minWidth: 180 }}
+              InputLabelProps={{ shrink: true }}
+            />
 
-    <Table size="small" sx={{ mt: 2 }}>
-      <TableHead>
-        <TableRow>
-          <TableCell sx={{ fontWeight: 800 }}>PalletID</TableCell>
-          <TableCell sx={{ fontWeight: 800 }}>Status</TableCell>
-          <TableCell sx={{ fontWeight: 800, textAlign: 'center' }}>Acción</TableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {(dash.rows || []).map(r => (
-          <TableRow key={r.id}>
-            <TableCell>{r.palletId}</TableCell>
-            <TableCell>{r.status}</TableCell>
-            <TableCell sx={{ textAlign: 'center' }}>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => setDashStatus(r.id, r.status === 'PROCESADO' ? 'PENDIENTE' : 'PROCESADO')}
-              >
-                {r.status === 'PROCESADO' ? 'Marcar Pendiente' : 'Marcar Procesado'}
-              </Button>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  </Paper>
-)}
+            <Chip label={`Total: ${dash.resumen?.total ?? 0}`} />
+            <Chip label={`Pendientes: ${dash.resumen?.pendientes ?? 0}`} />
+            <Chip label={`Procesados: ${dash.resumen?.procesados ?? 0}`} />
+          </Stack>
+
+          <Table size="small" sx={{ mt: 2 }}>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 800 }}>PalletID</TableCell>
+                <TableCell sx={{ fontWeight: 800 }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 800, textAlign: 'center' }}>Acción</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {(dash.rows || []).map(r => (
+                <TableRow key={r.id}>
+                  <TableCell>{r.palletId}</TableCell>
+                  <TableCell>{r.status}</TableCell>
+                  <TableCell sx={{ textAlign: 'center' }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => setDashStatus(r.id, r.status === 'PROCESADO' ? 'PENDIENTE' : 'PROCESADO')}
+                    >
+                      {r.status === 'PROCESADO' ? 'Marcar Pendiente' : 'Marcar Procesado'}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+
+              {(!dash.rows || dash.rows.length === 0) && (
+                <TableRow>
+                  <TableCell colSpan={3} sx={{ opacity: 0.7 }}>
+                    No hay pallets cargados para este día. (Importa el Excel o cambia la fecha)
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </Paper>
+      )}
+
       {/* Nueva solicitud */}
       <Paper elevation={1} sx={{ p: 2, borderRadius: 3, mb: 2 }}>
         <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 2 }}>
@@ -313,26 +355,7 @@ export default function ProductionPage() {
               if (r.status === 'CANCELADA') statusIcon = <CancelIcon sx={{ color: '#ef4444', verticalAlign: 'middle' }} fontSize="small" />
 
               const itemsText = (r.items || []).map(i => `${i.sku}(${i.qty})`).join(', ')
-const isFftPaletizado = area === 'P2' && subarea === 'Paletizado'
-const todayISO = new Date().toISOString().slice(0, 10)
 
-const [dashDay, setDashDay] = useState(todayISO)
-const [dash, setDash] = useState({ resumen: { total: 0, pendientes: 0, procesados: 0 }, rows: [] })
-
-const loadDash = async (d) => {
-  const res = await api(token).get(`/api/pallet-dashboard?day=${d}`)
-  setDash(res.data)
-}
-
-useEffect(() => {
-  if (isFftPaletizado) loadDash(dashDay)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [isFftPaletizado, dashDay, token])
-
-const setDashStatus = async (id, status) => {
-  await api(token).patch(`/api/pallet-dashboard/${id}/status`, { status })
-  await loadDash(dashDay)
-}
               return (
                 <TableRow
                   key={r._id}
