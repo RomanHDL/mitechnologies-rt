@@ -13,11 +13,6 @@ const AuthLog = require('./AuthLog');
 const ProductionRequest = require('./ProductionRequest');
 const PalletDashboardItem = require('./PalletDashboardItem');
 
-// ... donde exportas:
-module.exports = {
-    // otros...
-    PalletDashboardItem,
-};
 // Define relationships
 
 // Pallet belongs to Location
@@ -69,5 +64,6 @@ module.exports = {
     OutboundOrder,
     CycleCount,
     AuthLog,
-    ProductionRequest
+    ProductionRequest,
+    PalletDashboardItem, // ✅ YA NO SE PIERDE
 };

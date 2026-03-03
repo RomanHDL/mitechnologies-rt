@@ -15,11 +15,11 @@ const API_BASE = ENV_BASE ?
     FALLBACK_PROD :
     FALLBACK_LOCAL;
 
-export function api() {
+export function api(tokenFromHook) {
     const instance = axios.create({ baseURL: API_BASE });
 
     instance.interceptors.request.use((config) => {
-        const token = localStorage.getItem("token");
+        const token = tokenFromHook || localStorage.getItem("token");
         if (token) config.headers.Authorization = `Bearer ${token}`;
         return config;
     });

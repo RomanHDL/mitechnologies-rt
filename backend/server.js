@@ -30,6 +30,12 @@ const app = express();
 const httpServer = http.createServer(app);
 
 /**
+ * ✅ IMPORTANTE (Railway / proxies)
+ * Arregla: ERR_ERL_UNEXPECTED_X_FORWARDED_FOR de express-rate-limit
+ */
+app.set('trust proxy', 1);
+
+/**
  * CORS
  */
 const corsOriginEnv = process.env.CORS_ORIGIN || '';
