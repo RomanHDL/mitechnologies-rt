@@ -11,7 +11,13 @@ const OutboundOrder = require('./OutboundOrder');
 const CycleCount = require('./CycleCount');
 const AuthLog = require('./AuthLog');
 const ProductionRequest = require('./ProductionRequest');
+const PalletDashboardItem = require('./PalletDashboardItem');
 
+// ... donde exportas:
+module.exports = {
+    // otros...
+    PalletDashboardItem,
+};
 // Define relationships
 
 // Pallet belongs to Location
