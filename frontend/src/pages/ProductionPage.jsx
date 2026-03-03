@@ -31,15 +31,13 @@ import * as XLSX from 'xlsx'
 const AREAS = [
   { code: 'P1', label: 'Sorting' },
   { code: 'P2', label: 'FFT' },
-  { code: 'P3', label: 'Shipping' }, // ✅ antes: Palletizing
+  { code: 'P3', label: 'Shipping' },
   { code: 'P4', label: 'OpenCell' },
 ]
 
 const SUBAREAS_BY_AREA = {
   P1: ['Sorting'],
-  // ✅ FFT: agregamos "Paletizado" (SIN QUITAR NADA)
   P2: ['Accesorios', 'Produccion', 'Paletizado'],
-  // ✅ Shipping como área nueva
   P3: ['Shipping'],
   P4: ['OpenCell', 'Technical'],
 }
@@ -52,25 +50,31 @@ function isFftAccesorios(areaCode, subarea) {
   return areaCode === 'P2' && String(subarea || '').toLowerCase() === 'accesorios'
 }
 
-// ✅ FIX: normaliza día a YYYY-MM-DD (tu DB guarda así)
-function toIsoDay(input) {
-  if (!input) return ''
-  const s = String(input).trim()
+// ✅ helpers fecha
+function isoToday() {
+  return new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+}
 
-  // ya viene en ISO
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+function isoToDMY(iso) {
+  const [y, m, d] = String(iso || '').slice(0, 10).split('-')
+  if (!y || !m || !d) return ''
+  return `${d}/${m}/${y}`
+}
 
-  // viene como DD/MM/YYYY
-  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
-  if (m) {
-    const [, dd, mm, yyyy] = m
-    return `${yyyy}-${mm}-${dd}`
-  }
-
-  // fallback: intentar Date()
-  const d = new Date(s)
-  if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10)
-  return ''
+function dmyToISO(dmy) {
+  // acepta DD/MM/YYYY
+  const parts = String(dmy || '').trim().split('/')
+  if (parts.length !== 3) return ''
+  const [dd, mm, yyyy] = parts
+  if (!dd || !mm || !yyyy) return ''
+  if (yyyy.length !== 4) return ''
+  const d = dd.padStart(2, '0')
+  const m = mm.padStart(2, '0')
+  const y = yyyy
+  // validación simple
+  if (+m < 1 || +m > 12) return ''
+  if (+d < 1 || +d > 31) return ''
+  return `${y}-${m}-${d}`
 }
 
 export default function ProductionPage() {
@@ -88,37 +92,34 @@ export default function ProductionPage() {
 
   // ✅ Paletizado dashboard (FFT > Paletizado)
   const isFftPaletizado = area === 'P2' && subarea === 'Paletizado'
-  const todayISO = new Date().toISOString().slice(0, 10)
-  const [dashDay, setDashDay] = useState(todayISO)
+
+  // guardamos ISO real para request
+  const [dashDayISO, setDashDayISO] = useState(isoToday())
+  // UI en DD/MM/YYYY
+  const [dashDayDMY, setDashDayDMY] = useState(isoToDMY(isoToday()))
+
   const [dash, setDash] = useState({
     resumen: { total: 0, pendientes: 0, procesados: 0 },
     rows: []
   })
 
   const load = async () => {
-    const res = await api(token).get('/api/production')
+    const res = await api().get('/api/production')
     setRows(Array.isArray(res.data) ? res.data : [])
   }
 
-  const loadDash = async (d) => {
+  const loadDash = async (iso) => {
     try {
-      const iso = toIsoDay(d)
-      if (!iso) {
-        setDash({ resumen: { total: 0, pendientes: 0, procesados: 0 }, rows: [] })
-        return
-      }
-      const res = await api(token).get(`/api/pallet-dashboard?day=${encodeURIComponent(iso)}`)
+      const res = await api().get(`/api/pallet-dashboard?day=${iso}`)
       setDash(res.data)
     } catch (e) {
-      // si aún no existe el endpoint o falla, no rompemos Producción
       setDash({ resumen: { total: 0, pendientes: 0, procesados: 0 }, rows: [] })
     }
   }
 
   const setDashStatus = async (id, status) => {
-    // (mandar day NO rompe aunque el backend no lo use)
-    await api(token).patch(`/api/pallet-dashboard/${id}/status`, { status, day: toIsoDay(dashDay) })
-    await loadDash(dashDay)
+    await api().patch(`/api/pallet-dashboard/${id}/status`, { status })
+    await loadDash(dashDayISO)
   }
 
   useEffect(() => {
@@ -135,14 +136,14 @@ export default function ProductionPage() {
 
   // ✅ cargar dashboard SOLO cuando esté en FFT > Paletizado
   useEffect(() => {
-    if (isFftPaletizado) loadDash(dashDay)
+    if (isFftPaletizado) loadDash(dashDayISO)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFftPaletizado, dashDay, token])
+  }, [isFftPaletizado, dashDayISO])
 
   const create = async () => {
-    await api(token).post('/api/production', {
-      area, // P1..P4 (DB)
-      subarea, // ✅ ya incluye Paletizado
+    await api().post('/api/production', {
+      area,
+      subarea,
       items: [{ sku, qty: Number(qty) }],
       note
     })
@@ -170,12 +171,12 @@ export default function ProductionPage() {
   }
 
   const markCompleted = async (id) => {
-    await api(token).patch(`/api/production/${id}/status`, { status: 'COMPLETADA' })
+    await api().patch(`/api/production/${id}/status`, { status: 'COMPLETADA' })
     await load()
   }
 
   const markCancelled = async (id) => {
-    await api(token).patch(`/api/production/${id}/status`, { status: 'CANCELADA' })
+    await api().patch(`/api/production/${id}/status`, { status: 'CANCELADA' })
     await load()
   }
 
@@ -224,13 +225,19 @@ export default function ProductionPage() {
 
             <Box sx={{ flex: 1 }} />
 
+            {/* ✅ DD/MM/YYYY (UI) */}
             <TextField
-              type="date"
-              label="Día"
-              value={toIsoDay(dashDay) || todayISO}
-              onChange={(e) => setDashDay(e.target.value)}
+              label="Día (DD/MM/AAAA)"
+              value={dashDayDMY}
+              onChange={(e) => {
+                const v = e.target.value
+                setDashDayDMY(v)
+                const iso = dmyToISO(v)
+                if (iso) setDashDayISO(iso)
+              }}
               sx={{ minWidth: 180 }}
-              InputLabelProps={{ shrink: true }}
+              placeholder="27/02/2026"
+              helperText={`Consultando: ${dashDayISO}`}
             />
 
             <Chip label={`Total: ${dash.resumen?.total ?? 0}`} />
