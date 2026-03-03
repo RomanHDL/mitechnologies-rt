@@ -37,8 +37,8 @@ const AREAS = [
 
 const SUBAREAS_BY_AREA = {
   P1: ['Sorting'],
-  // ✅ Quitamos "Palletizado" y agregamos "Accesorios" (tu default)
-  P2: ['Accesorios', 'Produccion'],
+  // ✅ FFT: agregamos "Paletizado" (SIN QUITAR NADA)
+  P2: ['Accesorios', 'Produccion', 'Paletizado'],
   // ✅ Shipping como área nueva
   P3: ['Shipping'],
   P4: ['OpenCell', 'Technical'],
@@ -85,7 +85,7 @@ export default function ProductionPage() {
   const create = async () => {
     await api(token).post('/api/production', {
       area, // P1..P4 (DB)
-      subarea, // NUEVO
+      subarea, // ✅ ya incluye Paletizado
       items: [{ sku, qty: Number(qty) }],
       note
     })

@@ -13,6 +13,13 @@ const ProductionRequest = sequelize.define('ProductionRequest', {
         allowNull: false,
     },
 
+    // ✅ NUEVO: Sub-área (FFT ahora incluye Paletizado)
+    subarea: {
+        type: DataTypes.ENUM('Accesorios', 'Produccion', 'Paletizado', 'Sorting', 'Shipping', 'OpenCell', 'Technical'),
+        allowNull: false,
+        defaultValue: 'Accesorios',
+    },
+
     items: {
         type: DataTypes.JSON,
         allowNull: false,
