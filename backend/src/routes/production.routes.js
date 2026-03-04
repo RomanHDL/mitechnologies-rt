@@ -24,8 +24,8 @@ function normalizeItems(items) {
     if (!Array.isArray(items)) return [];
     return items
         .map(i => ({
-            sku: String(i ? .sku || '').trim(),
-            qty: Number(i ? .qty || 0),
+            sku: String(i?.sku || '').trim(),
+            qty: Number(i?.qty || 0),
         }))
         .filter(i => i.sku && i.qty > 0);
 }
@@ -126,7 +126,7 @@ router.post('/', requireAuth, requireRole('ADMIN', 'SUPERVISOR'), async(req, res
             return res.status(400).json({ message: 'Items requeridos' });
         }
 
-        const userId = req.user ? .id;
+        const userId = req.user?.id;
         if (!userId) return res.status(401).json({ message: 'No autenticado' });
 
         const safeSubarea = normalizeSubarea(safeArea, subarea);
@@ -151,7 +151,7 @@ router.post('/', requireAuth, requireRole('ADMIN', 'SUPERVISOR'), async(req, res
  */
 router.patch('/:id/status', requireAuth, requireRole('ADMIN', 'SUPERVISOR'), async(req, res, next) => {
     try {
-        const dbStatus = toDbStatus(req.body ? .status);
+        const dbStatus = toDbStatus(req.body?.status);
         if (!dbStatus) {
             return res.status(400).json({ message: 'Status inválido' });
         }
