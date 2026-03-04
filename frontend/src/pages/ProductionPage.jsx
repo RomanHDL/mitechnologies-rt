@@ -338,7 +338,7 @@ export default function ProductionPage() {
               {metricChip(`Pendientes: ${dash.resumen?.pendientes ?? 0}`, 'warn')}
               {metricChip(`Procesados: ${dash.resumen?.procesados ?? 0}`, 'ok')}
             </Stack>
-          </Box>
+          </Stack>
 
           <Divider />
 
