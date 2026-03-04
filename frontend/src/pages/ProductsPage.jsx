@@ -30,7 +30,7 @@ import DownloadIcon from '@mui/icons-material/Download'
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
 import CancelIcon from '@mui/icons-material/Cancel'
 import * as XLSX from 'xlsx'
-import { useTheme } from '@mui/material/styles'
+import { usePageStyles } from '../ui/pageStyles'
 
 // ✅ NUEVO (Centro de control)
 import dayjs from 'dayjs'
@@ -41,8 +41,7 @@ import SearchIcon from '@mui/icons-material/Search'
 export default function ProductsPage() {
   const { token, user } = useAuth()
   const isWriter = ['ADMIN', 'SUPERVISOR'].includes(user?.role)
-  const theme = useTheme()
-  const isDark = theme.palette.mode === 'dark'
+  const ps = usePageStyles()
 
   const [q, setQ] = useState('')
   const [rows, setRows] = useState([])
@@ -174,9 +173,9 @@ export default function ProductsPage() {
 
       {/* Resumen superior */}
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-        <Chip label={`Total: ${resumen.total}`} color="primary" />
-        <Chip label={`Activos: ${resumen.activos}`} sx={{ bgcolor: '#dcfce7', color: '#166534' }} />
-        <Chip label={`Categorías: ${resumen.categorias}`} sx={{ bgcolor: '#bae6fd', color: '#0369a1' }} />
+        <Chip label={`Total: ${resumen.total}`} sx={ps.metricChip('default')} />
+        <Chip label={`Activos: ${resumen.activos}`} sx={ps.metricChip('ok')} />
+        <Chip label={`Categorías: ${resumen.categorias}`} sx={ps.metricChip('info')} />
         <Box sx={{ flex: 1 }} />
         <Tooltip title="Exportar a Excel"><IconButton onClick={exportExcel}><DownloadIcon /></IconButton></Tooltip>
         <Button variant="outlined" onClick={() => setView(view === 'table' ? 'cards' : 'table')}>
@@ -253,41 +252,36 @@ export default function ProductsPage() {
                     p: 1.2,
                     mb: 1,
                     borderRadius: 2,
-                    border: isDark ? '1px solid rgba(255,255,255,.10)' : '1px solid rgba(21,101,192,.12)',
-                    background: isDark ? 'rgba(255,255,255,.04)' : 'rgba(21,101,192,.03)',
+                    border: ps.isDark ? '1px solid rgba(255,255,255,.10)' : '1px solid rgba(21,101,192,.12)',
+                    background: ps.isDark ? 'rgba(255,255,255,.04)' : 'rgba(21,101,192,.03)',
                     display: 'grid',
                     gridTemplateColumns: { xs: '1fr', md: '180px 120px 1fr' },
                     gap: 1,
                     alignItems: 'center'
                   }}
                 >
-                  <Typography sx={{ fontSize: 12, opacity: .85 }}>
+                  <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
                     {m.createdAt ? dayjs(m.createdAt).format('YYYY-MM-DD HH:mm') : '—'}
                   </Typography>
 
                   <Chip
                     size="small"
                     label={m.type || '—'}
-                    sx={{
-                      bgcolor: m.type === 'IN' ? 'rgba(34,197,94,.15)' : 'rgba(239,68,68,.15)',
-                      color: m.type === 'IN' ? (isDark ? '#e5e7eb' : '#1b5e20') : (isDark ? '#e5e7eb' : '#b71c1c'),
-                      border: m.type === 'IN' ? '1px solid rgba(34,197,94,.25)' : '1px solid rgba(239,68,68,.25)',
-                      fontWeight: 900,
-                    }}
+                    sx={m.type === 'IN' ? ps.statusChip('COMPLETADA') : ps.statusChip('CANCELADA')}
                   />
 
                   <Box sx={{ minWidth: 0 }}>
-                    <Typography sx={{ fontFamily: 'monospace', fontWeight: 900, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <Typography sx={{ fontFamily: 'monospace', fontWeight: 900, color: 'text.primary', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {m.pallet?.code || '—'}
                     </Typography>
-                    <Typography sx={{ fontSize: 12, opacity: .8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <Typography sx={{ fontSize: 12, color: 'text.secondary', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {m.fromLocation ? (m.fromLocation.code || `${m.fromLocation.area}-${m.fromLocation.level}${m.fromLocation.position}`) : '—'}
                       {'  →  '}
                       {m.toLocation ? (m.toLocation.code || `${m.toLocation.area}-${m.toLocation.level}${m.toLocation.position}`) : '—'}
                       {m.user?.email ? ` · ${m.user.email}` : ''}
                     </Typography>
                     {!!m.note && (
-                      <Typography sx={{ fontSize: 12, opacity: .7, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <Typography sx={{ fontSize: 12, color: 'text.disabled', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {m.note}
                       </Typography>
                     )}
@@ -299,7 +293,7 @@ export default function ProductsPage() {
         )}
 
         {!traceLoading && !traceRows.length && (
-          <Typography sx={{ mt: 2, opacity: .75, fontSize: 13 }}>
+          <Typography sx={{ mt: 2, color: 'text.secondary', fontSize: 13 }}>
             Tip: escribe un SKU o un código de tarima para ver su historial de movimientos.
           </Typography>
         )}
@@ -325,13 +319,13 @@ export default function ProductsPage() {
 
           <Table size="small" sx={{ minWidth: 900 }}>
             <TableHead>
-              <TableRow sx={{ background: '#101c2b', position: 'sticky', top: 0, zIndex: 1 }}>
-                <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Área</TableCell>
-                <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Status</TableCell>
-                <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Items</TableCell>
-                <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Solicitó</TableCell>
-                <TableCell sx={{ color: '#fff', fontWeight: 700 }}>Nota</TableCell>
-                <TableCell sx={{ color: '#fff', fontWeight: 700, textAlign: 'center' }}>Acción</TableCell>
+              <TableRow sx={{ ...ps.tableHeaderRow, position: 'sticky', top: 0, zIndex: 1 }}>
+                <TableCell sx={{ fontWeight: 700 }}>Área</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Items</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Solicitó</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Nota</TableCell>
+                <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>Acción</TableCell>
               </TableRow>
             </TableHead>
 
@@ -348,29 +342,26 @@ export default function ProductsPage() {
                 return (
                   <TableRow
                     key={r._id || idx}
-                    sx={{
-                      background: idx % 2 === 0 ? '#19233a' : '#101c2b',
-                      '&:hover': { background: '#22304d' }
-                    }}
+                    sx={ps.tableRow(idx)}
                   >
-                    <TableCell sx={{ color: '#fff' }}>
+                    <TableCell sx={ps.cellText}>
                       {r.area} — {areaLabel(r.area)}
                     </TableCell>
 
-                    <TableCell sx={{ color: '#fff' }}>
+                    <TableCell sx={ps.cellText}>
                       <Tooltip title={r.status} arrow>{statusIcon}</Tooltip>
-                      <Typography variant="caption" sx={{ ml: 1, color: '#fff' }}>{r.status}</Typography>
+                      <Typography variant="caption" sx={{ ml: 1, color: 'text.primary' }}>{r.status}</Typography>
                     </TableCell>
 
-                    <TableCell sx={{ color: '#fff', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <TableCell sx={{ ...ps.cellText, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       <Tooltip title={itemsText} arrow>
                         <span>{itemsText.length > 35 ? itemsText.slice(0, 35) + '…' : itemsText}</span>
                       </Tooltip>
                     </TableCell>
 
-                    <TableCell sx={{ color: '#fff' }}>{r.requestedBy?.email || '—'}</TableCell>
+                    <TableCell sx={ps.cellText}>{r.requestedBy?.email || '—'}</TableCell>
 
-                    <TableCell sx={{ color: '#fff', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <TableCell sx={{ ...ps.cellText, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       <Tooltip title={r.note || '—'} arrow>
                         <span>{(r.note || '—').length > 35 ? (r.note || '—').slice(0, 35) + '…' : (r.note || '—')}</span>
                       </Tooltip>
@@ -378,19 +369,19 @@ export default function ProductsPage() {
 
                     <TableCell sx={{ textAlign: 'center' }}>
                       <Tooltip title="Editar (pendiente)">
-                        <IconButton size="small" sx={{ color: '#0369a1' }}>
+                        <IconButton size="small" sx={ps.actionBtn('primary')}>
                           <EditIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
 
                       <Tooltip title="Eliminar">
-                        <IconButton size="small" sx={{ color: '#ef4444' }} onClick={() => deleteProduct(r._id)}>
+                        <IconButton size="small" sx={ps.actionBtn('error')} onClick={() => deleteProduct(r._id)}>
                           <DeleteIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
 
                       <Tooltip title={r.isActive ? 'Desactivar' : 'Activar'}>
-                        <IconButton size="small" sx={{ color: '#22c55e' }} onClick={() => toggleActive(r._id, r.isActive)}>
+                        <IconButton size="small" sx={ps.actionBtn('success')} onClick={() => toggleActive(r._id, r.isActive)}>
                           {r.isActive ? <BlockIcon fontSize="small" /> : <CheckCircleIcon fontSize="small" />}
                         </IconButton>
                       </Tooltip>
@@ -412,37 +403,38 @@ export default function ProductsPage() {
                 p: 2,
                 borderRadius: 3,
                 mb: 2,
-                background: '#19233a',
-                color: '#fff',
+                color: 'text.primary',
                 transition: 'background 0.2s',
-                '&:hover': { background: '#22304d' }
+                '&:hover': {
+                  backgroundColor: ps.isDark ? 'rgba(66,165,245,.06)' : 'rgba(21,101,192,.04)',
+                }
               }}
             >
               <Stack spacing={1} alignItems="center">
                 {showImages && (
                   r.imageUrl
                     ? <img src={r.imageUrl} alt={r.sku} style={{ width: 64, height: 64, borderRadius: 8 }} />
-                    : <ImageIcon sx={{ color: '#64748b', fontSize: 48 }} />
+                    : <ImageIcon sx={{ color: 'text.disabled', fontSize: 48 }} />
                 )}
-                <Typography sx={{ fontFamily: 'monospace', fontWeight: 800 }}>{r.sku}</Typography>
-                <Typography variant="body2">{r.description || '—'}</Typography>
-                <Typography variant="caption">{r.category || '—'}</Typography>
-                <Typography variant="caption">{[r.brand, r.model].filter(Boolean).join(' / ') || '—'}</Typography>
-                <Typography variant="caption">Unidad: {r.unit || 'pz'}</Typography>
+                <Typography sx={{ fontFamily: 'monospace', fontWeight: 800, color: 'text.primary' }}>{r.sku}</Typography>
+                <Typography variant="body2" sx={{ color: 'text.primary' }}>{r.description || '—'}</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>{r.category || '—'}</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>{[r.brand, r.model].filter(Boolean).join(' / ') || '—'}</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>Unidad: {r.unit || 'pz'}</Typography>
                 <Chip size="small" label={r.isActive ? 'Activo' : 'Inactivo'} color={r.isActive ? 'success' : 'error'} />
                 <Stack direction="row" spacing={1}>
                   <Tooltip title="Editar (pendiente)">
-                    <IconButton size="small" sx={{ color: '#0369a1' }}>
+                    <IconButton size="small" sx={ps.actionBtn('primary')}>
                       <EditIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Eliminar">
-                    <IconButton size="small" sx={{ color: '#ef4444' }} onClick={() => deleteProduct(r._id)}>
+                    <IconButton size="small" sx={ps.actionBtn('error')} onClick={() => deleteProduct(r._id)}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title={r.isActive ? 'Desactivar' : 'Activar'}>
-                    <IconButton size="small" sx={{ color: '#22c55e' }} onClick={() => toggleActive(r._id, r.isActive)}>
+                    <IconButton size="small" sx={ps.actionBtn('success')} onClick={() => toggleActive(r._id, r.isActive)}>
                       {r.isActive ? <BlockIcon fontSize="small" /> : <CheckCircleIcon fontSize="small" />}
                     </IconButton>
                   </Tooltip>

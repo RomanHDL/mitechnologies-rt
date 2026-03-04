@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { api } from '../lib/api'
 import { socket } from '../lib/socket'
 import { useTheme } from '@mui/material/styles'
+import { usePageStyles } from '../ui/pageStyles'
 
 import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
@@ -25,7 +26,7 @@ function cellBorder(state, isDark = false) {
   return isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(21,101,192,.15)'
 }
 
-// ✅ Mapeo UI Profesional (NO rompe DB)
+// Mapeo UI Profesional (NO rompe DB)
 // DB: A1..A4
 // UI: Incoming/Sorting/FFT/OpenCell
 const AREAS = [
@@ -35,8 +36,8 @@ const AREAS = [
   { db: 'A4', label: 'OpenCell' },
 ]
 
-// ✅ Sub-áreas (ejemplo profesional).
-// Aquí puedes ajustar nombres exactos sin tocar BD: solo cambia strings.
+// Sub-areas (ejemplo profesional).
+// Aqui puedes ajustar nombres exactos sin tocar BD: solo cambia strings.
 const SUBAREAS_BY_AREA = {
   A1: ['Recepción', 'Calidad', 'Staging'],
   A2: ['Clasificación', 'Re-etiquetado', 'Rework'],
@@ -48,7 +49,7 @@ function isFftAccesorios(areaDb, subarea) {
   return areaDb === 'A3' && String(subarea || '').toLowerCase() === 'accesorios'
 }
 
-// ✅ Construye el string que se guarda/consulta en DB en subarea.
+// Construye el string que se guarda/consulta en DB en subarea.
 // (lo dejamos claro y consistente)
 function buildSubareaKey(areaDb, subarea) {
   const areaLabel = AREAS.find(a => a.db === areaDb)?.label || areaDb
@@ -60,8 +61,9 @@ export default function FftPage() {
   const client = useMemo(() => api(), [])
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
+  const ps = usePageStyles()
 
-  // ✅ selector principal
+  // selector principal
   const [areaDb, setAreaDb] = useState('A3') // FFT por default
   const [subarea, setSubarea] = useState('Accesorios')
 
@@ -82,12 +84,12 @@ export default function FftPage() {
       setSelected(null)
 
       if (isFftAccesorios(areaDb, subarea)) {
-        // ✅ Caso especial “estantes por altura”
+        // Caso especial "estantes por altura"
         const res = await client.get('/api/locations/fft/accesorios', { params: { area: areaDb } })
         setHeights(res.data?.heights || [])
         setLocs([])
       } else {
-        // ✅ Caso normal: grid de bins por subárea
+        // Caso normal: grid de bins por subarea
         const subareaKey = buildSubareaKey(areaDb, subarea)
         const res = await client.get('/api/locations/bins', { params: { area: areaDb, subarea: subareaKey } })
         setLocs(res.data?.locations || [])
@@ -105,13 +107,13 @@ export default function FftPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [areaDb])
 
-  useEffect(() => { load() }, [areaDb, subarea]) // recarga cuando cambia selección
+  useEffect(() => { load() }, [areaDb, subarea]) // recarga cuando cambia seleccion
 
-  // ✅ Tiempo real: escuchamos cualquier update y recargamos (no rompe tu socket)
+  // Tiempo real: escuchamos cualquier update y recargamos (no rompe tu socket)
   useEffect(() => {
     const onAnyUpdate = () => load()
     socket.on('rack:update', onAnyUpdate) // si ya emites esto, funciona
-    socket.on('location:update', onAnyUpdate) // si en el futuro lo agregas, también
+    socket.on('location:update', onAnyUpdate) // si en el futuro lo agregas, tambien
     return () => {
       socket.off('rack:update', onAnyUpdate)
       socket.off('location:update', onAnyUpdate)
@@ -274,7 +276,7 @@ export default function FftPage() {
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: 900 }}>
+        <Typography variant="h6" sx={ps.pageTitle}>
           {headerTitle}
         </Typography>
 
@@ -329,7 +331,7 @@ export default function FftPage() {
                 label="Área"
                 value={areaDb}
                 onChange={(e) => setAreaDb(e.target.value)}
-                sx={{ width: { xs: '100%', md: 220 }, '& .MuiInputBase-root': { bgcolor: 'rgba(0,0,0,.18)' } }}
+                sx={{ width: { xs: '100%', md: 220 }, ...ps.inputSx }}
               >
                 {AREAS.map(a => <MenuItem key={a.db} value={a.db}>{a.label}</MenuItem>)}
               </TextField>
@@ -340,7 +342,7 @@ export default function FftPage() {
                 label="Sub-área"
                 value={subarea}
                 onChange={(e) => setSubarea(e.target.value)}
-                sx={{ width: { xs: '100%', md: 260 }, '& .MuiInputBase-root': { bgcolor: 'rgba(0,0,0,.18)' } }}
+                sx={{ width: { xs: '100%', md: 260 }, ...ps.inputSx }}
               >
                 {(SUBAREAS_BY_AREA[areaDb] || []).map(s => <MenuItem key={s} value={s}>{s}</MenuItem>)}
               </TextField>
@@ -351,7 +353,7 @@ export default function FftPage() {
                 label="Filtro"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                sx={{ width: { xs: '100%', md: 220 }, '& .MuiInputBase-root': { bgcolor: 'rgba(0,0,0,.18)' } }}
+                sx={{ width: { xs: '100%', md: 220 }, ...ps.inputSx }}
               >
                 <MenuItem value="TODOS">Todos</MenuItem>
                 <MenuItem value="VACIO">Vacíos</MenuItem>
@@ -466,7 +468,7 @@ export default function FftPage() {
                   sx={{
                     height: 10,
                     borderRadius: 99,
-                    bgcolor: 'rgba(255,255,255,.08)',
+                    bgcolor: isDark ? 'rgba(255,255,255,.08)' : 'rgba(21,101,192,.08)',
                     '& .MuiLinearProgress-bar': { borderRadius: 99 }
                   }}
                 />

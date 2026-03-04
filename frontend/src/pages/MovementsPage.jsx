@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { useAuth } from '../state/auth'
 import { api } from '../lib/api'
+import { usePageStyles } from '../ui/pageStyles'
 import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
 import Box from '@mui/material/Box'
@@ -15,6 +16,11 @@ import MenuItem from '@mui/material/MenuItem'
 import Stack from '@mui/material/Stack'
 import Tooltip from '@mui/material/Tooltip'
 import IconButton from '@mui/material/IconButton'
+import Chip from '@mui/material/Chip'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import DialogActions from '@mui/material/DialogActions'
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
 import InfoIcon from '@mui/icons-material/Info'
@@ -23,6 +29,7 @@ import dayjs from 'dayjs'
 
 export default function MovementsPage() {
   const { token } = useAuth()
+  const ps = usePageStyles()
   const [rows, setRows] = useState([])
   const [q, setQ] = useState('')
   const [type, setType] = useState('')
@@ -108,107 +115,129 @@ export default function MovementsPage() {
     navigator.clipboard.writeText(code)
   }
 
-  // Detalle de movimiento (modal simple)
+  // Detalle de movimiento (modal)
   const [showDetail, setShowDetail] = useState(false)
   const openDetail = (r) => { setSelected(r); setShowDetail(true) }
   const closeDetail = () => { setShowDetail(false) }
 
   return (
     <Box>
-      <Typography variant="h6" sx={{ fontWeight: 900, mb:2 }}>Movimientos</Typography>
+      <Typography variant="h6" sx={{ ...ps.pageTitle, mb: 2 }}>Movimientos</Typography>
       {/* Resumen superior */}
-      <Stack direction="row" spacing={2} sx={{ mb:2 }}>
-        <Tooltip title="Total movimientos"><Button variant="contained">Total: {resumen.total}</Button></Tooltip>
-        <Tooltip title="Entradas"><Button variant="outlined" startIcon={<ArrowDownwardIcon sx={{ color:'#22c55e' }} />}>Entradas: {resumen.entradas}</Button></Tooltip>
-        <Tooltip title="Salidas"><Button variant="outlined" startIcon={<ArrowUpwardIcon sx={{ color:'#ef4444' }} />}>Salidas: {resumen.salidas}</Button></Tooltip>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
+        <Chip label={`Total: ${resumen.total}`} sx={ps.metricChip('default')} />
+        <Chip
+          icon={<ArrowDownwardIcon sx={{ color: 'inherit' }} />}
+          label={`Entradas: ${resumen.entradas}`}
+          sx={ps.metricChip('ok')}
+        />
+        <Chip
+          icon={<ArrowUpwardIcon sx={{ color: 'inherit' }} />}
+          label={`Salidas: ${resumen.salidas}`}
+          sx={ps.metricChip('bad')}
+        />
         <Box sx={{ flex: 1 }} />
         <Button variant="outlined" onClick={downloadCsv}>Exportar CSV</Button>
       </Stack>
       {/* Filtros y búsqueda */}
-      <Paper elevation={1} sx={{ p:2, borderRadius:3, mb:2 }}>
-        <Stack direction={{ xs:'column', md:'row' }} spacing={2} alignItems={{ xs:'stretch', md:'center' }}>
-          <TextField label="Buscar código, usuario o nota" value={q} onChange={e=>setQ(e.target.value)} sx={{ minWidth: 220 }} />
-          <TextField select label="Tipo" value={type} onChange={e=>setType(e.target.value)} sx={{ minWidth: 120 }}>
+      <Paper elevation={1} sx={{ ...ps.card, p: 2, mb: 2 }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'stretch', md: 'center' }}>
+          <TextField label="Buscar código, usuario o nota" value={q} onChange={e=>setQ(e.target.value)} sx={{ minWidth: 220, ...ps.inputSx }} />
+          <TextField select label="Tipo" value={type} onChange={e=>setType(e.target.value)} sx={{ minWidth: 120, ...ps.inputSx }}>
             <MenuItem value="">Todos</MenuItem>
             <MenuItem value="IN">Entrada</MenuItem>
             <MenuItem value="OUT">Salida</MenuItem>
           </TextField>
-          <TextField select label="Usuario" value={user} onChange={e=>setUser(e.target.value)} sx={{ minWidth: 180 }}>
+          <TextField select label="Usuario" value={user} onChange={e=>setUser(e.target.value)} sx={{ minWidth: 180, ...ps.inputSx }}>
             <MenuItem value="">Todos</MenuItem>
             {usuarios.map(u => <MenuItem key={u} value={u}>{u}</MenuItem>)}
           </TextField>
-          <TextField type="date" label="Desde" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ minWidth: 140 }} />
-          <TextField type="date" label="Hasta" value={dateTo} onChange={e=>setDateTo(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ minWidth: 140 }} />
+          <TextField type="date" label="Desde" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ minWidth: 140, ...ps.inputSx }} />
+          <TextField type="date" label="Hasta" value={dateTo} onChange={e=>setDateTo(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ minWidth: 140, ...ps.inputSx }} />
         </Stack>
       </Paper>
       {/* Tabla moderna con iconos y tooltips */}
-      <Paper elevation={1} sx={{ p:0, borderRadius:3 }}>
-        <Table size="small" sx={{ minWidth: 1000 }}>
-          <TableHead>
-            <TableRow sx={{ background:'#101c2b', position:'sticky', top:0, zIndex:1 }}>
-              <TableCell sx={{ color:'#fff', fontWeight:700 }}>Fecha</TableCell>
-              <TableCell sx={{ color:'#fff', fontWeight:700 }}>Tipo</TableCell>
-              <TableCell sx={{ color:'#fff', fontWeight:700 }}>Código</TableCell>
-              <TableCell sx={{ color:'#fff', fontWeight:700 }}>Usuario</TableCell>
-              <TableCell sx={{ color:'#fff', fontWeight:700 }}>De</TableCell>
-              <TableCell sx={{ color:'#fff', fontWeight:700 }}>A</TableCell>
-              <TableCell sx={{ color:'#fff', fontWeight:700 }}>Nota</TableCell>
-              <TableCell sx={{ color:'#fff', fontWeight:700, textAlign:'center' }}>Acción</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {paginated.map((r, idx) => {
-              const isIn = r.type === 'IN'
-              const typeIcon = isIn ? <ArrowDownwardIcon sx={{ color:'#22c55e', verticalAlign:'middle' }} fontSize="small" /> : <ArrowUpwardIcon sx={{ color:'#ef4444', verticalAlign:'middle' }} fontSize="small" />
-              return (
-                <TableRow key={r._id} sx={{ background: idx % 2 === 0 ? '#19233a' : '#101c2b', '&:hover': { background:'#22304d' } }}>
-                  <TableCell sx={{ color:'#fff' }}>{dayjs(r.createdAt).format('YYYY-MM-DD HH:mm')}</TableCell>
-                  <TableCell sx={{ color:'#fff' }}>
-                    <Tooltip title={isIn ? 'Entrada' : 'Salida'} arrow>{typeIcon}</Tooltip>
-                    <Typography variant="caption" sx={{ ml:1, color:'#fff' }}>{r.type}</Typography>
-                  </TableCell>
-                  <TableCell sx={{ fontFamily:'monospace', color:'#fff' }}>
-                    <Tooltip title="Ver detalle"><IconButton size="small" onClick={()=>openDetail(r)}><InfoIcon fontSize="small" /></IconButton></Tooltip>
-                    {r.pallet?.code || '—'}
-                    <Tooltip title="Copiar código"><IconButton size="small" onClick={()=>copyCode(r.pallet?.code || '')}><FileCopyIcon fontSize="small" /></IconButton></Tooltip>
-                  </TableCell>
-                  <TableCell sx={{ color:'#fff' }}>{r.user?.email || '—'}</TableCell>
-                  <TableCell sx={{ color:'#fff' }}>{r.fromLocation ? `${r.fromLocation.area}-${r.fromLocation.level}${r.fromLocation.position}` : '—'}</TableCell>
-                  <TableCell sx={{ color:'#fff' }}>{r.toLocation ? `${r.toLocation.area}-${r.toLocation.level}${r.toLocation.position}` : '—'}</TableCell>
-                  <TableCell sx={{ color:'#fff', maxWidth:180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                    <Tooltip title={r.note || '—'} arrow>
-                      <span>{(r.note || '—').length > 25 ? (r.note || '—').slice(0, 25) + '…' : (r.note || '—')}</span>
-                    </Tooltip>
-                  </TableCell>
-                  <TableCell sx={{ textAlign:'center' }}>
-                    <Tooltip title="Ver detalle"><IconButton size="small" onClick={()=>openDetail(r)}><InfoIcon fontSize="small" /></IconButton></Tooltip>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
+      <Paper elevation={1} sx={{ ...ps.card, p: 0 }}>
+        <Box sx={{ overflowX: 'auto' }}>
+          <Table size="small" sx={{ minWidth: 900 }}>
+            <TableHead>
+              <TableRow sx={{ ...ps.tableHeaderRow, position: 'sticky', top: 0, zIndex: 1 }}>
+                <TableCell>Fecha</TableCell>
+                <TableCell>Tipo</TableCell>
+                <TableCell>Código</TableCell>
+                <TableCell>Usuario</TableCell>
+                <TableCell>De</TableCell>
+                <TableCell>A</TableCell>
+                <TableCell>Nota</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>Acción</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {paginated.map((r, idx) => {
+                const isIn = r.type === 'IN'
+                const typeIcon = isIn
+                  ? <ArrowDownwardIcon sx={ps.actionBtn('success')} fontSize="small" />
+                  : <ArrowUpwardIcon sx={ps.actionBtn('error')} fontSize="small" />
+                return (
+                  <TableRow key={r._id} sx={ps.tableRow(idx)}>
+                    <TableCell sx={ps.cellText}>{dayjs(r.createdAt).format('YYYY-MM-DD HH:mm')}</TableCell>
+                    <TableCell sx={ps.cellText}>
+                      <Tooltip title={isIn ? 'Entrada' : 'Salida'} arrow>{typeIcon}</Tooltip>
+                      <Typography variant="caption" sx={{ ml: 1, color: 'text.primary' }}>{r.type}</Typography>
+                    </TableCell>
+                    <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace' }}>
+                      <Tooltip title="Ver detalle"><IconButton size="small" onClick={()=>openDetail(r)}><InfoIcon fontSize="small" /></IconButton></Tooltip>
+                      {r.pallet?.code || '—'}
+                      <Tooltip title="Copiar código"><IconButton size="small" onClick={()=>copyCode(r.pallet?.code || '')}><FileCopyIcon fontSize="small" /></IconButton></Tooltip>
+                    </TableCell>
+                    <TableCell sx={ps.cellText}>{r.user?.email || '—'}</TableCell>
+                    <TableCell sx={ps.cellText}>{r.fromLocation ? `${r.fromLocation.area}-${r.fromLocation.level}${r.fromLocation.position}` : '—'}</TableCell>
+                    <TableCell sx={ps.cellText}>{r.toLocation ? `${r.toLocation.area}-${r.toLocation.level}${r.toLocation.position}` : '—'}</TableCell>
+                    <TableCell sx={{ ...ps.cellText, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <Tooltip title={r.note || '—'} arrow>
+                        <span>{(r.note || '—').length > 25 ? (r.note || '—').slice(0, 25) + '…' : (r.note || '—')}</span>
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell sx={{ textAlign: 'center' }}>
+                      <Tooltip title="Ver detalle">
+                        <IconButton size="small" sx={ps.actionBtn('primary')} onClick={()=>openDetail(r)}>
+                          <InfoIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </Box>
         {/* Paginación simple */}
-        <Stack direction="row" spacing={2} alignItems="center" justifyContent="center" sx={{ py:2 }}>
+        <Stack direction="row" spacing={2} alignItems="center" justifyContent="center" sx={{ py: 2 }}>
           <Button disabled={page===1} onClick={()=>setPage(p=>p-1)}>Anterior</Button>
-          <Typography> Página {page} de {Math.max(1, Math.ceil(filtered.length/pageSize))} </Typography>
+          <Typography sx={ps.cellText}> Página {page} de {Math.max(1, Math.ceil(filtered.length/pageSize))} </Typography>
           <Button disabled={page*pageSize>=filtered.length} onClick={()=>setPage(p=>p+1)}>Siguiente</Button>
         </Stack>
       </Paper>
       {/* Modal de detalle de movimiento */}
-      {showDetail && selected && (
-        <Paper elevation={3} sx={{ position:'fixed', top:'50%', left:'50%', transform:'translate(-50%,-50%)', zIndex:2000, minWidth:340, maxWidth:480, p:3 }}>
-          <Typography variant="h6" sx={{ mb:2 }}>Detalle de movimiento</Typography>
-          <Typography variant="body2"><b>Fecha:</b> {dayjs(selected.createdAt).format('YYYY-MM-DD HH:mm')}</Typography>
-          <Typography variant="body2"><b>Tipo:</b> {selected.type}</Typography>
-          <Typography variant="body2"><b>Código:</b> {selected.pallet?.code || '—'}</Typography>
-          <Typography variant="body2"><b>Usuario:</b> {selected.user?.email || '—'}</Typography>
-          <Typography variant="body2"><b>De:</b> {selected.fromLocation ? `${selected.fromLocation.area}-${selected.fromLocation.level}${selected.fromLocation.position}` : '—'}</Typography>
-          <Typography variant="body2"><b>A:</b> {selected.toLocation ? `${selected.toLocation.area}-${selected.toLocation.level}${selected.toLocation.position}` : '—'}</Typography>
-          <Typography variant="body2"><b>Nota:</b> {selected.note || '—'}</Typography>
-          <Button sx={{ mt:2 }} variant="contained" onClick={closeDetail}>Cerrar</Button>
-        </Paper>
-      )}
+      <Dialog open={showDetail && !!selected} onClose={closeDetail} maxWidth="sm" fullWidth>
+        <DialogTitle sx={ps.cardHeaderTitle}>Detalle de movimiento</DialogTitle>
+        <DialogContent dividers>
+          {selected && (
+            <Stack spacing={1} sx={{ pt: 1 }}>
+              <Typography variant="body2" sx={ps.cellText}><b>Fecha:</b> {dayjs(selected.createdAt).format('YYYY-MM-DD HH:mm')}</Typography>
+              <Typography variant="body2" sx={ps.cellText}><b>Tipo:</b> {selected.type}</Typography>
+              <Typography variant="body2" sx={ps.cellText}><b>Código:</b> {selected.pallet?.code || '—'}</Typography>
+              <Typography variant="body2" sx={ps.cellText}><b>Usuario:</b> {selected.user?.email || '—'}</Typography>
+              <Typography variant="body2" sx={ps.cellText}><b>De:</b> {selected.fromLocation ? `${selected.fromLocation.area}-${selected.fromLocation.level}${selected.fromLocation.position}` : '—'}</Typography>
+              <Typography variant="body2" sx={ps.cellText}><b>A:</b> {selected.toLocation ? `${selected.toLocation.area}-${selected.toLocation.level}${selected.toLocation.position}` : '—'}</Typography>
+              <Typography variant="body2" sx={ps.cellText}><b>Nota:</b> {selected.note || '—'}</Typography>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" onClick={closeDetail}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api } from '../lib/api'
+import { usePageStyles } from '../ui/pageStyles'
+
 import Box from '@mui/material/Box'
 import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
@@ -11,59 +12,53 @@ import Stack from '@mui/material/Stack'
 
 export default function ForgotPasswordPage() {
   const nav = useNavigate()
+  const ps = usePageStyles()
+
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
-  const [loading, setLoading] = useState(false)
 
   const onSubmit = (e) => {
     e.preventDefault()
     setError('')
     setOk('')
     if (!email || !email.includes('@')) {
-      setError('Ingresa un correo válido')
+      setError('Ingresa un correo valido')
       return
     }
-    const subject = encodeURIComponent('Solicitud de recuperación de contraseña')
+    const subject = encodeURIComponent('Solicitud de recuperacion de contrasena')
     const body = encodeURIComponent(`Hola,\n\nSolicito recuperar el acceso a mi cuenta con el correo: ${email}\n\nGracias.`)
     window.location.href = `mailto:romanherrera548@gmail.com?subject=${subject}&body=${body}`
-    setOk('Se abrió tu cliente de correo para contactar al administrador.')
+    setOk('Se abrio tu cliente de correo para contactar al administrador.')
   }
 
   return (
-    <Box sx={{
-      minHeight: '100vh',
-      display: 'grid',
-      placeItems: 'center',
-      px: 2,
-      backgroundImage: `
-        radial-gradient(1200px 500px at 15% 20%, rgba(21,101,192,0.30), transparent 60%),
-        radial-gradient(900px 420px at 85% 15%, rgba(2,136,209,0.22), transparent 60%),
-        linear-gradient(135deg, rgba(10,37,64,0.30), rgba(10,37,64,0.08)),
-        url("https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=2000&q=60")
-      `,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundBlendMode: 'screen, screen, normal, normal',
-    }}>
-      <Paper elevation={0} sx={{
-        width: 'min(520px, 100%)',
-        p: 4,
-        borderRadius: 4,
-        backdropFilter: 'blur(10px)',
-        background: 'rgba(255,255,255,0.88)',
-        border: '1px solid rgba(21,101,192,0.12)',
-      }}>
-        <Typography variant="h5" sx={{ fontWeight: 900, mb: 2 }}>Recuperar contraseña</Typography>
+    <Box sx={ps.authBackground}>
+      <Paper elevation={0} sx={ps.authCard}>
+        <Box sx={{ textAlign: 'center', mb: 3 }}>
+          <Box
+            sx={{
+              width: 56, height: 56, borderRadius: 3,
+              bgcolor: 'primary.main', display: 'grid', placeItems: 'center',
+              mx: 'auto', mb: 2, boxShadow: '0 4px 14px rgba(21,101,192,.25)',
+            }}
+          >
+            <Typography sx={{ fontWeight: 800, fontSize: 20, color: 'white' }}>MT</Typography>
+          </Box>
+          <Typography variant="h5" sx={{ fontWeight: 800, color: 'text.primary' }}>Recuperar contrasena</Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>Ingresa tu correo para contactar al administrador</Typography>
+        </Box>
+
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         {ok && <Alert severity="success" sx={{ mb: 2 }}>{ok}</Alert>}
+
         <Box component="form" onSubmit={onSubmit}>
           <Stack spacing={2}>
-            <TextField label="Correo" value={email} onChange={(e)=>setEmail(e.target.value)} />
-            <Button type="submit" variant="contained">
+            <TextField sx={ps.authInput} label="Correo" value={email} onChange={(e) => setEmail(e.target.value)} fullWidth />
+            <Button type="submit" variant="contained" size="large" fullWidth sx={{ py: 1.3 }}>
               Contactar administrador
             </Button>
-            <Button variant="text" onClick={() => nav('/login')}>Volver a login</Button>
+            <Button variant="text" fullWidth onClick={() => nav('/login')} sx={{ fontWeight: 600 }}>Volver a login</Button>
           </Stack>
         </Box>
       </Paper>

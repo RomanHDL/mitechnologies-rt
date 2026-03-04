@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../state/auth'
 import { api } from '../lib/api'
+import { usePageStyles } from '../ui/pageStyles'
 import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
 import Box from '@mui/material/Box'
@@ -16,6 +17,10 @@ import TableBody from '@mui/material/TableBody'
 import Chip from '@mui/material/Chip'
 import Tooltip from '@mui/material/Tooltip'
 import IconButton from '@mui/material/IconButton'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import DialogActions from '@mui/material/DialogActions'
 import EditIcon from '@mui/icons-material/Edit'
 import DoneIcon from '@mui/icons-material/Done'
 import CancelIcon from '@mui/icons-material/Cancel'
@@ -28,6 +33,7 @@ export default function CountsPage() {
   const { token, user } = useAuth()
   const can = ['ADMIN','SUPERVISOR'].includes(user?.role)
   const client = useMemo(() => api(token), [token])
+  const ps = usePageStyles()
 
   const [rows, setRows] = useState([])
   const [q, setQ] = useState('')
@@ -53,7 +59,7 @@ export default function CountsPage() {
     await load()
   }
 
-  // Filtros y búsqueda
+  // Filtros y busqueda
   const filtered = useMemo(() => {
     let list = rows
     if (q) list = list.filter(r => (r.name || '').toLowerCase().includes(q.toLowerCase()))
@@ -76,10 +82,10 @@ export default function CountsPage() {
     const data = filtered.map(r => ({
       Nombre: r.name,
       Scope: r.scope,
-      Área: r.area,
+      Area: r.area,
       Nivel: r.level,
       Status: r.status,
-      Creó: r.createdBy?.email || ''
+      Creo: r.createdBy?.email || ''
     }))
     const ws = XLSX.utils.json_to_sheet(data)
     const wb = XLSX.utils.book_new()
@@ -87,7 +93,7 @@ export default function CountsPage() {
     XLSX.writeFile(wb, 'conteos_ciclicos.xlsx')
   }
 
-  // Acciones rápidas
+  // Acciones rapidas
   const closeCount = async (id) => {
     await client.patch(`/api/counts/${id}/status`, { status: 'CLOSED' })
     await load()
@@ -97,94 +103,169 @@ export default function CountsPage() {
     await load()
   }
 
-  // Modal de detalle (simulado)
+  // Modal de detalle
   const openDetail = (r) => { setSelected(r); setShowDetail(true) }
   const closeDetail = () => { setShowDetail(false) }
 
-  // Paginación
+  // Paginacion
   const paginated = useMemo(() => {
     const start = (page-1)*pageSize
     return filtered.slice(start, start+pageSize)
   }, [filtered, page])
 
+  /** Map count statuses to metricChip tones */
+  const statusTone = (s) => {
+    const map = { OPEN: 'warn', CLOSED: 'info', VALIDATED: 'ok' }
+    return map[s] || 'default'
+  }
+
   return (
-    <Box>
-      <Typography variant="h6" sx={{ fontWeight: 900, mb:2 }}>Conteos cíclicos</Typography>
+    <Box sx={ps.page}>
+      <Typography variant="h6" sx={{ ...ps.pageTitle, mb: 2 }}>Conteos ciclicos</Typography>
+
       {/* Resumen superior */}
-      <Stack direction="row" spacing={2} sx={{ mb:2 }}>
-        <Chip label={`Total: ${resumen.total}`} color="primary" />
-        <Chip label={`Abiertos: ${resumen.abiertos}`} sx={{ bgcolor:'#fef9c3', color:'#a16207' }} />
-        <Chip label={`Cerrados: ${resumen.cerrados}`} sx={{ bgcolor:'#bae6fd', color:'#0369a1' }} />
-        <Chip label={`Validados: ${resumen.validados}`} sx={{ bgcolor:'#dcfce7', color:'#166534' }} />
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2, flexWrap: 'wrap' }}>
+        <Chip label={`Total: ${resumen.total}`} sx={ps.metricChip('default')} />
+        <Chip label={`Abiertos: ${resumen.abiertos}`} sx={ps.metricChip('warn')} />
+        <Chip label={`Cerrados: ${resumen.cerrados}`} sx={ps.metricChip('info')} />
+        <Chip label={`Validados: ${resumen.validados}`} sx={ps.metricChip('ok')} />
         <Box sx={{ flex: 1 }} />
-        <Tooltip title="Exportar a Excel"><IconButton onClick={exportExcel}><DownloadIcon /></IconButton></Tooltip>
+        <Tooltip title="Exportar a Excel">
+          <IconButton onClick={exportExcel} sx={ps.actionBtn('primary')}>
+            <DownloadIcon />
+          </IconButton>
+        </Tooltip>
       </Stack>
-      {/* Filtros y búsqueda */}
-      <Stack direction={{ xs:'column', md:'row' }} spacing={2} sx={{ mb:2 }}>
-        <TextField label="Buscar conteo" value={q} onChange={e=>setQ(e.target.value)} sx={{ minWidth:220 }} />
-        <TextField select label="Status" value={status} onChange={e=>setStatus(e.target.value)} sx={{ minWidth:140 }}>
+
+      {/* Filtros y busqueda */}
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 2 }}>
+        <TextField
+          label="Buscar conteo"
+          value={q}
+          onChange={e => setQ(e.target.value)}
+          sx={{ minWidth: 220, ...ps.inputSx }}
+        />
+        <TextField
+          select
+          label="Status"
+          value={status}
+          onChange={e => setStatus(e.target.value)}
+          sx={{ minWidth: 140, ...ps.inputSx }}
+        >
           <MenuItem value="">Todos</MenuItem>
           <MenuItem value="OPEN">Abierto</MenuItem>
           <MenuItem value="CLOSED">Cerrado</MenuItem>
           <MenuItem value="VALIDATED">Validado</MenuItem>
         </TextField>
-        <Button disabled={!can} variant="contained" onClick={()=>setShowDetail(false) || setOpenCreate(true)}>Nuevo conteo</Button>
+        <Button disabled={!can} variant="contained" onClick={() => setShowDetail(false) || setOpenCreate(true)}>
+          Nuevo conteo
+        </Button>
       </Stack>
+
       {/* Tabla de conteos */}
-      <Paper elevation={1} sx={{ p:0, borderRadius:3 }}>
-        <Table size="small" sx={{ minWidth:1000 }}>
-          <TableHead>
-            <TableRow sx={{ background:'#101c2b', position:'sticky', top:0, zIndex:1 }}>
-              <TableCell sx={{ color:'#fff', fontWeight:700 }}>Nombre</TableCell>
-              <TableCell sx={{ color:'#fff', fontWeight:700 }}>Scope</TableCell>
-              <TableCell sx={{ color:'#fff', fontWeight:700 }}>Área</TableCell>
-              <TableCell sx={{ color:'#fff', fontWeight:700 }}>Nivel</TableCell>
-              <TableCell sx={{ color:'#fff', fontWeight:700 }}>Status</TableCell>
-              <TableCell sx={{ color:'#fff', fontWeight:700 }}>Creó</TableCell>
-              <TableCell sx={{ color:'#fff', fontWeight:700, textAlign:'center' }}>Acción</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {paginated.map((r, idx) => (
-              <TableRow key={r._id} sx={{ background: idx % 2 === 0 ? '#19233a' : '#101c2b', transition:'background 0.2s', '&:hover': { background:'#22304d' } }}>
-                <TableCell sx={{ color:'#fff' }}>{r.name}</TableCell>
-                <TableCell sx={{ color:'#fff' }}>{r.scope}</TableCell>
-                <TableCell sx={{ color:'#fff' }}>{r.area}</TableCell>
-                <TableCell sx={{ color:'#fff' }}>{r.level || '—'}</TableCell>
-                <TableCell sx={{ color:'#fff' }}><Chip size="small" label={r.status} /></TableCell>
-                <TableCell sx={{ color:'#fff' }}>{r.createdBy?.email || '—'}</TableCell>
-                <TableCell sx={{ textAlign:'center' }}>
-                  <Tooltip title="Ver detalle"><IconButton size="small" sx={{ color:'#0369a1' }} onClick={()=>openDetail(r)}><InfoIcon fontSize="small" /></IconButton></Tooltip>
-                  <Tooltip title="Cerrar conteo"><IconButton size="small" sx={{ color:'#eab308' }} onClick={()=>closeCount(r._id)} disabled={r.status!=='OPEN'}><DoneIcon fontSize="small" /></IconButton></Tooltip>
-                  <Tooltip title="Validar conteo"><IconButton size="small" sx={{ color:'#22c55e' }} onClick={()=>validateCount(r._id)} disabled={r.status!=='CLOSED'}><EditIcon fontSize="small" /></IconButton></Tooltip>
-                </TableCell>
+      <Paper elevation={1} sx={{ ...ps.card, p: 0 }}>
+        <Box sx={{ overflowX: 'auto' }}>
+          <Table size="small" sx={{ minWidth: { xs: 700, md: 1000 } }}>
+            <TableHead>
+              <TableRow sx={ps.tableHeaderRow}>
+                <TableCell>Nombre</TableCell>
+                <TableCell>Scope</TableCell>
+                <TableCell>Area</TableCell>
+                <TableCell>Nivel</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Creo</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>Accion</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        {/* Paginación */}
-        <Stack direction="row" spacing={2} alignItems="center" justifyContent="center" sx={{ py:2 }}>
-          <Button disabled={page===1} onClick={()=>setPage(p=>p-1)}>Anterior</Button>
-          <Typography> Página {page} de {Math.max(1, Math.ceil(filtered.length/pageSize))} </Typography>
-          <Button disabled={page*pageSize>=filtered.length} onClick={()=>setPage(p=>p+1)}>Siguiente</Button>
+            </TableHead>
+            <TableBody>
+              {paginated.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7}>
+                    <Typography sx={ps.emptyText}>No se encontraron conteos</Typography>
+                  </TableCell>
+                </TableRow>
+              )}
+              {paginated.map((r, idx) => (
+                <TableRow key={r._id} sx={ps.tableRow(idx)}>
+                  <TableCell sx={ps.cellText}>{r.name}</TableCell>
+                  <TableCell sx={ps.cellText}>{r.scope}</TableCell>
+                  <TableCell sx={ps.cellText}>{r.area}</TableCell>
+                  <TableCell sx={ps.cellText}>{r.level || '\u2014'}</TableCell>
+                  <TableCell>
+                    <Chip size="small" label={r.status} sx={ps.metricChip(statusTone(r.status))} />
+                  </TableCell>
+                  <TableCell sx={ps.cellTextSecondary}>{r.createdBy?.email || '\u2014'}</TableCell>
+                  <TableCell sx={{ textAlign: 'center' }}>
+                    <Tooltip title="Ver detalle">
+                      <IconButton size="small" sx={ps.actionBtn('primary')} onClick={() => openDetail(r)}>
+                        <InfoIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Cerrar conteo">
+                      <span>
+                        <IconButton
+                          size="small"
+                          sx={{ ...ps.actionBtn('warning'), ml: 0.5 }}
+                          onClick={() => closeCount(r._id)}
+                          disabled={r.status !== 'OPEN'}
+                        >
+                          <DoneIcon fontSize="small" />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                    <Tooltip title="Validar conteo">
+                      <span>
+                        <IconButton
+                          size="small"
+                          sx={{ ...ps.actionBtn('success'), ml: 0.5 }}
+                          onClick={() => validateCount(r._id)}
+                          disabled={r.status !== 'CLOSED'}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Box>
+
+        {/* Paginacion */}
+        <Stack direction="row" spacing={2} alignItems="center" justifyContent="center" sx={{ py: 2 }}>
+          <Button disabled={page === 1} onClick={() => setPage(p => p - 1)}>Anterior</Button>
+          <Typography sx={{ color: 'text.secondary', fontSize: 14 }}>
+            Pagina {page} de {Math.max(1, Math.ceil(filtered.length / pageSize))}
+          </Typography>
+          <Button disabled={page * pageSize >= filtered.length} onClick={() => setPage(p => p + 1)}>Siguiente</Button>
         </Stack>
       </Paper>
+
       {/* Modal de detalle de conteo */}
-      {showDetail && selected && (
-        <Paper elevation={3} sx={{ position:'fixed', top:'50%', left:'50%', transform:'translate(-50%,-50%)', zIndex:2000, minWidth:340, maxWidth:600, p:3 }}>
-          <Typography variant="h6" sx={{ mb:2 }}>Detalle de conteo</Typography>
-          <Typography variant="body2"><b>Nombre:</b> {selected.name}</Typography>
-          <Typography variant="body2"><b>Scope:</b> {selected.scope}</Typography>
-          <Typography variant="body2"><b>Área:</b> {selected.area}</Typography>
-          <Typography variant="body2"><b>Nivel:</b> {selected.level || '—'}</Typography>
-          <Typography variant="body2"><b>Status:</b> {selected.status}</Typography>
-          <Typography variant="body2"><b>Creó:</b> {selected.createdBy?.email || '—'}</Typography>
-          <Typography variant="body2" sx={{ mt:2, mb:1 }}><b>Líneas del conteo:</b></Typography>
-          {/* Aquí podrías mostrar líneas reales si la API lo permite */}
-          <Typography variant="caption">(Simulación de líneas, diferencias, incidencias, historial...)</Typography>
-          <Button sx={{ mt:2 }} variant="contained" onClick={closeDetail}>Cerrar</Button>
-        </Paper>
-      )}
+      <Dialog open={showDetail && !!selected} onClose={closeDetail} maxWidth="sm" fullWidth>
+        <DialogTitle sx={ps.cardHeaderTitle}>Detalle de conteo</DialogTitle>
+        <DialogContent dividers>
+          {selected && (
+            <Stack spacing={1} sx={{ pt: 1 }}>
+              <Typography variant="body2"><b>Nombre:</b> {selected.name}</Typography>
+              <Typography variant="body2"><b>Scope:</b> {selected.scope}</Typography>
+              <Typography variant="body2"><b>Area:</b> {selected.area}</Typography>
+              <Typography variant="body2"><b>Nivel:</b> {selected.level || '\u2014'}</Typography>
+              <Typography variant="body2"><b>Status:</b> {selected.status}</Typography>
+              <Typography variant="body2"><b>Creo:</b> {selected.createdBy?.email || '\u2014'}</Typography>
+              <Typography variant="body2" sx={{ mt: 2, mb: 1 }}><b>Lineas del conteo:</b></Typography>
+              {/* Aqui podrias mostrar lineas reales si la API lo permite */}
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                (Simulacion de lineas, diferencias, incidencias, historial...)
+              </Typography>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" onClick={closeDetail}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

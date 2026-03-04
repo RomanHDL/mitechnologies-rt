@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/auth'
 import { api } from '../lib/api'
+import { usePageStyles } from '../ui/pageStyles'
 
 import Box from '@mui/material/Box'
 import Paper from '@mui/material/Paper'
@@ -15,6 +16,7 @@ import Link from '@mui/material/Link'
 export default function LoginPage() {
   const nav = useNavigate()
   const { login } = useAuth()
+  const ps = usePageStyles()
 
   const [employeeNumber, setEmployeeNumber] = useState('')
   const [password, setPassword] = useState('')
@@ -27,80 +29,73 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const res = await api().post('/api/auth/login', { employeeNumber, password })
-      // ⚠️ tu auth.jsx debe aceptar (token, user)
       login(res.data.token, res.data.user)
       nav('/')
     } catch (err) {
-      setError(err?.response?.data?.message || 'Error al iniciar sesión')
+      setError(err?.response?.data?.message || 'Error al iniciar sesion')
     } finally {
       setLoading(false)
     }
   }
 
-  const tfSx = {
-    '& .MuiInputBase-root': { background: 'rgba(255,255,255,0.98)' },
-    '& input': { color: '#0f172a', fontWeight: 700 },
-    '& label': { color: 'rgba(15,23,42,0.75)', fontWeight: 700 },
-    '& label.Mui-focused': { color: '#0f172a' }
-  }
-
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        display: 'grid',
-        placeItems: 'center',
-        px: 2,
-        backgroundImage: `
-          radial-gradient(1200px 500px at 15% 20%, rgba(30,91,184,0.35), transparent 60%),
-          radial-gradient(900px 420px at 85% 15%, rgba(15,118,110,0.28), transparent 60%),
-          linear-gradient(135deg, rgba(2,6,23,0.35), rgba(2,6,23,0.10)),
-          url("https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=2000&q=60")
-        `,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundBlendMode: 'screen, screen, normal, normal'
-      }}
-    >
-      <Paper
-        elevation={0}
-        sx={{
-          width: 'min(520px, 100%)',
-          p: 4,
-          borderRadius: 4,
-          backdropFilter: 'blur(10px)',
-          background: 'rgba(255,255,255,0.86)',
-          border: '1px solid rgba(15, 23, 42, 0.10)'
-        }}
-      >
-        <Typography variant="h5" sx={{ fontWeight: 900, mb: 0.5, textAlign: 'center' }}>
-          Iniciar Sesión
-        </Typography>
-        <Typography variant="body2" sx={{ opacity: 0.75, textAlign: 'center', mb: 3 }}>
-          Acceso al sistema de almacén
-        </Typography>
+    <Box sx={ps.authBackground}>
+      <Paper elevation={0} sx={ps.authCard}>
+        <Box sx={{ textAlign: 'center', mb: 3 }}>
+          <Box
+            sx={{
+              width: 56,
+              height: 56,
+              borderRadius: 3,
+              bgcolor: 'primary.main',
+              display: 'grid',
+              placeItems: 'center',
+              mx: 'auto',
+              mb: 2,
+              boxShadow: '0 4px 14px rgba(21,101,192,.25)',
+            }}
+          >
+            <Typography sx={{ fontWeight: 800, fontSize: 20, color: 'white' }}>MT</Typography>
+          </Box>
+
+          <Typography variant="h5" sx={{ fontWeight: 800, color: 'text.primary' }}>
+            Iniciar Sesion
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+            Acceso al sistema de almacen
+          </Typography>
+        </Box>
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
         <Box component="form" onSubmit={onSubmit}>
           <Stack spacing={2}>
             <TextField
-              sx={tfSx}
-              label="Número de Empleado"
+              sx={ps.authInput}
+              label="Numero de Empleado"
               value={employeeNumber}
               onChange={(e) => setEmployeeNumber(e.target.value)}
               autoComplete="off"
+              fullWidth
             />
             <TextField
-              sx={tfSx}
-              label="Contraseña"
+              sx={ps.authInput}
+              label="Contrasena"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
+              fullWidth
             />
 
-            <Button type="submit" variant="contained" size="large" sx={{ py: 1.25 }} disabled={loading}>
+            <Button
+              type="submit"
+              variant="contained"
+              size="large"
+              fullWidth
+              sx={{ py: 1.3 }}
+              disabled={loading}
+            >
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>
 
@@ -109,10 +104,10 @@ export default function LoginPage() {
                 component="button"
                 type="button"
                 underline="hover"
-                sx={{ fontWeight: 700, opacity: 0.85 }}
+                sx={{ fontWeight: 600, color: 'primary.main' }}
                 onClick={() => nav('/forgot-password')}
               >
-                ¿Olvidaste tu contraseña?
+                Olvidaste tu contrasena?
               </Link>
             </Box>
           </Stack>

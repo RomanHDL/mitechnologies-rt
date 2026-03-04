@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/auth'
 import { api } from '../lib/api'
-import { useTheme } from '@mui/material/styles'
+import { usePageStyles } from '../ui/pageStyles'
 
 import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
@@ -186,10 +186,9 @@ function daysSince(dt) {
 export default function InventoryPage() {
   const { token, user } = useAuth()
   const nav = useNavigate()
-  const theme = useTheme()
-  const isDark = theme.palette.mode === 'dark'
+  const ps = usePageStyles()
 
-  // ✅ lo tuyo
+  // lo tuyo
   const [q, setQ] = useState('')
   const [rows, setRows] = useState([])
 
@@ -217,7 +216,7 @@ export default function InventoryPage() {
   // feedback copy
   const [snack, setSnack] = useState('')
 
-  // ✅ NUEVO: historial movimientos (por pallet o por SKU)
+  // NUEVO: historial movimientos (por pallet o por SKU)
   const [movOpen, setMovOpen] = useState(false)
   const [movLoading, setMovLoading] = useState(false)
   const [movErr, setMovErr] = useState('')
@@ -225,7 +224,7 @@ export default function InventoryPage() {
   const [movMode, setMovMode] = useState('PALLET') // PALLET | SKU
   const [movSku, setMovSku] = useState('')
 
-  // ✅ NUEVO: alertas reales "sin movimiento"
+  // NUEVO: alertas reales "sin movimiento"
   const [noMoveDays, setNoMoveDays] = useState(() => Number(localStorage.getItem('inv_nomove_days') || '30'))
   const [noMoveLoading, setNoMoveLoading] = useState(false)
   const [noMoveErr, setNoMoveErr] = useState('')
@@ -237,7 +236,7 @@ export default function InventoryPage() {
   const load = async () => {
     setLoading(true)
     try {
-      const res = await client.get('/api/pallets', { params: { q } }) // ✅ tu query sigue igual
+      const res = await client.get('/api/pallets', { params: { q } }) // tu query sigue igual
       setRows(Array.isArray(res.data) ? res.data : [])
       setLastUpdatedAt(new Date())
     } finally {
@@ -246,7 +245,7 @@ export default function InventoryPage() {
   }
 
   useEffect(() => {
-    // ✅ mantiene tu comportamiento: recarga cuando q cambia
+    // mantiene tu comportamiento: recarga cuando q cambia
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, q])
@@ -392,7 +391,7 @@ export default function InventoryPage() {
   const copyText = async (text) => {
     try {
       await navigator.clipboard.writeText(String(text || ''))
-      setSnack('Copiado ✅')
+      setSnack('Copiado')
     } catch {
       setSnack('No se pudo copiar')
     }
@@ -420,7 +419,7 @@ export default function InventoryPage() {
 
   const canAdmin = ['ADMIN', 'SUPERVISOR'].includes(user?.role)
 
-  // ✅ NUEVO: cargar no-move real
+  // NUEVO: cargar no-move real
   const loadNoMove = async (days = noMoveDays) => {
     setNoMoveLoading(true)
     setNoMoveErr('')
@@ -428,14 +427,14 @@ export default function InventoryPage() {
       const res = await client.get('/api/movements/no-move', { params: { days, limit: 500 } })
       setNoMoveList(Array.isArray(res.data) ? res.data : [])
     } catch (e) {
-      setNoMoveErr(e?.response?.data?.message || e?.message || 'Error cargando “sin movimiento”')
+      setNoMoveErr(e?.response?.data?.message || e?.message || 'Error cargando "sin movimiento"')
       setNoMoveList([])
     } finally {
       setNoMoveLoading(false)
     }
   }
 
-  // ✅ NUEVO: inicializa “no move” al entrar (modo seguro: si endpoint no existe, no rompe)
+  // NUEVO: inicializa "no move" al entrar (modo seguro: si endpoint no existe, no rompe)
   useEffect(() => {
     loadNoMove(noMoveDays)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -445,7 +444,7 @@ export default function InventoryPage() {
     localStorage.setItem('inv_nomove_days', String(noMoveDays || 30))
   }, [noMoveDays])
 
-  // ✅ NUEVO: abrir movimientos por pallet
+  // NUEVO: abrir movimientos por pallet
   const openMovementsForPallet = async (pallet) => {
     if (!pallet?._id) return
     setMovMode('PALLET')
@@ -464,7 +463,7 @@ export default function InventoryPage() {
     }
   }
 
-  // ✅ NUEVO: buscar movimientos por SKU
+  // NUEVO: buscar movimientos por SKU
   const searchMovementsBySku = async () => {
     const sku = safeUpper(movSku)
     if (!sku) return
@@ -483,7 +482,7 @@ export default function InventoryPage() {
     }
   }
 
-  // ✅ NUEVO: abrir en Racks (navegar)
+  // NUEVO: abrir en Racks (navegar)
   const openInRacks = (locCode) => {
     const rack = getRackFromLocationCode(locCode)
     if (!rack) return
@@ -495,10 +494,10 @@ export default function InventoryPage() {
       {/* HEADER PRO */}
       <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 2, mb: 2 }}>
         <Box>
-          <Typography variant="h6" sx={{ fontWeight: 900, letterSpacing: -0.2 }}>
+          <Typography variant="h6" sx={ps.pageTitle}>
             Inventario
           </Typography>
-          <Typography variant="body2" sx={{ opacity: 0.75, fontWeight: 700 }}>
+          <Typography variant="body2" sx={ps.pageSubtitle}>
             Centro de Inventario · Última actualización: <b>{lastUpdatedAt ? lastUpdatedAt.toLocaleString() : '—'}</b>
           </Typography>
         </Box>
@@ -507,31 +506,17 @@ export default function InventoryPage() {
           <FormControlLabel
             sx={{ mr: 0.5, userSelect: 'none' }}
             control={<Switch checked={operatorMode} onChange={(e) => setOperatorMode(e.target.checked)} />}
-            label={<Typography sx={{ fontWeight: 900, fontSize: 13 }}>Modo operador</Typography>}
+            label={<Typography sx={{ fontWeight: 900, fontSize: 13, color: 'text.primary' }}>Modo operador</Typography>}
           />
 
           <Tooltip title="Recargar">
-            <IconButton
-              onClick={load}
-              sx={{
-                bgcolor: isDark ? 'rgba(255,255,255,.07)' : 'rgba(21,101,192,.08)',
-                border: isDark ? '1px solid rgba(255,255,255,.12)' : '1px solid rgba(21,101,192,.20)',
-                borderRadius: 2,
-              }}
-            >
+            <IconButton onClick={load} sx={ps.actionBtn('primary')}>
               <RefreshIcon color="primary" />
             </IconButton>
           </Tooltip>
 
           <Tooltip title="Exportar CSV (filtrado)">
-            <IconButton
-              onClick={exportFilteredCSV}
-              sx={{
-                bgcolor: isDark ? 'rgba(255,255,255,.07)' : 'rgba(21,101,192,.08)',
-                border: isDark ? '1px solid rgba(255,255,255,.12)' : '1px solid rgba(21,101,192,.20)',
-                borderRadius: 2,
-              }}
-            >
+            <IconButton onClick={exportFilteredCSV} sx={ps.actionBtn('primary')}>
               <DownloadIcon color="primary" />
             </IconButton>
           </Tooltip>
@@ -559,7 +544,7 @@ export default function InventoryPage() {
       )}
 
       {/* BUSCADOR + FILTROS */}
-      <Paper elevation={0} sx={{ p: 2, borderRadius: 3, mb: 2 }}>
+      <Paper elevation={0} sx={{ ...ps.card, p: 2, mb: 2 }}>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'stretch', md: 'center' }}>
           <TextField
             size="small"
@@ -567,7 +552,7 @@ export default function InventoryPage() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && applySmart()}
-            sx={{ flex: 1 }}
+            sx={{ flex: 1, ...ps.inputSx }}
             InputProps={{
               startAdornment: <SearchIcon sx={{ opacity: 0.7, mr: 1 }} />
             }}
@@ -589,11 +574,11 @@ export default function InventoryPage() {
         {/* hint */}
         {smartHint && (
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.25 }} flexWrap="wrap" useFlexGap>
-            <Chip size="small" label={`${smartHint.label}: ${smartHint.value}`} sx={{ fontWeight: 900 }} />
-            {!!statusFilter && <Chip size="small" label={`Filtro estado: ${statusUI(statusFilter).label}`} sx={{ fontWeight: 900 }} />}
-            {!!areaFilter && <Chip size="small" label={`Área: ${areaFilter}`} sx={{ fontWeight: 900 }} />}
-            {!!rackFilter && <Chip size="small" label={`Rack: ${rackFilter}`} sx={{ fontWeight: 900 }} />}
-            {!!lotFilter && <Chip size="small" label={`Lote: ${lotFilter}`} sx={{ fontWeight: 900 }} />}
+            <Chip size="small" label={`${smartHint.label}: ${smartHint.value}`} sx={{ ...ps.metricChip('info'), fontWeight: 900 }} />
+            {!!statusFilter && <Chip size="small" label={`Filtro estado: ${statusUI(statusFilter).label}`} sx={{ ...ps.metricChip('warn'), fontWeight: 900 }} />}
+            {!!areaFilter && <Chip size="small" label={`Área: ${areaFilter}`} sx={{ ...ps.metricChip('default'), fontWeight: 900 }} />}
+            {!!rackFilter && <Chip size="small" label={`Rack: ${rackFilter}`} sx={{ ...ps.metricChip('default'), fontWeight: 900 }} />}
+            {!!lotFilter && <Chip size="small" label={`Lote: ${lotFilter}`} sx={{ ...ps.metricChip('default'), fontWeight: 900 }} />}
             {(statusFilter || areaFilter || rackFilter || lotFilter || sortBy !== 'RECENT') && (
               <Button size="small" startIcon={<CloseIcon />} onClick={clearFilters}>
                 Limpiar filtros
@@ -611,7 +596,7 @@ export default function InventoryPage() {
             label="Estado"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            sx={{ minWidth: 180 }}
+            sx={{ minWidth: 180, ...ps.inputSx }}
           >
             <MenuItem value="">Todos</MenuItem>
             <MenuItem value="DISPONIBLE">Disponible</MenuItem>
@@ -625,7 +610,7 @@ export default function InventoryPage() {
             label="Área"
             value={areaFilter}
             onChange={(e) => setAreaFilter(e.target.value)}
-            sx={{ minWidth: 160 }}
+            sx={{ minWidth: 160, ...ps.inputSx }}
           >
             <MenuItem value="">Todas</MenuItem>
             <MenuItem value="A1">A1</MenuItem>
@@ -641,7 +626,7 @@ export default function InventoryPage() {
             label="Rack / BIN"
             value={rackFilter}
             onChange={(e) => setRackFilter(normalizeRackCode(e.target.value))}
-            sx={{ minWidth: 170 }}
+            sx={{ minWidth: 170, ...ps.inputSx }}
           />
 
           <TextField
@@ -649,7 +634,7 @@ export default function InventoryPage() {
             label="SKU"
             value={lotFilter}
             onChange={(e) => setLotFilter(e.target.value)}
-            sx={{ minWidth: 160 }}
+            sx={{ minWidth: 160, ...ps.inputSx }}
           />
 
           <TextField
@@ -658,12 +643,12 @@ export default function InventoryPage() {
             label="Ordenar"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            sx={{ minWidth: 190 }}
+            sx={{ minWidth: 190, ...ps.inputSx }}
           >
             <MenuItem value="RECENT">Más reciente</MenuItem>
-            <MenuItem value="QTY_DESC">Cantidad (mayor→menor)</MenuItem>
-            <MenuItem value="QTY_ASC">Cantidad (menor→mayor)</MenuItem>
-            <MenuItem value="CODE">Código (A→Z)</MenuItem>
+            <MenuItem value="QTY_DESC">Cantidad (mayor-menor)</MenuItem>
+            <MenuItem value="QTY_ASC">Cantidad (menor-mayor)</MenuItem>
+            <MenuItem value="CODE">Código (A-Z)</MenuItem>
           </TextField>
 
           <Box sx={{ flex: 1 }} />
@@ -673,7 +658,7 @@ export default function InventoryPage() {
           </Button>
         </Stack>
 
-        {/* ✅ NUEVO: barra rápida Movimientos por SKU + NoMove */}
+        {/* barra rápida Movimientos por SKU + NoMove */}
         <Divider sx={{ my: 2 }} />
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', md: 'center' }}>
           <TextField
@@ -682,7 +667,7 @@ export default function InventoryPage() {
             value={movSku}
             onChange={(e) => setMovSku(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && searchMovementsBySku()}
-            sx={{ minWidth: 260 }}
+            sx={{ minWidth: 260, ...ps.inputSx }}
           />
           <Button variant="outlined" startIcon={<HistoryIcon />} onClick={searchMovementsBySku}>
             Ver movimientos
@@ -696,7 +681,7 @@ export default function InventoryPage() {
             label="No mov. (días)"
             value={noMoveDays}
             onChange={(e) => setNoMoveDays(Number(e.target.value || 30))}
-            sx={{ width: 160 }}
+            sx={{ width: 160, ...ps.inputSx }}
           />
           <Button
             variant="outlined"
@@ -710,7 +695,7 @@ export default function InventoryPage() {
 
         {noMoveErr && (
           <Alert severity="warning" sx={{ mt: 1.5, borderRadius: 3 }}>
-            No se pudo cargar “sin movimiento”: {noMoveErr}
+            No se pudo cargar "sin movimiento": {noMoveErr}
           </Alert>
         )}
       </Paper>
@@ -718,6 +703,7 @@ export default function InventoryPage() {
       {/* KPIs CLICKEABLES */}
       <GridKpis
         resumen={resumen}
+        ps={ps}
         onAll={() => setStatusFilter('')}
         onDisponible={() => setStatusFilter('DISPONIBLE')}
         onBajo={() => setStatusFilter('BAJO')}
@@ -726,32 +712,32 @@ export default function InventoryPage() {
 
       {/* VISTA MAPA */}
       {view === 'MAP' ? (
-        <Paper elevation={0} sx={{ p: 2, borderRadius: 3, mb: 2 }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between">
-            <Typography variant="subtitle2" sx={{ fontWeight: 900 }}>
+        <Paper elevation={0} sx={{ ...ps.card, p: 2, mb: 2 }}>
+          <Box sx={ps.cardHeader}>
+            <Typography variant="subtitle2" sx={ps.cardHeaderTitle}>
               Vista Ubicaciones (preview)
             </Typography>
-            <Typography variant="caption" sx={{ opacity: 0.7, fontWeight: 800 }}>
+            <Typography variant="caption" sx={ps.cardHeaderSubtitle}>
               *Modo seguro: agrupa por rack con tarimas encontradas
             </Typography>
-          </Stack>
+          </Box>
 
           <Divider sx={{ my: 1.5 }} />
 
-          <Stack spacing={2}>
+          <Stack spacing={2} sx={{ px: 2, pb: 2 }}>
             {mapModel.length === 0 && (
-              <Typography variant="body2" sx={{ opacity: 0.75 }}>
+              <Typography variant="body2" sx={ps.emptyText}>
                 No hay datos para mostrar en mapa todavía.
               </Typography>
             )}
 
             {mapModel.map(group => (
-              <Paper key={group.rack} variant="outlined" sx={{ p: 1.6, borderRadius: 3 }}>
+              <Paper key={group.rack} variant="outlined" sx={{ ...ps.card, p: 1.6 }}>
                 <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-                  <Typography sx={{ fontWeight: 900, fontFamily: 'monospace' }}>
+                  <Typography sx={{ fontWeight: 900, fontFamily: 'monospace', color: 'text.primary' }}>
                     Rack: {group.rack}
                   </Typography>
-                  <Chip size="small" label={`${group.count} tarimas`} />
+                  <Chip size="small" label={`${group.count} tarimas`} sx={ps.metricChip('default')} />
                 </Stack>
 
                 <Box sx={{
@@ -776,16 +762,16 @@ export default function InventoryPage() {
                       >
                         <Stack direction="row" spacing={1} alignItems="center">
                           {ui.icon}
-                          <Typography sx={{ fontWeight: 900, fontFamily: 'monospace', flex: 1 }}>
+                          <Typography sx={{ fontWeight: 900, fontFamily: 'monospace', flex: 1, color: 'text.primary' }}>
                             {p.code}
                           </Typography>
                         </Stack>
-                        <Typography variant="caption" sx={{ opacity: 0.75, display: 'block' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
                           {p._locCode || '—'}
                         </Typography>
                         <Stack direction="row" spacing={1} sx={{ mt: 0.75 }} alignItems="center">
                           <Chip size="small" label={ui.label} sx={ui.chipSx} />
-                          <Chip size="small" label={`Qty: ${p._qty}`} />
+                          <Chip size="small" label={`Qty: ${p._qty}`} sx={ps.metricChip('default')} />
                         </Stack>
                       </Paper>
                     )
@@ -793,7 +779,7 @@ export default function InventoryPage() {
                 </Box>
 
                 {group.items.length > 12 && (
-                  <Typography variant="caption" sx={{ opacity: 0.7, display: 'block', mt: 1 }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 1 }}>
                     Mostrando 12 de {group.items.length} tarimas en este rack.
                   </Typography>
                 )}
@@ -805,17 +791,17 @@ export default function InventoryPage() {
 
       {/* TABLA */}
       {view === 'TABLE' ? (
-        <Paper elevation={1} sx={{ p: 0, borderRadius: 3, overflow: 'auto' }}>
+        <Paper elevation={1} sx={{ ...ps.card, p: 0, overflow: 'auto' }}>
           <Table size="small" sx={{ minWidth: 1050 }}>
             <TableHead>
-              <TableRow sx={{ background: '#101c2b', position: 'sticky', top: 0, zIndex: 1 }}>
-                <TableCell sx={{ color: '#fff', fontWeight: 900 }}>Código</TableCell>
-                <TableCell sx={{ color: '#fff', fontWeight: 900 }}>Ubicación</TableCell>
-                <TableCell sx={{ color: '#fff', fontWeight: 900 }}>Estatus</TableCell>
-                <TableCell sx={{ color: '#fff', fontWeight: 900 }}>Cantidad</TableCell>
-                <TableCell sx={{ color: '#fff', fontWeight: 900 }}>Items</TableCell>
-                <TableCell sx={{ color: '#fff', fontWeight: 900 }}>Lote</TableCell>
-                <TableCell sx={{ color: '#fff', fontWeight: 900, textAlign: 'center' }}>Acción</TableCell>
+              <TableRow sx={{ ...ps.tableHeaderRow, position: 'sticky', top: 0, zIndex: 1 }}>
+                <TableCell>Código</TableCell>
+                <TableCell>Ubicación</TableCell>
+                <TableCell>Estatus</TableCell>
+                <TableCell>Cantidad</TableCell>
+                <TableCell>Items</TableCell>
+                <TableCell>Lote</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>Acción</TableCell>
               </TableRow>
             </TableHead>
 
@@ -828,33 +814,30 @@ export default function InventoryPage() {
                 return (
                   <TableRow
                     key={p._id}
-                    sx={{
-                      background: idx % 2 === 0 ? '#19233a' : '#101c2b',
-                      '&:hover': { background: '#22304d' }
-                    }}
+                    sx={ps.tableRow(idx)}
                   >
-                    <TableCell sx={{ fontFamily: 'monospace', color: '#fff', fontWeight: 900 }}>
+                    <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace', fontWeight: 900 }}>
                       <Stack direction="row" spacing={1} alignItems="center">
                         <span>{p.code}</span>
                         <Tooltip title="Copiar código">
-                          <IconButton size="small" sx={{ color: '#fff' }} onClick={() => copyText(p.code)}>
+                          <IconButton size="small" sx={ps.actionBtn('primary')} onClick={() => copyText(p.code)}>
                             <ContentCopyIcon fontSize="inherit" />
                           </IconButton>
                         </Tooltip>
                       </Stack>
-                      <Typography variant="caption" sx={{ display: 'block', opacity: 0.75 }}>
+                      <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
                         Área: <b>{p._area || '—'}</b> · Rack: <b>{p._rack || '—'}</b>
                       </Typography>
                     </TableCell>
 
-                    <TableCell sx={{ color: '#fff' }}>
+                    <TableCell sx={ps.cellText}>
                       <Stack direction="row" spacing={1} alignItems="center">
                         <span style={{ fontFamily: loc !== '—' ? 'monospace' : undefined }}>{loc}</span>
 
                         {loc !== '—' && (
                           <>
                             <Tooltip title="Copiar ubicación">
-                              <IconButton size="small" sx={{ color: '#fff' }} onClick={() => copyText(loc)}>
+                              <IconButton size="small" sx={ps.actionBtn('primary')} onClick={() => copyText(loc)}>
                                 <ContentCopyIcon fontSize="inherit" />
                               </IconButton>
                             </Tooltip>
@@ -862,7 +845,7 @@ export default function InventoryPage() {
                             <Tooltip title="Abrir en Racks">
                               <IconButton
                                 size="small"
-                                sx={{ color: '#fff' }}
+                                sx={ps.actionBtn('primary')}
                                 onClick={() => openInRacks(loc)}
                               >
                                 <RoomIcon fontSize="inherit" />
@@ -873,41 +856,41 @@ export default function InventoryPage() {
                       </Stack>
                     </TableCell>
 
-                    <TableCell sx={{ color: '#fff' }}>
+                    <TableCell sx={ps.cellText}>
                       <Tooltip title={ui.label} arrow>{ui.icon}</Tooltip>
-                      <Typography variant="caption" sx={{ ml: 1, color: '#fff', fontWeight: 900 }}>
+                      <Typography variant="caption" sx={{ ml: 1, color: 'text.primary', fontWeight: 900 }}>
                         {ui.label}
                       </Typography>
                     </TableCell>
 
-                    <TableCell sx={{ color: '#fff', fontWeight: 900 }}>
+                    <TableCell sx={{ ...ps.cellText, fontWeight: 900 }}>
                       {p._qty}
                     </TableCell>
 
-                    <TableCell sx={{ color: '#fff', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <TableCell sx={{ ...ps.cellText, maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       <Tooltip title={itemsText} arrow>
-                        <span>{itemsText.length > 30 ? itemsText.slice(0, 30) + '…' : itemsText}</span>
+                        <span>{itemsText.length > 30 ? itemsText.slice(0, 30) + '...' : itemsText}</span>
                       </Tooltip>
                     </TableCell>
 
-                    <TableCell sx={{ color: '#fff' }}>{p._lot || '—'}</TableCell>
+                    <TableCell sx={ps.cellText}>{p._lot || '—'}</TableCell>
 
                     <TableCell sx={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                       <Tooltip title="Ver detalle">
-                        <IconButton size="small" sx={{ color: '#fff' }} onClick={() => openDetail(p)}>
+                        <IconButton size="small" sx={ps.actionBtn('primary')} onClick={() => openDetail(p)}>
                           <SearchIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
 
                       <Tooltip title="Movimientos (tarima)">
-                        <IconButton size="small" sx={{ color: '#fff' }} onClick={() => openMovementsForPallet(p)}>
+                        <IconButton size="small" sx={ps.actionBtn('primary')} onClick={() => openMovementsForPallet(p)}>
                           <HistoryIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
 
                       <Tooltip title="Editar (UI)">
                         <span>
-                          <IconButton size="small" sx={{ color: '#fff' }} disabled={!canAdmin}>
+                          <IconButton size="small" sx={ps.actionBtn('warning')} disabled={!canAdmin}>
                             <EditIcon fontSize="small" />
                           </IconButton>
                         </span>
@@ -915,7 +898,7 @@ export default function InventoryPage() {
 
                       <Tooltip title="Eliminar (UI)">
                         <span>
-                          <IconButton size="small" sx={{ color: '#fff' }} disabled={!canAdmin}>
+                          <IconButton size="small" sx={ps.actionBtn('error')} disabled={!canAdmin}>
                             <DeleteIcon fontSize="small" />
                           </IconButton>
                         </span>
@@ -927,7 +910,7 @@ export default function InventoryPage() {
 
               {!filtered.length && (
                 <TableRow>
-                  <TableCell colSpan={7} sx={{ color: '#fff', textAlign: 'center', py: 4, opacity: 0.8 }}>
+                  <TableCell colSpan={7} sx={ps.emptyText}>
                     No hay resultados con los filtros actuales.
                   </TableCell>
                 </TableRow>
@@ -939,14 +922,14 @@ export default function InventoryPage() {
 
       {/* MODAL DETALLE */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 900 }}>
+        <DialogTitle sx={ps.cardHeaderTitle}>
           Detalle de tarima
         </DialogTitle>
         <DialogContent>
           {!selected ? null : (
             <Box>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                <Typography sx={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 18 }}>
+                <Typography sx={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 18, color: 'text.primary' }}>
                   {selected.code}
                 </Typography>
                 <Button size="small" startIcon={<ContentCopyIcon />} onClick={() => copyText(selected.code)}>
@@ -968,23 +951,23 @@ export default function InventoryPage() {
 
               <Divider sx={{ my: 2 }} />
 
-              <Typography sx={{ fontWeight: 900, mb: 1 }}>Items</Typography>
+              <Typography sx={{ fontWeight: 900, mb: 1, color: 'text.primary' }}>Items</Typography>
               <Paper variant="outlined" sx={{ p: 1.2, borderRadius: 2 }}>
                 {(selected.items || []).length ? (
                   <Stack spacing={1}>
                     {(selected.items || []).map((it, i) => (
                       <Stack key={`${it.sku}-${i}`} direction="row" justifyContent="space-between" alignItems="center">
-                        <Typography sx={{ fontFamily: 'monospace', fontWeight: 900 }}>{it.sku}</Typography>
+                        <Typography sx={{ fontFamily: 'monospace', fontWeight: 900, color: 'text.primary' }}>{it.sku}</Typography>
                         <Chip size="small" label={`Qty: ${it.qty || 0}`} />
                       </Stack>
                     ))}
                   </Stack>
                 ) : (
-                  <Typography variant="body2" sx={{ opacity: 0.75 }}>Sin items</Typography>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>Sin items</Typography>
                 )}
               </Paper>
 
-              <Typography variant="caption" sx={{ opacity: 0.7, display: 'block', mt: 1.5 }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 1.5 }}>
                 *Este detalle usa tu /api/pallets y el historial usa /api/pallets/:id/movements.
               </Typography>
             </Box>
@@ -995,9 +978,9 @@ export default function InventoryPage() {
         </DialogActions>
       </Dialog>
 
-      {/* ✅ MODAL MOVIMIENTOS */}
+      {/* MODAL MOVIMIENTOS */}
       <Dialog open={movOpen} onClose={() => setMovOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ fontWeight: 900 }}>
+        <DialogTitle sx={ps.cardHeaderTitle}>
           Movimientos {movMode === 'SKU' ? `· SKU ${safeUpper(movSku)}` : ''}
         </DialogTitle>
         <DialogContent>
@@ -1010,25 +993,25 @@ export default function InventoryPage() {
           {movLoading ? (
             <Stack direction="row" spacing={1.5} alignItems="center" sx={{ py: 2 }}>
               <CircularProgress size={18} />
-              <Typography sx={{ fontWeight: 800, opacity: 0.8 }}>Cargando movimientos...</Typography>
+              <Typography sx={{ fontWeight: 800, color: 'text.secondary' }}>Cargando movimientos...</Typography>
             </Stack>
           ) : (
             <>
               {!movRows.length ? (
-                <Typography sx={{ opacity: 0.75 }}>
+                <Typography sx={{ color: 'text.secondary' }}>
                   No hay movimientos para mostrar.
                 </Typography>
               ) : (
-                <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'auto' }}>
+                <Paper variant="outlined" sx={{ ...ps.card, overflow: 'auto' }}>
                   <Table size="small" sx={{ minWidth: 900 }}>
                     <TableHead>
-                      <TableRow sx={{ background: 'rgba(15,23,42,0.35)' }}>
-                        <TableCell sx={{ fontWeight: 900 }}>Fecha</TableCell>
-                        <TableCell sx={{ fontWeight: 900 }}>Tipo</TableCell>
-                        <TableCell sx={{ fontWeight: 900 }}>Tarima</TableCell>
-                        <TableCell sx={{ fontWeight: 900 }}>De</TableCell>
-                        <TableCell sx={{ fontWeight: 900 }}>A</TableCell>
-                        <TableCell sx={{ fontWeight: 900 }}>Nota</TableCell>
+                      <TableRow sx={ps.tableHeaderRow}>
+                        <TableCell>Fecha</TableCell>
+                        <TableCell>Tipo</TableCell>
+                        <TableCell>Tarima</TableCell>
+                        <TableCell>De</TableCell>
+                        <TableCell>A</TableCell>
+                        <TableCell>Nota</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -1036,43 +1019,43 @@ export default function InventoryPage() {
                         const from = m?.fromLocation?.code || (m?.fromLocation ? `${m.fromLocation.area}-${m.fromLocation.level}${m.fromLocation.position}` : '—')
                         const to = m?.toLocation?.code || (m?.toLocation ? `${m.toLocation.area}-${m.toLocation.level}${m.toLocation.position}` : '—')
                         return (
-                          <TableRow key={m.id || `${m.type}-${m.createdAt}-${i}`}>
-                            <TableCell sx={{ fontFamily: 'monospace' }}>{formatDateTime(m.createdAt)}</TableCell>
-                            <TableCell>
-                              <Chip size="small" label={m.type || '—'} sx={{ fontWeight: 900 }} />
+                          <TableRow key={m.id || `${m.type}-${m.createdAt}-${i}`} sx={ps.tableRow(i)}>
+                            <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace' }}>{formatDateTime(m.createdAt)}</TableCell>
+                            <TableCell sx={ps.cellText}>
+                              <Chip size="small" label={m.type || '—'} sx={{ ...ps.metricChip('info'), fontWeight: 900 }} />
                             </TableCell>
-                            <TableCell sx={{ fontFamily: 'monospace', fontWeight: 900 }}>
+                            <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace', fontWeight: 900 }}>
                               {m?.pallet?.code || '—'}
                               {m?.pallet?.code && (
                                 <Tooltip title="Copiar código tarima">
-                                  <IconButton size="small" onClick={() => copyText(m.pallet.code)}>
+                                  <IconButton size="small" sx={ps.actionBtn('primary')} onClick={() => copyText(m.pallet.code)}>
                                     <ContentCopyIcon fontSize="inherit" />
                                   </IconButton>
                                 </Tooltip>
                               )}
                             </TableCell>
-                            <TableCell sx={{ fontFamily: from !== '—' ? 'monospace' : undefined }}>
+                            <TableCell sx={{ ...ps.cellText, fontFamily: from !== '—' ? 'monospace' : undefined }}>
                               <Stack direction="row" spacing={1} alignItems="center">
                                 <span>{from}</span>
                                 {from !== '—' && from.includes('-F') && (
                                   <Tooltip title="Abrir en Racks">
-                                    <IconButton size="small" onClick={() => openInRacks(from)}><RoomIcon fontSize="inherit" /></IconButton>
+                                    <IconButton size="small" sx={ps.actionBtn('primary')} onClick={() => openInRacks(from)}><RoomIcon fontSize="inherit" /></IconButton>
                                   </Tooltip>
                                 )}
                               </Stack>
                             </TableCell>
-                            <TableCell sx={{ fontFamily: to !== '—' ? 'monospace' : undefined }}>
+                            <TableCell sx={{ ...ps.cellText, fontFamily: to !== '—' ? 'monospace' : undefined }}>
                               <Stack direction="row" spacing={1} alignItems="center">
                                 <span>{to}</span>
                                 {to !== '—' && to.includes('-F') && (
                                   <Tooltip title="Abrir en Racks">
-                                    <IconButton size="small" onClick={() => openInRacks(to)}><RoomIcon fontSize="inherit" /></IconButton>
+                                    <IconButton size="small" sx={ps.actionBtn('primary')} onClick={() => openInRacks(to)}><RoomIcon fontSize="inherit" /></IconButton>
                                   </Tooltip>
                                 )}
                               </Stack>
                             </TableCell>
-                            <TableCell sx={{ maxWidth: 380 }}>
-                              <Typography variant="body2" sx={{ opacity: 0.85 }}>
+                            <TableCell sx={{ ...ps.cellText, maxWidth: 380 }}>
+                              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                                 {m.note || '—'}
                               </Typography>
                             </TableCell>
@@ -1111,41 +1094,41 @@ export default function InventoryPage() {
         </DialogActions>
       </Dialog>
 
-      {/* ✅ MODAL NO MOVE */}
+      {/* MODAL NO MOVE */}
       <Dialog open={noMoveOpen} onClose={() => setNoMoveOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ fontWeight: 900 }}>
+        <DialogTitle sx={ps.cardHeaderTitle}>
           Sin movimiento · {noMoveDays} días
         </DialogTitle>
         <DialogContent>
           {noMoveLoading ? (
             <Stack direction="row" spacing={1.5} alignItems="center" sx={{ py: 2 }}>
               <CircularProgress size={18} />
-              <Typography sx={{ fontWeight: 800, opacity: 0.8 }}>Cargando...</Typography>
+              <Typography sx={{ fontWeight: 800, color: 'text.secondary' }}>Cargando...</Typography>
             </Stack>
           ) : (
             <>
               {!noMoveList.length ? (
-                <Typography sx={{ opacity: 0.75 }}>
-                  No hay tarimas “sin movimiento” con este criterio.
+                <Typography sx={{ color: 'text.secondary' }}>
+                  No hay tarimas "sin movimiento" con este criterio.
                 </Typography>
               ) : (
-                <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'auto' }}>
+                <Paper variant="outlined" sx={{ ...ps.card, overflow: 'auto' }}>
                   <Table size="small" sx={{ minWidth: 850 }}>
                     <TableHead>
-                      <TableRow sx={{ background: 'rgba(15,23,42,0.35)' }}>
-                        <TableCell sx={{ fontWeight: 900 }}>Tarima</TableCell>
-                        <TableCell sx={{ fontWeight: 900 }}>Último movimiento</TableCell>
-                        <TableCell sx={{ fontWeight: 900 }}>Días</TableCell>
-                        <TableCell sx={{ fontWeight: 900, textAlign: 'center' }}>Acción</TableCell>
+                      <TableRow sx={ps.tableHeaderRow}>
+                        <TableCell>Tarima</TableCell>
+                        <TableCell>Último movimiento</TableCell>
+                        <TableCell>Días</TableCell>
+                        <TableCell sx={{ textAlign: 'center' }}>Acción</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {noMoveList.slice(0, 200).map((x) => (
-                        <TableRow key={x.palletId}>
-                          <TableCell sx={{ fontFamily: 'monospace', fontWeight: 900 }}>{x.palletCode}</TableCell>
-                          <TableCell>{formatDateTime(x.lastMovementAt)}</TableCell>
-                          <TableCell>
-                            <Chip size="small" label={`${x.daysSince ?? '—'} días`} sx={{ fontWeight: 900 }} />
+                      {noMoveList.slice(0, 200).map((x, idx) => (
+                        <TableRow key={x.palletId} sx={ps.tableRow(idx)}>
+                          <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace', fontWeight: 900 }}>{x.palletCode}</TableCell>
+                          <TableCell sx={ps.cellText}>{formatDateTime(x.lastMovementAt)}</TableCell>
+                          <TableCell sx={ps.cellText}>
+                            <Chip size="small" label={`${x.daysSince ?? '—'} días`} sx={{ ...ps.metricChip('warn'), fontWeight: 900 }} />
                           </TableCell>
                           <TableCell sx={{ textAlign: 'center' }}>
                             <Button
@@ -1179,7 +1162,7 @@ export default function InventoryPage() {
                   </Table>
                 </Paper>
               )}
-              <Typography variant="caption" sx={{ opacity: 0.7, display: 'block', mt: 1.5 }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 1.5 }}>
                 *Datos desde <b>/api/movements/no-move</b>.
               </Typography>
             </>
@@ -1207,7 +1190,7 @@ export default function InventoryPage() {
 /**
  * Subcomponentes (mismo archivo para pegar)
  */
-function GridKpis({ resumen, onAll, onDisponible, onBajo, onAgotado }) {
+function GridKpis({ resumen, ps, onAll, onDisponible, onBajo, onAgotado }) {
   return (
     <Box sx={{ mb: 2 }}>
       <Box
@@ -1220,17 +1203,11 @@ function GridKpis({ resumen, onAll, onDisponible, onBajo, onAgotado }) {
         <Paper
           elevation={0}
           onClick={onAll}
-          sx={{
-            p: 2,
-            borderRadius: 3,
-            cursor: 'pointer',
-            transition: 'transform .12s ease',
-            '&:hover': { transform: 'translateY(-1px)' }
-          }}
+          sx={ps.kpiCard('blue')}
         >
-          <Typography variant="subtitle2" sx={{ fontWeight: 900, opacity: 0.82 }}>Total tarimas</Typography>
-          <Typography variant="h4" sx={{ fontWeight: 900 }}>{resumen.total}</Typography>
-          <Typography variant="body2" sx={{ opacity: 0.72 }}>
+          <Typography variant="subtitle2" sx={ps.pageSubtitle}>Total tarimas</Typography>
+          <Typography variant="h4" sx={{ fontWeight: 900, color: 'text.primary' }}>{resumen.total}</Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             SKUs únicos: <b>{resumen.uniqueSkus}</b> · Qty total: <b>{resumen.totalQty}</b>
           </Typography>
         </Paper>
@@ -1238,52 +1215,31 @@ function GridKpis({ resumen, onAll, onDisponible, onBajo, onAgotado }) {
         <Paper
           elevation={0}
           onClick={onDisponible}
-          sx={{
-            p: 2,
-            borderRadius: 3,
-            cursor: 'pointer',
-            border: '1px solid rgba(34,197,94,.22)',
-            transition: 'transform .12s ease',
-            '&:hover': { transform: 'translateY(-1px)' }
-          }}
+          sx={ps.kpiCard('green')}
         >
-          <Typography variant="subtitle2" sx={{ fontWeight: 900, opacity: 0.82 }}>Disponible</Typography>
-          <Typography variant="h4" sx={{ fontWeight: 900 }}>{resumen.disponible}</Typography>
-          <Typography variant="body2" sx={{ opacity: 0.72 }}>Pallets con stock estable</Typography>
+          <Typography variant="subtitle2" sx={ps.pageSubtitle}>Disponible</Typography>
+          <Typography variant="h4" sx={{ fontWeight: 900, color: 'text.primary' }}>{resumen.disponible}</Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>Pallets con stock estable</Typography>
         </Paper>
 
         <Paper
           elevation={0}
           onClick={onBajo}
-          sx={{
-            p: 2,
-            borderRadius: 3,
-            cursor: 'pointer',
-            border: '1px solid rgba(245,158,11,.22)',
-            transition: 'transform .12s ease',
-            '&:hover': { transform: 'translateY(-1px)' }
-          }}
+          sx={ps.kpiCard('amber')}
         >
-          <Typography variant="subtitle2" sx={{ fontWeight: 900, opacity: 0.82 }}>Bajo</Typography>
-          <Typography variant="h4" sx={{ fontWeight: 900 }}>{resumen.bajo}</Typography>
-          <Typography variant="body2" sx={{ opacity: 0.72 }}>Requiere reposición</Typography>
+          <Typography variant="subtitle2" sx={ps.pageSubtitle}>Bajo</Typography>
+          <Typography variant="h4" sx={{ fontWeight: 900, color: 'text.primary' }}>{resumen.bajo}</Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>Requiere reposición</Typography>
         </Paper>
 
         <Paper
           elevation={0}
           onClick={onAgotado}
-          sx={{
-            p: 2,
-            borderRadius: 3,
-            cursor: 'pointer',
-            border: '1px solid rgba(239,68,68,.22)',
-            transition: 'transform .12s ease',
-            '&:hover': { transform: 'translateY(-1px)' }
-          }}
+          sx={ps.kpiCard('red')}
         >
-          <Typography variant="subtitle2" sx={{ fontWeight: 900, opacity: 0.82 }}>Agotado</Typography>
-          <Typography variant="h4" sx={{ fontWeight: 900 }}>{resumen.agotado}</Typography>
-          <Typography variant="body2" sx={{ opacity: 0.72 }}>Sin stock</Typography>
+          <Typography variant="subtitle2" sx={ps.pageSubtitle}>Agotado</Typography>
+          <Typography variant="h4" sx={{ fontWeight: 900, color: 'text.primary' }}>{resumen.agotado}</Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>Sin stock</Typography>
         </Paper>
       </Box>
     </Box>
@@ -1293,9 +1249,9 @@ function GridKpis({ resumen, onAll, onDisponible, onBajo, onAgotado }) {
 function InfoRow({ label, value, onCopy }) {
   return (
     <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-      <Typography sx={{ opacity: 0.75, fontWeight: 800 }}>{label}</Typography>
+      <Typography sx={{ color: 'text.secondary', fontWeight: 800 }}>{label}</Typography>
       <Stack direction="row" spacing={1} alignItems="center">
-        <Typography sx={{ fontWeight: 900, fontFamily: label === 'Ubicación' ? 'monospace' : 'inherit' }}>{value}</Typography>
+        <Typography sx={{ fontWeight: 900, fontFamily: label === 'Ubicación' ? 'monospace' : 'inherit', color: 'text.primary' }}>{value}</Typography>
         {onCopy && (
           <Tooltip title="Copiar">
             <IconButton size="small" onClick={onCopy}>

@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/auth'
 import { apiFetch } from '../services/api'
+import { usePageStyles } from '../ui/pageStyles'
 
 import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
@@ -29,55 +30,25 @@ import BlockIcon from '@mui/icons-material/Block'
 import Inventory2Icon from '@mui/icons-material/Inventory2'
 
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
-import { useTheme } from '@mui/material/styles'
 
-function kpiCard({ title, value, subtitle, children, accent = 'default', onClick, isDark }) {
-  const accentStyles =
-    accent === 'blue'
-      ? { border: '1px solid rgba(59,130,246,.28)', boxShadow: isDark ? '0 18px 45px rgba(59,130,246,.14)' : '0 8px 28px rgba(21,101,192,.12)' }
-      : accent === 'green'
-        ? { border: '1px solid rgba(34,197,94,.25)', boxShadow: isDark ? '0 18px 45px rgba(34,197,94,.12)' : '0 8px 28px rgba(34,197,94,.10)' }
-        : accent === 'red'
-          ? { border: '1px solid rgba(239,68,68,.25)', boxShadow: isDark ? '0 18px 45px rgba(239,68,68,.12)' : '0 8px 28px rgba(239,68,68,.10)' }
-          : accent === 'amber'
-            ? { border: '1px solid rgba(245,158,11,.25)', boxShadow: isDark ? '0 18px 45px rgba(245,158,11,.12)' : '0 8px 28px rgba(245,158,11,.10)' }
-            : { border: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(21,101,192,0.10)' }
-
+function KpiCard({ title, value, subtitle, children, accent = 'blue', onClick, ps }) {
   return (
-    <Paper
-      elevation={0}
-      onClick={onClick}
-      sx={{
-        p: 2.2,
-        borderRadius: 3,
-        height: '100%',
-        cursor: onClick ? 'pointer' : 'default',
-        transition: 'transform .12s ease, box-shadow .12s ease',
-        '&:hover': onClick ? { transform: 'translateY(-2px)' } : {},
-        ...accentStyles
-      }}
-    >
-      <Typography variant="subtitle2" sx={{ fontWeight: 900, opacity: 0.82 }}>{title}</Typography>
-      <Typography variant="h4" sx={{ fontWeight: 900, mt: 0.5, letterSpacing: -0.5 }}>{value}</Typography>
-      <Typography variant="body2" sx={{ opacity: 0.72, mb: children ? 1 : 0 }}>{subtitle}</Typography>
+    <Paper elevation={0} onClick={onClick} sx={ps.kpiCard(accent)}>
+      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.secondary', fontSize: 12 }}>{title}</Typography>
+      <Typography variant="h4" sx={{ fontWeight: 800, mt: 0.5, letterSpacing: -0.5, color: 'text.primary' }}>{value}</Typography>
+      <Typography variant="body2" sx={{ color: 'text.secondary', mb: children ? 1 : 0 }}>{subtitle}</Typography>
       {children}
     </Paper>
   )
 }
 
-function pill(label, icon, sx = {}, isDark = false) {
+function Pill({ label, icon, ps }) {
   return (
     <Chip
       size="small"
       icon={icon}
       label={label}
-      sx={{
-        bgcolor: isDark ? 'rgba(255,255,255,.07)' : 'rgba(21,101,192,.08)',
-        border: isDark ? '1px solid rgba(255,255,255,.12)' : '1px solid rgba(21,101,192,.20)',
-        color: isDark ? 'rgba(226,234,244,0.95)' : 'rgba(10,37,64,.85)',
-        fontWeight: 900,
-        ...sx
-      }}
+      sx={ps.metricChip('info')}
       variant="outlined"
     />
   )
@@ -86,10 +57,8 @@ function pill(label, icon, sx = {}, isDark = false) {
 export default function DashboardPage() {
   const { token } = useAuth()
   const nav = useNavigate()
-  const theme = useTheme()
-  const isDark = theme.palette.mode === 'dark'
+  const ps = usePageStyles()
 
-  // ✅ No lo quitamos, pero evitamos que falle por “unused”
   useMemo(() => io, [])
 
   const [stats, setStats] = useState({ occupancyPct: 0, occupied: 0, total: 0, entradasHoy: 0, salidasHoy: 0 })
@@ -98,9 +67,7 @@ export default function DashboardPage() {
   const [latest, setLatest] = useState([])
   const [orders, setOrders] = useState([])
   const [err, setErr] = useState('')
-
-  // UI extra (no rompe nada)
-  const [range, setRange] = useState('7D') // HOY | 7D | 30D (visual por ahora)
+  const [range, setRange] = useState('7D')
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null)
 
   const refresh = async () => {
@@ -118,8 +85,8 @@ export default function DashboardPage() {
         return Object.entries(map).map(([name, v]) => ({ name, v }))
       }
       return [
-        { name: 'Lun', v: 3 }, { name: 'Mar', v: 5 }, { name: 'Mié', v: 2 },
-        { name: 'Jue', v: 6 }, { name: 'Vie', v: 4 }, { name: 'Sáb', v: 7 }, { name: 'Dom', v: 5 }
+        { name: 'Lun', v: 3 }, { name: 'Mar', v: 5 }, { name: 'Mie', v: 2 },
+        { name: 'Jue', v: 6 }, { name: 'Vie', v: 4 }, { name: 'Sab', v: 7 }, { name: 'Dom', v: 5 }
       ]
     }
 
@@ -177,432 +144,332 @@ export default function DashboardPage() {
   }, [token])
 
   const occupancyPct = Number(stats.occupancyPct || 0)
-  const blockedCount = Number(stats.bloqueadas || stats.blocked || 0) // por si tu backend lo tiene o no
-  const alertsCount = blockedCount // fallback seguro, luego puedes expandir con reglas reales
+  const blockedCount = Number(stats.bloqueadas || stats.blocked || 0)
+  const alertsCount = blockedCount
 
   const lastUpdatedLabel = lastUpdatedAt
     ? lastUpdatedAt.toLocaleString()
-    : '—'
+    : '---'
 
-  // acciones rápidas (solo navegación, no rompe nada)
   const quickActions = [
     { label: 'Escanear', icon: <QrCodeScannerIcon fontSize="small" />, to: '/scan' },
-    { label: 'Buscar Ubicación', icon: <PlaceIcon fontSize="small" />, to: '/ubicaciones' },
+    { label: 'Buscar Ubicacion', icon: <PlaceIcon fontSize="small" />, to: '/ubicaciones' },
     { label: 'Ver Racks', icon: <GridViewIcon fontSize="small" />, to: '/racks' },
     { label: 'Movimientos', icon: <SwapHorizIcon fontSize="small" />, to: '/movimientos' },
-    { label: 'Órdenes', icon: <AssignmentIcon fontSize="small" />, to: '/ordenes' },
-    { label: 'Producción', icon: <PrecisionManufacturingIcon fontSize="small" />, to: '/produccion' },
+    { label: 'Ordenes', icon: <AssignmentIcon fontSize="small" />, to: '/ordenes' },
+    { label: 'Produccion', icon: <PrecisionManufacturingIcon fontSize="small" />, to: '/produccion' },
   ]
 
   return (
-    <Box>
-      {/* HEADER PRO */}
-      <Box sx={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', gap: 2, mb: 2 }}>
+    <Box sx={ps.page}>
+      {/* Header */}
+      <Box sx={{ display: 'flex', alignItems: { xs: 'flex-start', md: 'flex-end' }, justifyContent: 'space-between', flexDirection: { xs: 'column', md: 'row' }, gap: 1.5, mb: 2.5 }}>
         <Box>
-          <Typography variant="h6" sx={{ fontWeight: 900, letterSpacing: -0.2 }}>
+          <Typography variant="h5" sx={ps.pageTitle}>
             Centro de Operaciones
           </Typography>
-          <Typography variant="body2" sx={{ opacity: 0.75, fontWeight: 700 }}>
-            Estado general del almacén · Última actualización: <b>{lastUpdatedLabel}</b>
+          <Typography variant="body2" sx={ps.pageSubtitle}>
+            Estado general del almacen - Ultima actualizacion: <b>{lastUpdatedLabel}</b>
           </Typography>
         </Box>
 
         <Stack direction="row" spacing={1} alignItems="center">
-          <Stack direction="row" spacing={1} sx={{ display:{ xs:'none', sm:'flex' } }}>
-            <Button
-              size="small"
-              variant={range === 'HOY' ? 'contained' : 'outlined'}
-              onClick={() => setRange('HOY')}
-              sx={{ borderRadius: 2 }}
-            >
-              Hoy
-            </Button>
-            <Button
-              size="small"
-              variant={range === '7D' ? 'contained' : 'outlined'}
-              onClick={() => setRange('7D')}
-              sx={{ borderRadius: 2 }}
-            >
-              7 días
-            </Button>
-            <Button
-              size="small"
-              variant={range === '30D' ? 'contained' : 'outlined'}
-              onClick={() => setRange('30D')}
-              sx={{ borderRadius: 2 }}
-            >
-              30 días
-            </Button>
+          <Stack direction="row" spacing={0.5} sx={{ display: { xs: 'none', sm: 'flex' } }}>
+            {['HOY', '7D', '30D'].map((r) => (
+              <Button
+                key={r}
+                size="small"
+                variant={range === r ? 'contained' : 'outlined'}
+                onClick={() => setRange(r)}
+                sx={{ borderRadius: 2, minWidth: 60 }}
+              >
+                {r === 'HOY' ? 'Hoy' : r === '7D' ? '7 dias' : '30 dias'}
+              </Button>
+            ))}
           </Stack>
 
           <TooltipMUI title="Actualizar">
-            <IconButton
-              onClick={refresh}
-              sx={{
-                bgcolor: isDark ? 'rgba(255,255,255,.07)' : 'rgba(21,101,192,.08)',
-                border: isDark ? '1px solid rgba(255,255,255,.12)' : '1px solid rgba(21,101,192,.20)',
-                borderRadius: 2,
-              }}
-            >
-              <RefreshIcon sx={{ color: isDark ? 'rgba(226,234,244,0.95)' : 'primary.main' }} />
+            <IconButton onClick={refresh} sx={ps.actionBtn('primary')}>
+              <RefreshIcon fontSize="small" />
             </IconButton>
           </TooltipMUI>
         </Stack>
       </Box>
 
-      {err && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          Dashboard cargó con fallas: {err}
-        </Alert>
-      )}
+      {err && <Alert severity="warning" sx={{ mb: 2 }}>Dashboard cargo con fallas: {err}</Alert>}
 
       {/* KPIs */}
-      <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid item xs={12} md={4}>
-          {kpiCard({
-            title: 'Ocupación del Almacén',
-            value: `${occupancyPct}%`,
-            subtitle: `${stats.occupied || 0} / ${stats.total || 0} ubicaciones ocupadas`,
-            accent: 'blue',
-            isDark,
-            onClick: () => nav('/ubicaciones'),
-            children: (
-              <Box sx={{ mt: 0.5 }}>
-                <Box sx={{
-                  height: 10,
-                  borderRadius: 999,
-                  bgcolor: isDark ? 'rgba(255,255,255,.07)' : 'rgba(21,101,192,.10)',
-                  border: isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(21,101,192,.15)',
-                  overflow: 'hidden',
-                }}>
-                  <Box sx={{
-                    height: '100%',
-                    width: `${Math.max(0, Math.min(100, occupancyPct))}%`,
-                    bgcolor: 'rgba(59,130,246,.75)'
-                  }} />
-                </Box>
-
-                <Box sx={{ height: 90, mt: 1 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={series}>
-                      <XAxis dataKey="name" hide />
-                      <YAxis hide />
-                      <Tooltip />
-                      <Area dataKey="v" strokeWidth={2} fillOpacity={0.25} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </Box>
+      <Grid container spacing={2} sx={{ mb: 2.5 }}>
+        <Grid item xs={12} sm={6} md={4}>
+          <KpiCard
+            title="Ocupacion del Almacen"
+            value={`${occupancyPct}%`}
+            subtitle={`${stats.occupied || 0} / ${stats.total || 0} ubicaciones ocupadas`}
+            accent="blue"
+            onClick={() => nav('/ubicaciones')}
+            ps={ps}
+          >
+            <Box sx={{ mt: 1 }}>
+              <Box sx={ps.progressBar}>
+                <Box sx={ps.progressFill(occupancyPct)} />
               </Box>
-            )
-          })}
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          {kpiCard({
-            title: 'Entradas Hoy',
-            value: `${stats.entradasHoy || 0}`,
-            subtitle: 'Movimientos de tipo ENTRADA',
-            accent: 'green',
-            isDark,
-            onClick: () => nav('/movimientos'),
-            children: (
-              <Box sx={{ height: 90 }}>
+              <Box sx={{ height: 80, mt: 1.5 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={series}>
+                  <AreaChart data={series}>
                     <XAxis dataKey="name" hide />
                     <YAxis hide />
                     <Tooltip />
-                    <Bar dataKey="v" />
-                  </BarChart>
+                    <Area dataKey="v" strokeWidth={2} fillOpacity={0.20} />
+                  </AreaChart>
                 </ResponsiveContainer>
               </Box>
-            )
-          })}
+            </Box>
+          </KpiCard>
         </Grid>
 
-        <Grid item xs={12} md={4}>
-          {kpiCard({
-            title: 'Salidas Hoy',
-            value: `${stats.salidasHoy || 0}`,
-            subtitle: 'Movimientos de tipo SALIDA',
-            accent: 'default',
-            isDark,
-            onClick: () => nav('/movimientos')
-          })}
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          {kpiCard({
-            title: 'Ubicaciones Bloqueadas',
-            value: `${blockedCount || 0}`,
-            subtitle: 'Revisar mantenimiento / auditoría',
-            accent: 'red',
-            isDark,
-            onClick: () => nav('/ubicaciones')
-          })}
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          {kpiCard({
-            title: 'Top SKUs (hoy)',
-            value: `${top?.length || 0}`,
-            subtitle: 'Más inventario por SKU',
-            accent: 'default',
-            isDark,
-            onClick: () => nav('/inventario')
-          })}
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          {kpiCard({
-            title: 'Alertas',
-            value: `${alertsCount || 0}`,
-            subtitle: 'Pendientes por validar',
-            accent: 'amber',
-            isDark,
-            onClick: () => nav('/ubicaciones')
-          })}
-        </Grid>
-      </Grid>
-
-      {/* ACCIONES RÁPIDAS */}
-      <Paper elevation={0} sx={{ p: 2.2, borderRadius: 3, mb: 2 }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Typography variant="subtitle2" sx={{ fontWeight: 900 }}>
-            Acciones rápidas
-          </Typography>
-          <Typography variant="caption" sx={{ opacity: 0.7, fontWeight: 800 }}>
-            Para operador y admin
-          </Typography>
-        </Stack>
-
-        <Divider sx={{ my: 1.5 }} />
-
-        <Grid container spacing={1.5}>
-          {quickActions.map((a) => (
-            <Grid key={a.label} item xs={12} sm={6} md={4} lg={2}>
-              <Button
-                fullWidth
-                variant="outlined"
-                onClick={() => nav(a.to)}
-                startIcon={a.icon}
-                sx={{
-                  borderRadius: 3,
-                  py: 1.6,
-                  justifyContent: 'flex-start',
-                  borderColor: isDark ? 'rgba(255,255,255,.14)' : 'rgba(21,101,192,.22)',
-                  bgcolor: isDark ? 'rgba(255,255,255,.04)' : 'rgba(21,101,192,.04)',
-                  '&:hover': {
-                    bgcolor: isDark ? 'rgba(255,255,255,.08)' : 'rgba(21,101,192,.09)',
-                    borderColor: isDark ? 'rgba(255,255,255,.22)' : 'rgba(21,101,192,.40)',
-                  },
-                }}
-              >
-                {a.label}
-              </Button>
-            </Grid>
-          ))}
-        </Grid>
-      </Paper>
-
-      {/* CONTENIDO CENTRAL 70/30 */}
-      <Grid container spacing={2}>
-        {/* izquierda */}
-        <Grid item xs={12} md={8}>
-          <Paper elevation={0} sx={{ p: 2.2, borderRadius: 3 }}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between">
-              <Typography variant="subtitle2" sx={{ fontWeight: 900 }}>
-                Actividad (Movimientos)
-              </Typography>
-              <Stack direction="row" spacing={1} alignItems="center">
-                {pill(`${latest?.length || 0} recientes`, <SwapHorizIcon fontSize="small" />, {}, isDark)}
-                {pill(`${orders?.length || 0} órdenes`, <AssignmentIcon fontSize="small" />, {}, isDark)}
-              </Stack>
-            </Stack>
-
-            <Typography variant="body2" sx={{ opacity: 0.72, mt: 0.5, mb: 1.5 }}>
-              Movimientos diarios (según datos recientes). Rango visual: <b>{range}</b>
-            </Typography>
-
-            <Box sx={{ height: 280 }}>
+        <Grid item xs={6} sm={6} md={4}>
+          <KpiCard
+            title="Entradas Hoy"
+            value={`${stats.entradasHoy || 0}`}
+            subtitle="Movimientos de tipo ENTRADA"
+            accent="green"
+            onClick={() => nav('/movimientos')}
+            ps={ps}
+          >
+            <Box sx={{ height: 80 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={series}>
-                  <XAxis dataKey="name" />
-                  <YAxis />
+                  <XAxis dataKey="name" hide />
+                  <YAxis hide />
                   <Tooltip />
                   <Bar dataKey="v" />
                 </BarChart>
               </ResponsiveContainer>
             </Box>
+          </KpiCard>
+        </Grid>
 
-            <Divider sx={{ my: 2 }} />
+        <Grid item xs={6} sm={6} md={4}>
+          <KpiCard title="Salidas Hoy" value={`${stats.salidasHoy || 0}`} subtitle="Movimientos de tipo SALIDA" accent="blue" onClick={() => nav('/movimientos')} ps={ps} />
+        </Grid>
 
-            <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 1 }}>
-              Últimos movimientos
-            </Typography>
+        <Grid item xs={6} sm={6} md={4}>
+          <KpiCard title="Ubicaciones Bloqueadas" value={`${blockedCount || 0}`} subtitle="Revisar mantenimiento / auditoria" accent="red" onClick={() => nav('/ubicaciones')} ps={ps} />
+        </Grid>
 
-            <Stack spacing={1}>
-              {latest.slice(0, 8).map(m => {
-                const typ = (m.type || 'MOV').toUpperCase()
-                const icon =
-                  typ === 'ENTRADA' ? <CheckCircleIcon sx={{ fontSize: 18 }} /> :
-                  typ === 'SALIDA' ? <SwapHorizIcon sx={{ fontSize: 18 }} /> :
-                  <Inventory2Icon sx={{ fontSize: 18 }} />
+        <Grid item xs={6} sm={6} md={4}>
+          <KpiCard title="Top SKUs (hoy)" value={`${top?.length || 0}`} subtitle="Mas inventario por SKU" accent="blue" onClick={() => nav('/inventario')} ps={ps} />
+        </Grid>
 
-                return (
-                  <Paper
-                    key={m._id || m.id || `${m.type}-${m.createdAt}`}
-                    variant="outlined"
-                    sx={{
-                      p: 1.2,
-                      borderRadius: 2,
-                      cursor: 'pointer',
-                      transition: 'transform .12s ease, background .12s ease',
-                      '&:hover': { transform: 'translateY(-1px)', background: isDark ? 'rgba(255,255,255,.04)' : 'rgba(21,101,192,.04)' }
-                    }}
-                    onClick={() => nav('/movimientos')}
-                  >
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <Chip size="small" icon={icon} label={typ} />
-                      <Typography variant="body2" sx={{ fontWeight: 900, flex: 1 }}>
-                        {m.note || 'Movimiento'}
-                      </Typography>
-                      <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                        {m.createdAt ? new Date(m.createdAt).toLocaleString() : ''}
-                      </Typography>
-                    </Stack>
-                  </Paper>
-                )
-              })}
-            </Stack>
+        <Grid item xs={6} sm={6} md={4}>
+          <KpiCard title="Alertas" value={`${alertsCount || 0}`} subtitle="Pendientes por validar" accent="amber" onClick={() => nav('/ubicaciones')} ps={ps} />
+        </Grid>
+      </Grid>
+
+      {/* Quick Actions */}
+      <Paper elevation={0} sx={{ ...ps.card, mb: 2.5 }}>
+        <Box sx={ps.cardHeader}>
+          <Typography sx={ps.cardHeaderTitle}>Acciones rapidas</Typography>
+          <Box sx={{ flex: 1 }} />
+          <Typography variant="caption" sx={ps.cardHeaderSubtitle}>Para operador y admin</Typography>
+        </Box>
+
+        <Box sx={{ p: 2 }}>
+          <Grid container spacing={1.5}>
+            {quickActions.map((a) => (
+              <Grid key={a.label} item xs={6} sm={4} md={2}>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  onClick={() => nav(a.to)}
+                  startIcon={a.icon}
+                  sx={{
+                    borderRadius: 2.5,
+                    py: 1.4,
+                    justifyContent: 'flex-start',
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
+                >
+                  {a.label}
+                </Button>
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+      </Paper>
+
+      {/* Main content 70/30 */}
+      <Grid container spacing={2}>
+        <Grid item xs={12} md={8}>
+          <Paper elevation={0} sx={ps.card}>
+            <Box sx={ps.cardHeader}>
+              <Typography sx={ps.cardHeaderTitle}>Actividad (Movimientos)</Typography>
+              <Box sx={{ flex: 1 }} />
+              <Stack direction="row" spacing={1}>
+                <Pill label={`${latest?.length || 0} recientes`} icon={<SwapHorizIcon fontSize="small" />} ps={ps} />
+                <Pill label={`${orders?.length || 0} ordenes`} icon={<AssignmentIcon fontSize="small" />} ps={ps} />
+              </Stack>
+            </Box>
+
+            <Box sx={{ p: 2.5 }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+                Movimientos diarios (segun datos recientes). Rango visual: <b>{range}</b>
+              </Typography>
+
+              <Box sx={{ height: 260 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={series}>
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="v" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Box>
+
+              <Divider sx={{ my: 2 }} />
+
+              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1, color: 'text.primary' }}>
+                Ultimos movimientos
+              </Typography>
+
+              <Stack spacing={1}>
+                {latest.slice(0, 8).map(m => {
+                  const typ = (m.type || 'MOV').toUpperCase()
+                  const icon =
+                    typ === 'ENTRADA' ? <CheckCircleIcon sx={{ fontSize: 16 }} /> :
+                    typ === 'SALIDA' ? <SwapHorizIcon sx={{ fontSize: 16 }} /> :
+                    <Inventory2Icon sx={{ fontSize: 16 }} />
+
+                  return (
+                    <Paper
+                      key={m._id || m.id || `${m.type}-${m.createdAt}`}
+                      variant="outlined"
+                      sx={{
+                        p: 1.2,
+                        borderRadius: 2,
+                        cursor: 'pointer',
+                        transition: 'transform .12s ease, background .12s ease',
+                        '&:hover': { transform: 'translateY(-1px)', bgcolor: ps.isDark ? 'rgba(66,165,245,.04)' : 'rgba(21,101,192,.03)' }
+                      }}
+                      onClick={() => nav('/movimientos')}
+                    >
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Chip size="small" icon={icon} label={typ} sx={ps.statusChip(typ === 'ENTRADA' ? 'COMPLETADA' : 'PENDIENTE')} />
+                        <Typography variant="body2" sx={{ fontWeight: 700, flex: 1, color: 'text.primary' }}>
+                          {m.note || 'Movimiento'}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          {m.createdAt ? new Date(m.createdAt).toLocaleString() : ''}
+                        </Typography>
+                      </Stack>
+                    </Paper>
+                  )
+                })}
+              </Stack>
+            </Box>
           </Paper>
         </Grid>
 
-        {/* derecha */}
+        {/* Right column */}
         <Grid item xs={12} md={4}>
-          {/* ALERTAS */}
-          <Paper elevation={0} sx={{ p: 2.2, borderRadius: 3, mb: 2 }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="subtitle2" sx={{ fontWeight: 900 }}>
-                Alertas / Pendientes
+          {/* Alerts */}
+          <Paper elevation={0} sx={{ ...ps.card, mb: 2 }}>
+            <Box sx={ps.cardHeader}>
+              <Typography sx={ps.cardHeaderTitle}>Alertas / Pendientes</Typography>
+              <Box sx={{ flex: 1 }} />
+              <WarningAmberIcon sx={{ color: 'warning.main', fontSize: 20 }} />
+            </Box>
+
+            <Box sx={{ p: 2 }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
+                Acciones que requieren atencion.
               </Typography>
-              <WarningAmberIcon sx={{ opacity: 0.85 }} />
-            </Stack>
 
-            <Typography variant="body2" sx={{ opacity: 0.72, mt: 0.5 }}>
-              Acciones que requieren atención.
-            </Typography>
-
-            <Divider sx={{ my: 1.5 }} />
-
-            <Stack spacing={1}>
-              <Paper
-                variant="outlined"
-                sx={{ p: 1.2, borderRadius: 2, cursor:'pointer', '&:hover': { background: isDark ? 'rgba(255,255,255,.04)' : 'rgba(21,101,192,.04)' } }}
-                onClick={() => nav('/ubicaciones')}
-              >
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <BlockIcon sx={{ color: '#ef4444' }} fontSize="small" />
-                  <Typography sx={{ fontWeight: 900, flex: 1 }}>
-                    Ubicaciones bloqueadas
-                  </Typography>
-                  <Chip size="small" label={blockedCount || 0} />
-                </Stack>
-              </Paper>
-
-              <Paper
-                variant="outlined"
-                sx={{ p: 1.2, borderRadius: 2, cursor:'pointer', '&:hover': { background: isDark ? 'rgba(255,255,255,.04)' : 'rgba(21,101,192,.04)' } }}
-                onClick={() => nav('/ordenes')}
-              >
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <AssignmentIcon sx={{ opacity: 0.9 }} fontSize="small" />
-                  <Typography sx={{ fontWeight: 900, flex: 1 }}>
-                    Órdenes recientes
-                  </Typography>
-                  <Chip size="small" label={orders?.length || 0} />
-                </Stack>
-              </Paper>
-
-              <Paper
-                variant="outlined"
-                sx={{ p: 1.2, borderRadius: 2, cursor:'pointer', '&:hover': { background: isDark ? 'rgba(255,255,255,.04)' : 'rgba(21,101,192,.04)' } }}
-                onClick={() => nav('/inventario')}
-              >
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Inventory2Icon sx={{ opacity: 0.9 }} fontSize="small" />
-                  <Typography sx={{ fontWeight: 900, flex: 1 }}>
-                    Revisar inventario (Top SKUs)
-                  </Typography>
-                  <Chip size="small" label={top?.length || 0} />
-                </Stack>
-              </Paper>
-            </Stack>
-
-            <Typography variant="caption" sx={{ opacity: 0.65, display:'block', mt: 1.5 }}>
-              *Estas alertas son “seguras” con tus datos actuales. Luego podemos agregar reglas reales (sin SKU, sin movimiento, etc.).
-            </Typography>
+              <Stack spacing={1}>
+                {[
+                  { icon: <BlockIcon sx={{ color: 'error.main' }} fontSize="small" />, label: 'Ubicaciones bloqueadas', count: blockedCount || 0, to: '/ubicaciones' },
+                  { icon: <AssignmentIcon color="primary" fontSize="small" />, label: 'Ordenes recientes', count: orders?.length || 0, to: '/ordenes' },
+                  { icon: <Inventory2Icon color="primary" fontSize="small" />, label: 'Revisar inventario (Top SKUs)', count: top?.length || 0, to: '/inventario' },
+                ].map((item) => (
+                  <Paper
+                    key={item.label}
+                    variant="outlined"
+                    sx={{
+                      p: 1.2, borderRadius: 2, cursor: 'pointer',
+                      '&:hover': { bgcolor: ps.isDark ? 'rgba(66,165,245,.04)' : 'rgba(21,101,192,.03)' }
+                    }}
+                    onClick={() => nav(item.to)}
+                  >
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      {item.icon}
+                      <Typography sx={{ fontWeight: 700, flex: 1, fontSize: 13, color: 'text.primary' }}>{item.label}</Typography>
+                      <Chip size="small" label={item.count} sx={ps.metricChip('default')} />
+                    </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+            </Box>
           </Paper>
 
-          {/* TOP SKUs */}
-          <Paper elevation={0} sx={{ p: 2.2, borderRadius: 3, mb: 2 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 1 }}>
-              Top SKUs
-            </Typography>
-            <Stack spacing={1}>
-              {top.map((t) => (
-                <Paper
-                  key={t.sku}
-                  variant="outlined"
-                  sx={{ p: 1.2, borderRadius: 2, cursor:'pointer', '&:hover': { background: isDark ? 'rgba(255,255,255,.04)' : 'rgba(21,101,192,.04)' } }}
-                  onClick={() => nav('/inventario')}
-                >
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography sx={{ fontWeight: 900, fontFamily: 'monospace' }}>
-                      {t.sku}
-                    </Typography>
-                    <Chip size="small" label={t.totalQty} />
-                  </Stack>
-                </Paper>
-              ))}
-              {!top?.length && (
-                <Typography variant="body2" sx={{ opacity: 0.7 }}>
-                  Sin datos de Top SKUs por ahora.
-                </Typography>
-              )}
-            </Stack>
+          {/* Top SKUs */}
+          <Paper elevation={0} sx={{ ...ps.card, mb: 2 }}>
+            <Box sx={ps.cardHeader}>
+              <Typography sx={ps.cardHeaderTitle}>Top SKUs</Typography>
+            </Box>
+            <Box sx={{ p: 2 }}>
+              <Stack spacing={1}>
+                {top.map((t) => (
+                  <Paper
+                    key={t.sku}
+                    variant="outlined"
+                    sx={{
+                      p: 1.2, borderRadius: 2, cursor: 'pointer',
+                      '&:hover': { bgcolor: ps.isDark ? 'rgba(66,165,245,.04)' : 'rgba(21,101,192,.03)' }
+                    }}
+                    onClick={() => nav('/inventario')}
+                  >
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Typography sx={{ fontWeight: 700, fontFamily: 'monospace', color: 'text.primary' }}>{t.sku}</Typography>
+                      <Chip size="small" label={t.totalQty} sx={ps.metricChip('info')} />
+                    </Stack>
+                  </Paper>
+                ))}
+                {!top?.length && <Typography sx={ps.emptyText}>Sin datos de Top SKUs por ahora.</Typography>}
+              </Stack>
+            </Box>
           </Paper>
 
-          {/* ÓRDENES */}
-          <Paper elevation={0} sx={{ p: 2.2, borderRadius: 3 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 1 }}>
-              Órdenes de salida
-            </Typography>
-            <Stack spacing={1}>
-              {orders.map(o => (
-                <Paper
-                  key={o._id || o.id || o.orderNumber}
-                  variant="outlined"
-                  sx={{ p: 1.1, borderRadius: 2, cursor:'pointer', '&:hover': { background: isDark ? 'rgba(255,255,255,.04)' : 'rgba(21,101,192,.04)' } }}
-                  onClick={() => nav('/ordenes')}
-                >
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography sx={{ fontFamily: 'monospace', fontWeight: 900 }}>
-                      {o.orderNumber || 'ORD'}
+          {/* Orders */}
+          <Paper elevation={0} sx={ps.card}>
+            <Box sx={ps.cardHeader}>
+              <Typography sx={ps.cardHeaderTitle}>Ordenes de salida</Typography>
+            </Box>
+            <Box sx={{ p: 2 }}>
+              <Stack spacing={1}>
+                {orders.map(o => (
+                  <Paper
+                    key={o._id || o.id || o.orderNumber}
+                    variant="outlined"
+                    sx={{
+                      p: 1.2, borderRadius: 2, cursor: 'pointer',
+                      '&:hover': { bgcolor: ps.isDark ? 'rgba(66,165,245,.04)' : 'rgba(21,101,192,.03)' }
+                    }}
+                    onClick={() => nav('/ordenes')}
+                  >
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, color: 'text.primary' }}>{o.orderNumber || 'ORD'}</Typography>
+                      <Chip size="small" label={o.status || '---'} sx={ps.statusChip(o.status || 'PENDIENTE')} />
+                    </Stack>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      {o.destinationType} {o.destinationRef ? `- ${o.destinationRef}` : ''}
                     </Typography>
-                    <Chip size="small" label={o.status || '—'} />
-                  </Stack>
-                  <Typography variant="caption" sx={{ opacity: 0.75 }}>
-                    {o.destinationType} {o.destinationRef ? `· ${o.destinationRef}` : ''}
-                  </Typography>
-                </Paper>
-              ))}
-              {!orders?.length && (
-                <Typography variant="body2" sx={{ opacity: 0.7 }}>
-                  Sin órdenes recientes por ahora.
-                </Typography>
-              )}
-            </Stack>
+                  </Paper>
+                ))}
+                {!orders?.length && <Typography sx={ps.emptyText}>Sin ordenes recientes por ahora.</Typography>}
+              </Stack>
+            </Box>
           </Paper>
         </Grid>
       </Grid>

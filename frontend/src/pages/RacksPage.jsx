@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { api } from '../lib/api'
 import { socket } from '../lib/socket'
+import { usePageStyles } from '../ui/pageStyles'
 
 import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
@@ -37,6 +38,7 @@ export default function RacksPage() {
   const routerLoc = useLocation() // ✅ NUEVO: para recibir state desde Inventory
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
+  const ps = usePageStyles()
 
   const [rackCode, setRackCode] = useState('F001')
   const [locs, setLocs] = useState([])
@@ -126,7 +128,7 @@ export default function RacksPage() {
     }
   }
 
-  // Si cambia de rack, limpia selección para que no “confunda”
+  // Si cambia de rack, limpia selección para que no "confunda"
   useEffect(() => {
     setSelected(null)
   }, [rackCode])
@@ -143,10 +145,10 @@ export default function RacksPage() {
   }
 
   return (
-    <Box sx={{ color: '#e5e7eb' }}>
+    <Box>
       {/* Título */}
       <Box sx={{ display:'flex', alignItems:'center', justifyContent:'space-between', mb: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: 900 }}>
+        <Typography variant="h6" sx={{ fontWeight: 900, color: 'text.primary' }}>
           Racks
         </Typography>
 
@@ -155,7 +157,7 @@ export default function RacksPage() {
           label="Tiempo real"
           sx={{
             bgcolor: 'rgba(34,197,94,.15)',
-            color: '#a7f3d0',
+            color: isDark ? '#86EFAC' : '#2E7D32',
             border: '1px solid rgba(34,197,94,.25)'
           }}
         />
@@ -180,38 +182,38 @@ export default function RacksPage() {
               mb: 2
             }}
           >
-            <Paper elevation={0} sx={{ p:2, borderRadius:3, background: 'linear-gradient(135deg, rgba(21,101,192,.18), rgba(21,101,192,.05))', border:'1px solid rgba(21,101,192,.20)' }}>
-              <Typography sx={{ opacity:.8, fontSize:12 }}>Rack</Typography>
-              <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1 }}>{rackCode}</Typography>
-              <Typography sx={{ opacity:.7, fontSize:12, mt:.5 }}>Activo</Typography>
+            <Paper elevation={0} sx={{ ...ps.kpiCard('blue') }}>
+              <Typography sx={{ color: 'text.secondary', fontSize:12 }}>Rack</Typography>
+              <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1, color: 'text.primary' }}>{rackCode}</Typography>
+              <Typography sx={{ color: 'text.secondary', fontSize:12, mt:.5 }}>Activo</Typography>
             </Paper>
 
-            <Paper elevation={0} sx={{ p:2, borderRadius:3 }}>
-              <Typography sx={{ opacity:.8, fontSize:12 }}>Capacidad</Typography>
-              <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1 }}>{capacity}</Typography>
-              <Typography sx={{ opacity:.7, fontSize:12, mt:.5 }}>Posiciones</Typography>
+            <Paper elevation={0} sx={{ ...ps.kpiCard() }}>
+              <Typography sx={{ color: 'text.secondary', fontSize:12 }}>Capacidad</Typography>
+              <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1, color: 'text.primary' }}>{capacity}</Typography>
+              <Typography sx={{ color: 'text.secondary', fontSize:12, mt:.5 }}>Posiciones</Typography>
             </Paper>
 
-            <Paper elevation={0} sx={{ p:2, borderRadius:3, background: 'linear-gradient(135deg, rgba(34,197,94,.16), rgba(34,197,94,.04))', border:'1px solid rgba(34,197,94,.22)' }}>
-              <Typography sx={{ opacity:.8, fontSize:12 }}>Ocupadas</Typography>
-              <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1 }}>{stats.ocupadas}</Typography>
-              <Typography sx={{ opacity:.7, fontSize:12, mt:.5 }}>
+            <Paper elevation={0} sx={{ ...ps.kpiCard('green') }}>
+              <Typography sx={{ color: 'text.secondary', fontSize:12 }}>Ocupadas</Typography>
+              <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1, color: 'text.primary' }}>{stats.ocupadas}</Typography>
+              <Typography sx={{ color: 'text.secondary', fontSize:12, mt:.5 }}>
                 {Math.round((stats.ocupadas / capacity) * 100)}%
               </Typography>
             </Paper>
 
-            <Paper elevation={0} sx={{ p:2, borderRadius:3 }}>
-              <Typography sx={{ opacity:.8, fontSize:12 }}>Vacías</Typography>
-              <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1 }}>{stats.vacias}</Typography>
-              <Typography sx={{ opacity:.7, fontSize:12, mt:.5 }}>
+            <Paper elevation={0} sx={{ ...ps.kpiCard() }}>
+              <Typography sx={{ color: 'text.secondary', fontSize:12 }}>Vacías</Typography>
+              <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1, color: 'text.primary' }}>{stats.vacias}</Typography>
+              <Typography sx={{ color: 'text.secondary', fontSize:12, mt:.5 }}>
                 {Math.round((stats.vacias / capacity) * 100)}%
               </Typography>
             </Paper>
 
-            <Paper elevation={0} sx={{ p:2, borderRadius:3, background: 'linear-gradient(135deg, rgba(239,68,68,.14), rgba(239,68,68,.04))', border:'1px solid rgba(239,68,68,.22)' }}>
-              <Typography sx={{ opacity:.8, fontSize:12 }}>Bloqueadas</Typography>
-              <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1 }}>{stats.bloqueadas}</Typography>
-              <Typography sx={{ opacity:.7, fontSize:12, mt:.5 }}>
+            <Paper elevation={0} sx={{ ...ps.kpiCard('red') }}>
+              <Typography sx={{ color: 'text.secondary', fontSize:12 }}>Bloqueadas</Typography>
+              <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1, color: 'text.primary' }}>{stats.bloqueadas}</Typography>
+              <Typography sx={{ color: 'text.secondary', fontSize:12, mt:.5 }}>
                 {Math.round((stats.bloqueadas / capacity) * 100)}%
               </Typography>
             </Paper>
@@ -226,7 +228,7 @@ export default function RacksPage() {
                 label="Rack"
                 value={rackCode}
                 onChange={(e)=>setRackCode(e.target.value)}
-                sx={{ width: { xs:'100%', md: 220 } }}
+                sx={{ width: { xs:'100%', md: 220 }, ...ps.inputSx }}
               >
                 {rackOptions.map(r => <MenuItem key={r} value={r}>{r}</MenuItem>)}
               </TextField>
@@ -237,7 +239,7 @@ export default function RacksPage() {
                 value={q}
                 onChange={(e)=>setQ(e.target.value)}
                 onKeyDown={(e)=> e.key === 'Enter' && onSearch()}
-                sx={{ flex:1 }}
+                sx={{ flex:1, ...ps.inputSx }}
               />
 
               <Button
@@ -265,7 +267,7 @@ export default function RacksPage() {
                   onClick={() => setFilter('TODOS')}
                   sx={{
                     bgcolor: filter==='TODOS' ? 'rgba(21,101,192,.22)' : (isDark ? 'rgba(255,255,255,.06)' : 'rgba(21,101,192,.08)'),
-                    color: isDark ? '#e5e7eb' : '#1565C0',
+                    color: isDark ? '#E8EDF4' : '#1565C0',
                     border: isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(21,101,192,.20)',
                   }}
                 />
@@ -275,7 +277,7 @@ export default function RacksPage() {
                   onClick={() => setFilter('VACIO')}
                   sx={{
                     bgcolor: filter==='VACIO' ? 'rgba(148,163,184,.22)' : (isDark ? 'rgba(255,255,255,.06)' : 'rgba(21,101,192,.08)'),
-                    color: isDark ? '#e5e7eb' : '#1565C0',
+                    color: isDark ? '#E8EDF4' : '#1565C0',
                     border: isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(21,101,192,.20)',
                   }}
                 />
@@ -285,7 +287,7 @@ export default function RacksPage() {
                   onClick={() => setFilter('OCUPADO')}
                   sx={{
                     bgcolor: filter==='OCUPADO' ? 'rgba(34,197,94,.22)' : (isDark ? 'rgba(255,255,255,.06)' : 'rgba(21,101,192,.08)'),
-                    color: filter==='OCUPADO' ? '#1b5e20' : (isDark ? '#e5e7eb' : '#1565C0'),
+                    color: filter==='OCUPADO' ? (isDark ? '#86EFAC' : '#2E7D32') : (isDark ? '#E8EDF4' : '#1565C0'),
                     border: isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(21,101,192,.20)',
                   }}
                 />
@@ -295,7 +297,7 @@ export default function RacksPage() {
                   onClick={() => setFilter('BLOQUEADO')}
                   sx={{
                     bgcolor: filter==='BLOQUEADO' ? 'rgba(239,68,68,.20)' : (isDark ? 'rgba(255,255,255,.06)' : 'rgba(21,101,192,.08)'),
-                    color: filter==='BLOQUEADO' ? '#b71c1c' : (isDark ? '#e5e7eb' : '#1565C0'),
+                    color: filter==='BLOQUEADO' ? (isDark ? '#FCA5A5' : '#C62828') : (isDark ? '#E8EDF4' : '#1565C0'),
                     border: isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(21,101,192,.20)',
                   }}
                 />
@@ -303,16 +305,16 @@ export default function RacksPage() {
 
               {/* Leyenda */}
               <Box sx={{ display:'flex', gap:1, justifyContent:'flex-end', flexWrap:'wrap' }}>
-                <Chip size="small" label="VACÍO" sx={{ bgcolor: isDark ? 'rgba(148,163,184,.18)' : 'rgba(21,101,192,.10)', color: isDark ? '#e5e7eb' : '#1565C0', border: isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(21,101,192,.20)' }} />
-                <Chip size="small" label="OCUPADO" sx={{ bgcolor:'rgba(34,197,94,.18)', color: isDark ? '#e5e7eb' : '#1b5e20', border:'1px solid rgba(34,197,94,.25)' }} />
-                <Chip size="small" label="BLOQUEADO" sx={{ bgcolor:'rgba(239,68,68,.16)', color: isDark ? '#e5e7eb' : '#b71c1c', border:'1px solid rgba(239,68,68,.25)' }} />
+                <Chip size="small" label="VACÍO" sx={{ bgcolor: isDark ? 'rgba(148,163,184,.18)' : 'rgba(21,101,192,.10)', color: isDark ? '#E8EDF4' : '#1565C0', border: isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(21,101,192,.20)' }} />
+                <Chip size="small" label="OCUPADO" sx={{ bgcolor:'rgba(34,197,94,.18)', color: isDark ? '#86EFAC' : '#2E7D32', border:'1px solid rgba(34,197,94,.25)' }} />
+                <Chip size="small" label="BLOQUEADO" sx={{ bgcolor:'rgba(239,68,68,.16)', color: isDark ? '#FCA5A5' : '#C62828', border:'1px solid rgba(239,68,68,.25)' }} />
               </Box>
             </Stack>
           </Paper>
 
           {/* Mapa */}
           <Paper elevation={0} sx={{ p:2, borderRadius:3 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 1 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 1, color: 'text.primary' }}>
               Mapa del Rack {rackCode} <span style={{ opacity:.75 }}>(A–C / 01–12)</span>
             </Typography>
 
@@ -328,7 +330,7 @@ export default function RacksPage() {
             }}>
               <Box />
               {positions.map(pos => (
-                <Typography key={pos} sx={{ textAlign:'center', fontSize:12, opacity:.8, fontWeight:800 }}>
+                <Typography key={pos} sx={{ textAlign:'center', fontSize:12, color: 'text.secondary', fontWeight:800 }}>
                   {String(pos).padStart(2,'0')}
                 </Typography>
               ))}
@@ -341,7 +343,7 @@ export default function RacksPage() {
                   key={level}
                   sx={{ display:'grid', gridTemplateColumns:'64px repeat(12, 1fr)', gap:1, alignItems:'center' }}
                 >
-                  <Typography sx={{ fontWeight: 900, opacity:.9 }}>{level}</Typography>
+                  <Typography sx={{ fontWeight: 900, color: 'text.primary' }}>{level}</Typography>
 
                   {positions.map(pos => {
                     const { state, code } = getCell(level, pos)
@@ -376,10 +378,10 @@ export default function RacksPage() {
                           }
                         }}
                       >
-                        <div style={{ fontWeight: 900, fontSize: 13 }}>
+                        <div style={{ fontWeight: 900, fontSize: 13, color: 'inherit' }}>
                           {level}{String(pos).padStart(2,'0')}
                         </div>
-                        <div style={{ opacity: .85, fontSize: 11 }}>
+                        <div style={{ opacity: .85, fontSize: 11, color: 'inherit' }}>
                           {state}
                         </div>
                       </Box>
@@ -391,7 +393,7 @@ export default function RacksPage() {
 
             <Divider sx={{ my:2 }} />
 
-            <Typography variant="caption" sx={{ opacity: 0.75 }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               Tip: escribe un código como <b>A01-F059-012</b> y te cambia al rack automáticamente.
             </Typography>
           </Paper>
@@ -400,16 +402,16 @@ export default function RacksPage() {
         {/* =================== DERECHA (PANEL) =================== */}
         <Box>
           <Paper elevation={0} sx={{ p:2, borderRadius:3, mb:2 }}>
-            <Typography sx={{ fontWeight: 900, mb: 1 }}>Detalles de Ubicación</Typography>
+            <Typography sx={{ fontWeight: 900, mb: 1, color: 'text.primary' }}>Detalles de Ubicación</Typography>
             <Divider sx={{ mb: 2 }} />
 
             {!selected ? (
-              <Typography sx={{ opacity:.75, fontSize: 13 }}>
+              <Typography sx={{ color: 'text.secondary', fontSize: 13 }}>
                 Da clic en una posición del mapa para ver detalles aquí.
               </Typography>
             ) : (
               <Box>
-                <Typography sx={{ fontWeight: 900, fontSize: 18, mb: 1 }}>
+                <Typography sx={{ fontWeight: 900, fontSize: 18, mb: 1, color: 'text.primary' }}>
                   {selected.code || `${selected.level}${String(selected.pos).padStart(2,'0')}-${rackCode}-${String(selected.pos).padStart(3,'0')}`}
                 </Typography>
 
@@ -425,32 +427,32 @@ export default function RacksPage() {
                             ? 'rgba(239,68,68,.18)'
                             : (isDark ? 'rgba(148,163,184,.18)' : 'rgba(21,101,192,.10)'),
                       color:
-                        selected.state === 'OCUPADO' ? (isDark ? '#e5e7eb' : '#1b5e20')
-                          : selected.state === 'BLOQUEADO' ? (isDark ? '#e5e7eb' : '#b71c1c')
-                          : (isDark ? '#e5e7eb' : '#1565C0'),
+                        selected.state === 'OCUPADO' ? (isDark ? '#86EFAC' : '#2E7D32')
+                          : selected.state === 'BLOQUEADO' ? (isDark ? '#FCA5A5' : '#C62828')
+                          : (isDark ? '#E8EDF4' : '#1565C0'),
                       border: selected.state === 'OCUPADO' ? '1px solid rgba(34,197,94,.28)'
                         : selected.state === 'BLOQUEADO' ? '1px solid rgba(239,68,68,.28)'
                         : (isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(21,101,192,.20)'),
                     }}
                   />
-                  <Typography sx={{ opacity:.8, fontSize: 12 }}>
+                  <Typography sx={{ color: 'text.secondary', fontSize: 12 }}>
                     Estante: <b>{selected.level}</b> · Posición: <b>{String(selected.pos).padStart(2,'0')}</b>
                   </Typography>
                 </Stack>
 
                 {/* Estos campos NO rompen nada: si no existen, se muestran como -- */}
                 <Box sx={{ display:'grid', gridTemplateColumns:'120px 1fr', rowGap: 1, columnGap: 1.5 }}>
-                  <Typography sx={{ opacity:.7, fontSize: 12 }}>SKU / Producto</Typography>
-                  <Typography sx={{ fontSize: 12 }}>{selected.raw?.sku || selected.raw?.productName || '--'}</Typography>
+                  <Typography sx={{ color: 'text.secondary', fontSize: 12 }}>SKU / Producto</Typography>
+                  <Typography sx={{ fontSize: 12, color: 'text.primary' }}>{selected.raw?.sku || selected.raw?.productName || '--'}</Typography>
 
-                  <Typography sx={{ opacity:.7, fontSize: 12 }}>Lote</Typography>
-                  <Typography sx={{ fontSize: 12 }}>{selected.raw?.lot || '--'}</Typography>
+                  <Typography sx={{ color: 'text.secondary', fontSize: 12 }}>Lote</Typography>
+                  <Typography sx={{ fontSize: 12, color: 'text.primary' }}>{selected.raw?.lot || '--'}</Typography>
 
-                  <Typography sx={{ opacity:.7, fontSize: 12 }}>Último mov.</Typography>
-                  <Typography sx={{ fontSize: 12 }}>{selected.raw?.lastMoveAt || '--'}</Typography>
+                  <Typography sx={{ color: 'text.secondary', fontSize: 12 }}>Último mov.</Typography>
+                  <Typography sx={{ fontSize: 12, color: 'text.primary' }}>{selected.raw?.lastMoveAt || '--'}</Typography>
 
-                  <Typography sx={{ opacity:.7, fontSize: 12 }}>Usuario</Typography>
-                  <Typography sx={{ fontSize: 12 }}>{selected.raw?.lastMoveBy || '--'}</Typography>
+                  <Typography sx={{ color: 'text.secondary', fontSize: 12 }}>Usuario</Typography>
+                  <Typography sx={{ fontSize: 12, color: 'text.primary' }}>{selected.raw?.lastMoveBy || '--'}</Typography>
                 </Box>
 
                 <Divider sx={{ my:2 }} />
@@ -466,7 +468,7 @@ export default function RacksPage() {
                   </Button>
                 </Stack>
 
-                <Typography sx={{ mt:1.5, opacity:.6, fontSize: 11 }}>
+                <Typography sx={{ mt:1.5, color: 'text.secondary', fontSize: 11 }}>
                   *Botón listo para conectar a tu modal/flujo actual (si ya existe).
                 </Typography>
               </Box>
@@ -474,14 +476,14 @@ export default function RacksPage() {
           </Paper>
 
           <Paper elevation={0} sx={{ p:2, borderRadius:3 }}>
-            <Typography sx={{ fontWeight: 900, mb: 1 }}>Estadísticas del Rack</Typography>
+            <Typography sx={{ fontWeight: 900, mb: 1, color: 'text.primary' }}>Estadísticas del Rack</Typography>
             <Divider sx={{ mb: 2 }} />
 
             <Stack spacing={1.2}>
               <Box>
                 <Stack direction="row" justifyContent="space-between">
-                  <Typography sx={{ opacity:.75, fontSize: 12 }}>Ocupación</Typography>
-                  <Typography sx={{ fontWeight:900, fontSize: 12 }}>{stats.ocupacionPct}%</Typography>
+                  <Typography sx={{ color: 'text.secondary', fontSize: 12 }}>Ocupación</Typography>
+                  <Typography sx={{ fontWeight:900, fontSize: 12, color: 'text.primary' }}>{stats.ocupacionPct}%</Typography>
                 </Stack>
                 <LinearProgress
                   variant="determinate"
@@ -496,14 +498,14 @@ export default function RacksPage() {
               </Box>
 
               <Box sx={{ display:'grid', gridTemplateColumns:'1fr auto', gap: 1 }}>
-                <Typography sx={{ opacity:.75, fontSize: 12 }}>Vacías</Typography>
-                <Typography sx={{ fontWeight:900, fontSize: 12 }}>{stats.vacias}</Typography>
+                <Typography sx={{ color: 'text.secondary', fontSize: 12 }}>Vacías</Typography>
+                <Typography sx={{ fontWeight:900, fontSize: 12, color: 'text.primary' }}>{stats.vacias}</Typography>
 
-                <Typography sx={{ opacity:.75, fontSize: 12 }}>Ocupadas</Typography>
-                <Typography sx={{ fontWeight:900, fontSize: 12 }}>{stats.ocupadas}</Typography>
+                <Typography sx={{ color: 'text.secondary', fontSize: 12 }}>Ocupadas</Typography>
+                <Typography sx={{ fontWeight:900, fontSize: 12, color: 'text.primary' }}>{stats.ocupadas}</Typography>
 
-                <Typography sx={{ opacity:.75, fontSize: 12 }}>Bloqueadas</Typography>
-                <Typography sx={{ fontWeight:900, fontSize: 12 }}>{stats.bloqueadas}</Typography>
+                <Typography sx={{ color: 'text.secondary', fontSize: 12 }}>Bloqueadas</Typography>
+                <Typography sx={{ fontWeight:900, fontSize: 12, color: 'text.primary' }}>{stats.bloqueadas}</Typography>
               </Box>
             </Stack>
           </Paper>

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../state/auth'
 import { api } from '../lib/api'
+import { usePageStyles } from '../ui/pageStyles'
 import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
 import Box from '@mui/material/Box'
@@ -31,6 +32,7 @@ import Alert from '@mui/material/Alert'
 
 export default function OrdersPage() {
   const { token, user } = useAuth()
+  const ps = usePageStyles()
   const canCreate = user?.role === 'ADMIN' || user?.role === 'SUPERVISOR' || ['Supervisor','Coordinador','Gerente'].includes((user?.position||'').trim())
 
   const client = useMemo(() => api(token), [token])
@@ -73,7 +75,7 @@ export default function OrdersPage() {
     }
   }
 
-  // Filtros y búsqueda
+  // Filtros y busqueda
   const filtered = useMemo(() => {
     let list = rows
     if (q) list = list.filter(r =>
@@ -100,18 +102,18 @@ export default function OrdersPage() {
   const exportExcel = () => {
     const data = filtered.map(r => ({
       Orden: r.orderNumber,
-      Destino: r.destinationType + (r.destinationRef ? `· ${r.destinationRef}` : ''),
+      Destino: r.destinationType + (r.destinationRef ? ` · ${r.destinationRef}` : ''),
       Status: r.status,
-      Líneas: (r.lines||[]).map(l => `${l.sku}(${l.qty})`).join(', '),
-      Creó: r.createdBy?.email || ''
+      Lineas: (r.lines||[]).map(l => `${l.sku}(${l.qty})`).join(', '),
+      Creo: r.createdBy?.email || ''
     }))
     const ws = XLSX.utils.json_to_sheet(data)
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Órdenes')
+    XLSX.utils.book_append_sheet(wb, ws, 'Ordenes')
     XLSX.writeFile(wb, 'ordenes_salida.xlsx')
   }
 
-  // Acciones rápidas
+  // Acciones rapidas
   const markCompleted = async (id) => {
     await client.patch(`/api/orders/${id}/status`, { status: 'COMPLETADA' })
     await load()
@@ -125,7 +127,7 @@ export default function OrdersPage() {
     await load()
   }
 
-  // Paginación
+  // Paginacion
   const paginated = useMemo(() => {
     const start = (page-1)*pageSize
     return filtered.slice(start, start+pageSize)
@@ -136,92 +138,124 @@ export default function OrdersPage() {
   const closeDetail = () => { setShowDetail(false) }
 
   return (
-    <Box>
-      <Typography variant="h6" sx={{ fontWeight: 900, mb:2 }}>Órdenes de salida</Typography>
+    <Box sx={ps.page}>
+      <Typography variant="h6" sx={{ ...ps.pageTitle, mb: 2 }}>Ordenes de salida</Typography>
       {/* Resumen superior */}
-      <Stack direction="row" spacing={2} sx={{ mb:2 }}>
-        <Chip label={`Total: ${resumen.total}`} color="primary" />
-        <Chip label={`Pendientes: ${resumen.pendientes}`} sx={{ bgcolor:'#fef9c3', color:'#a16207' }} />
-        <Chip label={`Completadas: ${resumen.completadas}`} sx={{ bgcolor:'#dcfce7', color:'#166534' }} />
-        <Chip label={`Canceladas: ${resumen.canceladas}`} sx={{ bgcolor:'#fee2e2', color:'#991b1b' }} />
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2, flexWrap: 'wrap' }}>
+        <Chip label={`Total: ${resumen.total}`} sx={ps.metricChip('info')} />
+        <Chip label={`Pendientes: ${resumen.pendientes}`} sx={ps.metricChip('warn')} />
+        <Chip label={`Completadas: ${resumen.completadas}`} sx={ps.metricChip('ok')} />
+        <Chip label={`Canceladas: ${resumen.canceladas}`} sx={ps.metricChip('bad')} />
         <Box sx={{ flex: 1 }} />
-        <Tooltip title="Exportar a Excel"><IconButton onClick={exportExcel}><DownloadIcon /></IconButton></Tooltip>
+        <Tooltip title="Exportar a Excel">
+          <IconButton onClick={exportExcel} sx={ps.actionBtn('primary')}>
+            <DownloadIcon />
+          </IconButton>
+        </Tooltip>
       </Stack>
-      {/* Filtros y búsqueda */}
-      <Stack direction={{ xs:'column', md:'row' }} spacing={2} sx={{ mb:2 }}>
-        <TextField label="Buscar orden, destino o usuario" value={q} onChange={e=>setQ(e.target.value)} sx={{ minWidth:220 }} />
-        <TextField select label="Status" value={status} onChange={e=>setStatus(e.target.value)} sx={{ minWidth:140 }}>
+      {/* Filtros y busqueda */}
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 2 }}>
+        <TextField label="Buscar orden, destino o usuario" value={q} onChange={e=>setQ(e.target.value)} sx={{ ...ps.inputSx, minWidth: 220 }} />
+        <TextField select label="Status" value={status} onChange={e=>setStatus(e.target.value)} sx={{ ...ps.inputSx, minWidth: 140 }}>
           <MenuItem value="">Todos</MenuItem>
           <MenuItem value="PENDIENTE">Pendiente</MenuItem>
           <MenuItem value="COMPLETADA">Completada</MenuItem>
           <MenuItem value="CANCELADA">Cancelada</MenuItem>
         </TextField>
       </Stack>
-      <Paper elevation={1} sx={{ p:0, borderRadius:3 }}>
-        <Table size="small" sx={{ minWidth:1000 }}>
+      <Paper elevation={1} sx={{ ...ps.card, p: 0, overflowX: 'auto' }}>
+        <Table size="small" sx={{ minWidth: { xs: 600, md: 1000 } }}>
           <TableHead>
-            <TableRow sx={{ background:'#101c2b', position:'sticky', top:0, zIndex:1 }}>
-              <TableCell sx={{ color:'#fff', fontWeight:700 }}>Orden</TableCell>
-              <TableCell sx={{ color:'#fff', fontWeight:700 }}>Destino</TableCell>
-              <TableCell sx={{ color:'#fff', fontWeight:700 }}>Status</TableCell>
-              <TableCell sx={{ color:'#fff', fontWeight:700 }}>Líneas</TableCell>
-              <TableCell sx={{ color:'#fff', fontWeight:700 }}>Creó</TableCell>
-              <TableCell sx={{ color:'#fff', fontWeight:700, textAlign:'center' }}>Acción</TableCell>
+            <TableRow sx={ps.tableHeaderRow}>
+              <TableCell>Orden</TableCell>
+              <TableCell>Destino</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Lineas</TableCell>
+              <TableCell>Creo</TableCell>
+              <TableCell sx={{ textAlign: 'center' }}>Accion</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {paginated.map(r => (
-              <TableRow key={r._id} sx={{ transition:'background 0.2s', '&:hover': { background:'#22304d' } }}>
-                <TableCell sx={{ fontFamily:'monospace', color:'#fff' }}>{r.orderNumber}</TableCell>
-                <TableCell sx={{ color:'#fff' }}>{r.destinationType} {r.destinationRef ? `· ${r.destinationRef}` : ''}</TableCell>
-                <TableCell sx={{ color:'#fff' }}><Chip size="small" label={r.status} /></TableCell>
-                <TableCell sx={{ color:'#fff' }}>{(r.lines||[]).map(l => `${l.sku}(${l.qty})`).join(', ')}</TableCell>
-                <TableCell sx={{ color:'#fff' }}>{r.createdBy?.email || '—'}</TableCell>
-                <TableCell sx={{ textAlign:'center' }}>
-                  <Tooltip title="Ver detalle"><IconButton size="small" sx={{ color:'#0369a1' }} onClick={()=>openDetail(r)}><InfoIcon fontSize="small" /></IconButton></Tooltip>
-                  <Tooltip title="Marcar como completada"><IconButton size="small" sx={{ color:'#22c55e' }} onClick={()=>markCompleted(r._id)} disabled={r.status==='COMPLETADA' || r.status==='CANCELADA'}><DoneIcon fontSize="small" /></IconButton></Tooltip>
-                  <Tooltip title="Cancelar"><IconButton size="small" sx={{ color:'#ef4444' }} onClick={()=>markCancelled(r._id)} disabled={r.status==='COMPLETADA' || r.status==='CANCELADA'}><CancelIcon fontSize="small" /></IconButton></Tooltip>
-                  <Tooltip title="Eliminar"><IconButton size="small" sx={{ color:'#991b1b' }} onClick={()=>deleteOrder(r._id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
+            {paginated.map((r, idx) => (
+              <TableRow key={r._id} sx={ps.tableRow(idx)}>
+                <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace' }}>{r.orderNumber}</TableCell>
+                <TableCell sx={ps.cellText}>{r.destinationType} {r.destinationRef ? ` · ${r.destinationRef}` : ''}</TableCell>
+                <TableCell sx={ps.cellText}><Chip size="small" label={r.status} sx={ps.statusChip(r.status)} /></TableCell>
+                <TableCell sx={ps.cellText}>{(r.lines||[]).map(l => `${l.sku}(${l.qty})`).join(', ')}</TableCell>
+                <TableCell sx={ps.cellTextSecondary}>{r.createdBy?.email || '\u2014'}</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>
+                  <Tooltip title="Ver detalle">
+                    <IconButton size="small" sx={ps.actionBtn('primary')} onClick={()=>openDetail(r)}>
+                      <InfoIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Marcar como completada">
+                    <span>
+                      <IconButton size="small" sx={ps.actionBtn('success')} onClick={()=>markCompleted(r._id)} disabled={r.status==='COMPLETADA' || r.status==='CANCELADA'}>
+                        <DoneIcon fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                  <Tooltip title="Cancelar">
+                    <span>
+                      <IconButton size="small" sx={ps.actionBtn('error')} onClick={()=>markCancelled(r._id)} disabled={r.status==='COMPLETADA' || r.status==='CANCELADA'}>
+                        <CancelIcon fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                  <Tooltip title="Eliminar">
+                    <IconButton size="small" sx={ps.actionBtn('error')} onClick={()=>deleteOrder(r._id)}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-        {/* Paginación */}
-        <Stack direction="row" spacing={2} alignItems="center" justifyContent="center" sx={{ py:2 }}>
+        {/* Paginacion */}
+        <Stack direction="row" spacing={2} alignItems="center" justifyContent="center" sx={{ py: 2 }}>
           <Button disabled={page===1} onClick={()=>setPage(p=>p-1)}>Anterior</Button>
-          <Typography> Página {page} de {Math.max(1, Math.ceil(filtered.length/pageSize))} </Typography>
+          <Typography sx={ps.cellText}> Pagina {page} de {Math.max(1, Math.ceil(filtered.length/pageSize))} </Typography>
           <Button disabled={page*pageSize>=filtered.length} onClick={()=>setPage(p=>p+1)}>Siguiente</Button>
         </Stack>
       </Paper>
-      {/* Modal de detalle */}
-      {showDetail && selected && (
-        <Paper elevation={3} sx={{ position:'fixed', top:'50%', left:'50%', transform:'translate(-50%,-50%)', zIndex:2000, minWidth:340, maxWidth:480, p:3 }}>
-          <Typography variant="h6" sx={{ mb:2 }}>Detalle de orden</Typography>
-          <Typography variant="body2"><b>Orden:</b> {selected.orderNumber}</Typography>
-          <Typography variant="body2"><b>Destino:</b> {selected.destinationType} {selected.destinationRef ? `· ${selected.destinationRef}` : ''}</Typography>
-          <Typography variant="body2"><b>Status:</b> {selected.status}</Typography>
-          <Typography variant="body2"><b>Líneas:</b> {(selected.lines||[]).map(l => `${l.sku}(${l.qty})`).join(', ')}</Typography>
-          <Typography variant="body2"><b>Notas:</b> {selected.notes || '—'}</Typography>
-          <Typography variant="body2"><b>Creó:</b> {selected.createdBy?.email || '—'}</Typography>
-          <Button sx={{ mt:2 }} variant="contained" onClick={closeDetail}>Cerrar</Button>
-        </Paper>
-      )}
 
+      {/* Modal de detalle - proper MUI Dialog */}
+      <Dialog open={showDetail && !!selected} onClose={closeDetail} maxWidth="sm" fullWidth>
+        <DialogTitle sx={ps.pageTitle}>Detalle de orden</DialogTitle>
+        <DialogContent dividers>
+          {selected && (
+            <Stack spacing={1.5} sx={{ pt: 1 }}>
+              <Typography variant="body2" sx={ps.cellText}><b>Orden:</b> {selected.orderNumber}</Typography>
+              <Typography variant="body2" sx={ps.cellText}><b>Destino:</b> {selected.destinationType} {selected.destinationRef ? ` · ${selected.destinationRef}` : ''}</Typography>
+              <Typography variant="body2" sx={ps.cellText}><b>Status:</b> <Chip size="small" label={selected.status} sx={ps.statusChip(selected.status)} /></Typography>
+              <Typography variant="body2" sx={ps.cellText}><b>Lineas:</b> {(selected.lines||[]).map(l => `${l.sku}(${l.qty})`).join(', ')}</Typography>
+              <Typography variant="body2" sx={ps.cellText}><b>Notas:</b> {selected.notes || '\u2014'}</Typography>
+              <Typography variant="body2" sx={ps.cellTextSecondary}><b>Creo:</b> {selected.createdBy?.email || '\u2014'}</Typography>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" onClick={closeDetail}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog crear orden */}
       <Dialog open={open} onClose={()=>setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Crear orden de salida</DialogTitle>
         <DialogContent>
-          {err && <Alert severity="error" sx={{ mb:2 }}>{err}</Alert>}
-          <Stack spacing={2} sx={{ mt:1 }}>
-            <TextField select label="Destino" value={destType} onChange={(e)=>setDestType(e.target.value)}>
-              <MenuItem value="PRODUCTION">Producción</MenuItem>
+          {err && <Alert severity="error" sx={{ mb: 2 }}>{err}</Alert>}
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField select label="Destino" value={destType} onChange={(e)=>setDestType(e.target.value)} sx={ps.inputSx}>
+              <MenuItem value="PRODUCTION">Produccion</MenuItem>
               <MenuItem value="CLIENT">Cliente</MenuItem>
               <MenuItem value="OTHER">Otro</MenuItem>
             </TextField>
-            <TextField label="Referencia (P1/Cliente/Orden)" value={destRef} onChange={(e)=>setDestRef(e.target.value)} />
-            <TextField label="SKU" value={sku} onChange={(e)=>setSku(e.target.value)} />
-            <TextField label="Qty" type="number" value={qty} onChange={(e)=>setQty(e.target.value)} />
-            <TextField label="Notas" value={notes} onChange={(e)=>setNotes(e.target.value)} />
+            <TextField label="Referencia (P1/Cliente/Orden)" value={destRef} onChange={(e)=>setDestRef(e.target.value)} sx={ps.inputSx} />
+            <TextField label="SKU" value={sku} onChange={(e)=>setSku(e.target.value)} sx={ps.inputSx} />
+            <TextField label="Qty" type="number" value={qty} onChange={(e)=>setQty(e.target.value)} sx={ps.inputSx} />
+            <TextField label="Notas" value={notes} onChange={(e)=>setNotes(e.target.value)} sx={ps.inputSx} />
             <Alert severity="info">La API permite surtir la orden seleccionando tarimas con /fulfill (UI de surtido se puede agregar).</Alert>
           </Stack>
         </DialogContent>

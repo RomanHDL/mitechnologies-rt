@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../state/auth'
 import { api } from '../lib/api'
+import { usePageStyles } from '../ui/pageStyles'
 
 import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
@@ -121,9 +122,22 @@ function smartParse(input) {
 }
 
 function chipSxForState(st, isDark = false) {
-  if (st === 'OCUPADO') return { bgcolor: 'rgba(34,197,94,.18)', border: '1px solid rgba(34,197,94,.25)', color: isDark ? '#e5e7eb' : '#1b5e20' }
-  if (st === 'BLOQUEADO') return { bgcolor: 'rgba(239,68,68,.16)', border: '1px solid rgba(239,68,68,.25)', color: isDark ? '#e5e7eb' : '#b71c1c' }
-  return { bgcolor: isDark ? 'rgba(148,163,184,.16)' : 'rgba(21,101,192,.10)', border: isDark ? '1px solid rgba(255,255,255,.10)' : '1px solid rgba(21,101,192,.20)', color: isDark ? '#e5e7eb' : '#1565C0' }
+  if (st === 'OCUPADO') return {
+    bgcolor: isDark ? 'rgba(34,197,94,.15)' : '#E8F5E9',
+    border: isDark ? '1px solid rgba(34,197,94,.25)' : '1px solid rgba(46,125,50,.25)',
+    color: isDark ? '#86EFAC' : '#2E7D32',
+  }
+  if (st === 'BLOQUEADO') return {
+    bgcolor: isDark ? 'rgba(239,68,68,.15)' : '#FFEBEE',
+    border: isDark ? '1px solid rgba(239,68,68,.25)' : '1px solid rgba(198,40,40,.25)',
+    color: isDark ? '#FCA5A5' : '#C62828',
+  }
+  // VACIO / default
+  return {
+    bgcolor: isDark ? 'rgba(66,165,245,.12)' : '#E3F2FD',
+    border: isDark ? '1px solid rgba(66,165,245,.25)' : '1px solid rgba(21,101,192,.25)',
+    color: isDark ? '#64B5F6' : '#1565C0',
+  }
 }
 
 function cellBgForState(st, isDark = false) {
@@ -140,6 +154,7 @@ export default function LocationsPage() {
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const ps = usePageStyles()
 
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
@@ -178,14 +193,14 @@ export default function LocationsPage() {
 
   useEffect(() => { load() }, [token])
 
-  // ✅ cuando cambia rack manualmente: ajustar zona automáticamente
+  // cuando cambia rack manualmente: ajustar zona automáticamente
   useEffect(() => {
     if (!rack) return
     const zone = rackToArea(rack)
     if (zone && zone !== area) setArea(zone)
   }, [rack]) // a propósito sin "area" para evitar loops
 
-  // ✅ adaptar lo que viene de DB a lo que tu UI espera
+  // adaptar lo que viene de DB a lo que tu UI espera
   const enriched = useMemo(() => {
     return (rows || []).map((l) => {
       const fallback = parseCodeFallback(l.code)
@@ -196,7 +211,7 @@ export default function LocationsPage() {
 
       const slot3 = String(slot || 0).padStart(3, '0')
 
-      // ✅ zona calculada (si tu backend luego trae l.area, aquí puedes priorizarlo)
+      // zona calculada (si tu backend luego trae l.area, aquí puedes priorizarlo)
       const computedArea = rackToArea(rackCode)
 
       const key = `${height}-${rackCode}-${slot3}`
@@ -374,7 +389,7 @@ export default function LocationsPage() {
           </Button>
 
           <Tooltip title="Limpiar filtros">
-            <IconButton onClick={clearFilters} sx={{ bgcolor: isDark ? 'rgba(255,255,255,.07)' : 'rgba(21,101,192,.08)', border: isDark ? '1px solid rgba(255,255,255,.12)' : '1px solid rgba(21,101,192,.20)' }}>
+            <IconButton onClick={clearFilters} sx={ps.actionBtn('primary')}>
               <RestartAltIcon color="primary" />
             </IconButton>
           </Tooltip>
@@ -399,7 +414,7 @@ export default function LocationsPage() {
             onChange={(e) => {
               const nextRack = e.target.value
               setRack(nextRack)
-              if (nextRack) setArea(rackToArea(nextRack)) // ✅ FIX: cambia zona al elegir rack
+              if (nextRack) setArea(rackToArea(nextRack))
             }}
             sx={{ minWidth: 160 }}
           >
@@ -460,9 +475,9 @@ export default function LocationsPage() {
             size="small"
             label={`Total: ${summary.total}`}
             sx={{
-              bgcolor: state === '' ? 'rgba(21,101,192,.22)' : (isDark ? 'rgba(255,255,255,.06)' : 'rgba(21,101,192,.08)'),
-              border: isDark ? '1px solid rgba(255,255,255,.10)' : '1px solid rgba(21,101,192,.20)',
-              color: isDark ? '#e5e7eb' : '#1565C0',
+              bgcolor: state === '' ? (isDark ? 'rgba(66,165,245,.22)' : 'rgba(21,101,192,.22)') : (isDark ? 'rgba(66,165,245,.08)' : 'rgba(21,101,192,.08)'),
+              border: isDark ? '1px solid rgba(66,165,245,.25)' : '1px solid rgba(21,101,192,.20)',
+              color: isDark ? '#64B5F6' : '#1565C0',
               fontWeight: 900,
             }}
           />
@@ -473,7 +488,7 @@ export default function LocationsPage() {
             label={`VACÍO: ${summary.VACIO}`}
             sx={{
               ...chipSxForState('VACIO', isDark),
-              bgcolor: state === 'VACIO' ? (isDark ? 'rgba(148,163,184,.28)' : 'rgba(21,101,192,.20)') : chipSxForState('VACIO', isDark).bgcolor,
+              bgcolor: state === 'VACIO' ? (isDark ? 'rgba(66,165,245,.28)' : 'rgba(21,101,192,.20)') : chipSxForState('VACIO', isDark).bgcolor,
               fontWeight: 900,
             }}
           />
@@ -516,12 +531,12 @@ export default function LocationsPage() {
               <Box component="table" sx={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
                 <Box component="thead" sx={{ background: isDark ? 'rgba(15,23,42,.65)' : 'rgba(21,101,192,.07)', position: 'sticky', top: 0, zIndex: 1 }}>
                   <Box component="tr">
-                    <Box component="th" sx={{ fontWeight: 900, p: 1.5, textAlign: 'left', minWidth: 140, color: isDark ? '#fff' : '#1565C0' }}>Ubicación</Box>
-                    <Box component="th" sx={{ fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 110, color: isDark ? '#fff' : '#1565C0' }}>Estado</Box>
-                    <Box component="th" sx={{ fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 90, color: isDark ? '#fff' : '#1565C0' }}>Tipo</Box>
-                    <Box component="th" sx={{ fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 90, color: isDark ? '#fff' : '#1565C0' }}>Capacidad</Box>
-                    <Box component="th" sx={{ fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 160, color: isDark ? '#fff' : '#1565C0' }}>Notas / Motivo</Box>
-                    <Box component="th" sx={{ fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 120, color: isDark ? '#fff' : '#1565C0' }}>Acción</Box>
+                    <Box component="th" sx={{ fontWeight: 900, p: 1.5, textAlign: 'left', minWidth: 140, color: isDark ? '#90CAF9' : '#0D47A1' }}>Ubicación</Box>
+                    <Box component="th" sx={{ fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 110, color: isDark ? '#90CAF9' : '#0D47A1' }}>Estado</Box>
+                    <Box component="th" sx={{ fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 90, color: isDark ? '#90CAF9' : '#0D47A1' }}>Tipo</Box>
+                    <Box component="th" sx={{ fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 90, color: isDark ? '#90CAF9' : '#0D47A1' }}>Capacidad</Box>
+                    <Box component="th" sx={{ fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 160, color: isDark ? '#90CAF9' : '#0D47A1' }}>Notas / Motivo</Box>
+                    <Box component="th" sx={{ fontWeight: 900, p: 1.5, textAlign: 'center', minWidth: 120, color: isDark ? '#90CAF9' : '#0D47A1' }}>Acción</Box>
                   </Box>
                 </Box>
 
@@ -702,7 +717,7 @@ export default function LocationsPage() {
                       >
                         <Stack direction="row" justifyContent="space-between" alignItems="center">
                           <Typography sx={{ fontWeight: 900, fontSize: 18 }}>{rk.rackCode}</Typography>
-                          <Chip size="small" label={`${occPct}% Ocup.`} sx={{ bgcolor: 'rgba(21,101,192,.18)', border: '1px solid rgba(21,101,192,.25)', color: isDark ? '#64B5F6' : '#1565C0', fontWeight: 900 }} />
+                          <Chip size="small" label={`${occPct}% Ocup.`} sx={{ ...ps.metricChip('info'), fontWeight: 900 }} />
                         </Stack>
 
                         <Divider sx={{ my: 1.5 }} />
@@ -814,10 +829,10 @@ export default function LocationsPage() {
               </Typography>
 
               <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap' }} useFlexGap>
-                <Chip size="small" label={detailItem._state} sx={{ ...chipSxForState(detailItem._state), fontWeight: 900 }} />
-                <Chip size="small" label={`Rack ${detailItem.rackCode}`} sx={{ bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)', color: '#e5e7eb', fontWeight: 900 }} />
-                <Chip size="small" label={`${detailItem.height}-${detailItem._slot3}`} sx={{ bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)', color: '#e5e7eb', fontWeight: 900 }} />
-                <Chip size="small" label={`Zona ${detailItem._area}`} sx={{ bgcolor: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.10)', color: '#e5e7eb', fontWeight: 900 }} />
+                <Chip size="small" label={detailItem._state} sx={{ ...chipSxForState(detailItem._state, isDark), fontWeight: 900 }} />
+                <Chip size="small" label={`Rack ${detailItem.rackCode}`} sx={{ ...ps.metricChip('default'), fontWeight: 900 }} />
+                <Chip size="small" label={`${detailItem.height}-${detailItem._slot3}`} sx={{ ...ps.metricChip('default'), fontWeight: 900 }} />
+                <Chip size="small" label={`Zona ${detailItem._area}`} sx={{ ...ps.metricChip('default'), fontWeight: 900 }} />
               </Stack>
 
               <Divider sx={{ my: 2 }} />
