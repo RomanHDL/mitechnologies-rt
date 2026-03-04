@@ -1,3 +1,4 @@
+// ProductionPage.jsx
 import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../state/auth'
 import { api } from '../lib/api'
@@ -20,6 +21,7 @@ import IconButton from '@mui/material/IconButton'
 import Divider from '@mui/material/Divider'
 import Grid from '@mui/material/Grid'
 import TableContainer from '@mui/material/TableContainer'
+import LinearProgress from '@mui/material/LinearProgress'
 
 import EditIcon from '@mui/icons-material/Edit'
 import DoneIcon from '@mui/icons-material/Done'
@@ -227,10 +229,10 @@ export default function ProductionPage() {
 
   const metricChip = (label, tone = 'default') => {
     const base = {
-      fontWeight: 800,
+      fontWeight: 900,
       borderRadius: 999,
       height: 34,
-      px: 1,
+      px: 1.2,
       border: '1px solid rgba(255,255,255,.10)',
       background: 'rgba(255,255,255,.06)',
       color: '#eaf2ff',
@@ -250,6 +252,57 @@ export default function ProductionPage() {
     '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,.14)' },
   }
 
+  // ✅ Tarjeta métrica PRO (número grande + barra)
+  const metricCard = (title, value, tone = 'default') => {
+    const tones = {
+      default: { glow: 'rgba(255,255,255,.18)', bar: 'rgba(255,255,255,.25)' },
+      warn: { glow: 'rgba(250,204,21,.22)', bar: 'rgba(250,204,21,.35)' },
+      info: { glow: 'rgba(56,189,248,.22)', bar: 'rgba(56,189,248,.35)' },
+      ok: { glow: 'rgba(34,197,94,.22)', bar: 'rgba(34,197,94,.35)' },
+      bad: { glow: 'rgba(239,68,68,.22)', bar: 'rgba(239,68,68,.35)' },
+    }
+    const t = tones[tone] || tones.default
+
+    return (
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2,
+          borderRadius: 3,
+          border: '1px solid rgba(255,255,255,.08)',
+          background: 'linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03))',
+          boxShadow: `0 10px 30px rgba(0,0,0,.18), 0 0 0 1px ${t.glow} inset`,
+          overflow: 'hidden',
+          minHeight: 96
+        }}
+      >
+        <Typography sx={{ color: 'rgba(207,227,255,.85)', fontSize: 12, fontWeight: 900, letterSpacing: .6 }}>
+          {String(title).toUpperCase()}
+        </Typography>
+
+        <Typography sx={{ mt: .6, color: '#eaf2ff', fontWeight: 950, fontSize: 30, lineHeight: 1 }}>
+          {value}
+        </Typography>
+
+        <Box sx={{ mt: 1.2 }}>
+          <LinearProgress
+            variant="determinate"
+            value={Math.min(100, Math.max(0, Number(value || 0)))}
+            sx={{
+              height: 8,
+              borderRadius: 999,
+              backgroundColor: 'rgba(255,255,255,.06)',
+              '& .MuiLinearProgress-bar': {
+                borderRadius: 999,
+                backgroundColor: t.bar
+              }
+            }}
+          />
+        </Box>
+      </Paper>
+    )
+  }
+
   return (
     <Box sx={pageBg}>
       {/* Header */}
@@ -257,7 +310,7 @@ export default function ProductionPage() {
         direction={{ xs: 'column', md: 'row' }}
         spacing={1.2}
         alignItems={{ xs: 'flex-start', md: 'center' }}
-        sx={{ mb: 2 }}
+        sx={{ mb: 3 }}
       >
         <Box sx={{ minWidth: 260 }}>
           <Typography variant="h5" sx={{ fontWeight: 950, letterSpacing: .2, color: '#eaf2ff', lineHeight: 1.15 }}>
@@ -275,7 +328,7 @@ export default function ProductionPage() {
             <IconButton
               onClick={exportExcel}
               sx={{
-                borderRadius: 2.5,
+                borderRadius: 3,
                 border: '1px solid rgba(255,255,255,.12)',
                 background: 'rgba(255,255,255,.06)',
                 color: '#eaf2ff',
@@ -288,8 +341,8 @@ export default function ProductionPage() {
         </Stack>
       </Stack>
 
-      {/* Resumen */}
-      <Paper elevation={0} sx={{ ...card, mb: 2 }}>
+      {/* Resumen PRO */}
+      <Paper elevation={0} sx={{ ...card, mb: 4 }}>
         <Box sx={cardHeader}>
           <Typography sx={{ fontWeight: 900, color: '#eaf2ff' }}>Resumen</Typography>
           <Typography sx={{ ...subtleText, color: '#cfe3ff' }}>
@@ -297,31 +350,33 @@ export default function ProductionPage() {
           </Typography>
         </Box>
 
-        {/* ✅ mejor wrap y respiración */}
         <Box sx={{ p: 2 }}>
-          <Stack
-            direction="row"
-            spacing={1.2}
-            flexWrap="wrap"
-            useFlexGap
-            sx={{ rowGap: 1.2 }}
-          >
-            {metricChip(`Total: ${resumen.total}`)}
-            {metricChip(`Pendientes: ${resumen.pendientes}`, 'warn')}
-            {metricChip(`En proceso: ${resumen.enproceso}`, 'info')}
-            {metricChip(`Completadas: ${resumen.completadas}`, 'ok')}
-            {metricChip(`Canceladas: ${resumen.canceladas}`, 'bad')}
-          </Stack>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={2.4}>
+              {metricCard('Total', resumen.total, 'default')}
+            </Grid>
+            <Grid item xs={12} sm={6} md={2.4}>
+              {metricCard('Pendientes', resumen.pendientes, 'warn')}
+            </Grid>
+            <Grid item xs={12} sm={6} md={2.4}>
+              {metricCard('En proceso', resumen.enproceso, 'info')}
+            </Grid>
+            <Grid item xs={12} sm={6} md={2.4}>
+              {metricCard('Completadas', resumen.completadas, 'ok')}
+            </Grid>
+            <Grid item xs={12} sm={6} md={2.4}>
+              {metricCard('Canceladas', resumen.canceladas, 'bad')}
+            </Grid>
+          </Grid>
         </Box>
       </Paper>
 
-      {/* ✅ FFT > Paletizado — Dashboard Diario */}
+      {/* ✅ FFT > Paletizado — Dashboard Diario (2 columnas + scroll interno) */}
       {isFftPaletizado && (
-        <Paper elevation={0} sx={{ ...card, mb: 2 }}>
+        <Paper elevation={0} sx={{ ...card, mb: 4 }}>
           <Box
             sx={{
               ...cardHeader,
-              // ✅ header responsivo sin amontonarse
               flexDirection: { xs: 'column', md: 'row' },
               alignItems: { xs: 'flex-start', md: 'center' },
               gap: 1.2
@@ -338,7 +393,6 @@ export default function ProductionPage() {
 
             <Box sx={{ flex: 1 }} />
 
-            {/* Fecha */}
             <TextField
               label="Día (DD/MM/AAAA)"
               value={dashDayDMY}
@@ -359,80 +413,105 @@ export default function ProductionPage() {
             />
           </Box>
 
-          <Box sx={{ px: 2, py: 1.5 }}>
-            <Stack
-              direction="row"
-              spacing={1}
-              flexWrap="wrap"
-              useFlexGap
-              sx={{ rowGap: 1.2 }}
-            >
-              {metricChip(`Total: ${dash.resumen?.total ?? 0}`)}
-              {metricChip(`Pendientes: ${dash.resumen?.pendientes ?? 0}`, 'warn')}
-              {metricChip(`Procesados: ${dash.resumen?.procesados ?? 0}`, 'ok')}
-            </Stack>
-          </Box>
-
-          <Divider sx={{ borderColor: 'rgba(255,255,255,.08)' }} />
-
           <Box sx={{ p: 2 }}>
-            {/* ✅ contenedor para evitar que se amontone en pantallas chicas */}
-            <TableContainer sx={{ borderRadius: 3, border: '1px solid rgba(255,255,255,.06)' }}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow sx={{ background: 'rgba(14,54,96,.55)' }}>
-                    <TableCell sx={{ fontWeight: 900, color: '#eaf2ff' }}>PalletID</TableCell>
-                    <TableCell sx={{ fontWeight: 900, color: '#eaf2ff' }}>Status</TableCell>
-                    <TableCell sx={{ fontWeight: 900, color: '#eaf2ff', textAlign: 'center' }}>Acción</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {(dash.rows || []).map((r, i) => (
-                    <TableRow
-                      key={r.id}
-                      sx={{
-                        background: i % 2 === 0 ? 'rgba(255,255,255,.03)' : 'rgba(255,255,255,.02)',
-                        '&:hover': { background: 'rgba(56,189,248,.08)' }
-                      }}
-                    >
-                      <TableCell sx={{ color: '#eaf2ff', fontWeight: 800 }}>{r.palletId}</TableCell>
-                      <TableCell sx={{ color: '#cfe3ff' }}>{r.status}</TableCell>
-                      <TableCell sx={{ textAlign: 'center' }}>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => setDashStatus(r.id, r.status === 'PROCESADO' ? 'PENDIENTE' : 'PROCESADO')}
+            <Grid container spacing={2}>
+              {/* Panel izquierdo */}
+              <Grid item xs={12} md={4}>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2,
+                    borderRadius: 3,
+                    border: '1px solid rgba(255,255,255,.06)',
+                    background: 'rgba(255,255,255,.03)'
+                  }}
+                >
+                  <Typography sx={{ fontWeight: 950, color: '#eaf2ff', mb: 1 }}>
+                    Estado del día
+                  </Typography>
+
+                  <Stack spacing={1.2} sx={{ mb: 2 }}>
+                    {metricChip(`Total: ${dash.resumen?.total ?? 0}`)}
+                    {metricChip(`Pendientes: ${dash.resumen?.pendientes ?? 0}`, 'warn')}
+                    {metricChip(`Procesados: ${dash.resumen?.procesados ?? 0}`, 'ok')}
+                  </Stack>
+
+                  <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,.08)' }} />
+
+                  <Typography sx={{ ...subtleText, color: 'rgba(207,227,255,.8)' }}>
+                    Tip: desplázate en la tabla (derecha) y marca procesados sin recargar.
+                  </Typography>
+                </Paper>
+              </Grid>
+
+              {/* Tabla derecha */}
+              <Grid item xs={12} md={8}>
+                <TableContainer
+                  sx={{
+                    borderRadius: 3,
+                    border: '1px solid rgba(255,255,255,.06)',
+                    maxHeight: 380,
+                    overflow: 'auto'
+                  }}
+                >
+                  <Table stickyHeader size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ background: 'rgba(14,54,96,.75)', fontWeight: 900, color: '#eaf2ff' }}>PalletID</TableCell>
+                        <TableCell sx={{ background: 'rgba(14,54,96,.75)', fontWeight: 900, color: '#eaf2ff' }}>Status</TableCell>
+                        <TableCell sx={{ background: 'rgba(14,54,96,.75)', fontWeight: 900, color: '#eaf2ff', textAlign: 'center' }}>Acción</TableCell>
+                      </TableRow>
+                    </TableHead>
+
+                    <TableBody>
+                      {(dash.rows || []).map((r, i) => (
+                        <TableRow
+                          key={r.id}
                           sx={{
-                            borderRadius: 3,
-                            textTransform: 'none',
-                            fontWeight: 900,
-                            borderColor: 'rgba(255,255,255,.18)',
-                            color: '#eaf2ff',
-                            '&:hover': { borderColor: 'rgba(56,189,248,.55)', background: 'rgba(56,189,248,.10)' }
+                            background: i % 2 === 0 ? 'rgba(255,255,255,.03)' : 'rgba(255,255,255,.02)',
+                            '&:hover': { background: 'rgba(56,189,248,.08)' }
                           }}
                         >
-                          {r.status === 'PROCESADO' ? 'Marcar Pendiente' : 'Marcar Procesado'}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                          <TableCell sx={{ color: '#eaf2ff', fontWeight: 800 }}>{r.palletId}</TableCell>
+                          <TableCell sx={{ color: '#cfe3ff' }}>{r.status}</TableCell>
+                          <TableCell sx={{ textAlign: 'center' }}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => setDashStatus(r.id, r.status === 'PROCESADO' ? 'PENDIENTE' : 'PROCESADO')}
+                              sx={{
+                                borderRadius: 3,
+                                textTransform: 'none',
+                                fontWeight: 900,
+                                borderColor: 'rgba(255,255,255,.18)',
+                                color: '#eaf2ff',
+                                '&:hover': { borderColor: 'rgba(56,189,248,.55)', background: 'rgba(56,189,248,.10)' }
+                              }}
+                            >
+                              {r.status === 'PROCESADO' ? 'Marcar Pendiente' : 'Marcar Procesado'}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
 
-                  {(!dash.rows || dash.rows.length === 0) && (
-                    <TableRow>
-                      <TableCell colSpan={3} sx={{ opacity: 0.8, color: '#cfe3ff' }}>
-                        No hay pallets cargados para este día. (Importa el Excel o cambia la fecha)
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                      {(!dash.rows || dash.rows.length === 0) && (
+                        <TableRow>
+                          <TableCell colSpan={3} sx={{ opacity: 0.8, color: '#cfe3ff' }}>
+                            No hay pallets cargados para este día. (Importa el Excel o cambia la fecha)
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Grid>
+            </Grid>
           </Box>
         </Paper>
       )}
 
-      {/* Nueva solicitud */}
-      <Paper elevation={0} sx={{ ...card, mb: 2 }}>
+      {/* Nueva solicitud (2 filas limpias) */}
+      <Paper elevation={0} sx={{ ...card, mb: 4 }}>
         <Box sx={cardHeader}>
           <Typography sx={{ fontWeight: 950, color: '#eaf2ff' }}>Nueva solicitud</Typography>
           <Typography sx={{ ...subtleText, color: '#cfe3ff' }}>
@@ -441,9 +520,9 @@ export default function ProductionPage() {
         </Box>
 
         <Box sx={{ p: 2 }}>
-          {/* ✅ GRID responsivo: ya no se amontona */}
-          <Grid container spacing={1.5} alignItems="center">
-            <Grid item xs={12} sm={6} md={3}>
+          <Grid container spacing={2}>
+            {/* fila 1 */}
+            <Grid item xs={12} md={6}>
               <TextField
                 select
                 fullWidth
@@ -458,7 +537,7 @@ export default function ProductionPage() {
               </TextField>
             </Grid>
 
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} md={6}>
               <TextField
                 select
                 fullWidth
@@ -473,7 +552,8 @@ export default function ProductionPage() {
               </TextField>
             </Grid>
 
-            <Grid item xs={12} sm={6} md={3}>
+            {/* fila 2 */}
+            <Grid item xs={12} md={8}>
               <TextField
                 fullWidth
                 label="PalletID"
@@ -483,7 +563,7 @@ export default function ProductionPage() {
               />
             </Grid>
 
-            <Grid item xs={12} sm={6} md={1.5}>
+            <Grid item xs={12} md={4}>
               <TextField
                 fullWidth
                 label="Items"
@@ -495,7 +575,7 @@ export default function ProductionPage() {
               />
             </Grid>
 
-            <Grid item xs={12} md={8.5}>
+            <Grid item xs={12}>
               <TextField
                 fullWidth
                 label="Nota"
@@ -505,14 +585,13 @@ export default function ProductionPage() {
               />
             </Grid>
 
-            <Grid item xs={12} md={3.5}>
+            <Grid item xs={12}>
               <Button
                 fullWidth
                 variant="contained"
                 onClick={create}
                 sx={{
                   height: 52,
-                  px: 3,
                   borderRadius: 3,
                   fontWeight: 950,
                   textTransform: 'none',
@@ -535,7 +614,7 @@ export default function ProductionPage() {
         </Box>
       </Paper>
 
-      {/* Tabla */}
+      {/* Solicitudes (sticky header + scroll) */}
       <Paper elevation={0} sx={{ ...card }}>
         <Box
           sx={{
@@ -547,6 +626,7 @@ export default function ProductionPage() {
         >
           <Typography sx={{ fontWeight: 950, color: '#eaf2ff' }}>Solicitudes</Typography>
           <Box sx={{ flex: 1 }} />
+
           <TextField
             select
             label="Filtrar status"
@@ -554,7 +634,7 @@ export default function ProductionPage() {
             onChange={e => setFiltroStatus(e.target.value)}
             sx={{
               ...inputSx,
-              minWidth: { xs: '100%', md: 220 },
+              minWidth: { xs: '100%', md: 240 },
               width: { xs: '100%', md: 'auto' }
             }}
           >
@@ -567,18 +647,24 @@ export default function ProductionPage() {
         </Box>
 
         <Box sx={{ p: 2 }}>
-          {/* ✅ esto evita que se vea todo pegado: scroll horizontal si no cabe */}
-          <TableContainer sx={{ borderRadius: 3, border: '1px solid rgba(255,255,255,.06)' }}>
-            <Table size="small" sx={{ minWidth: 980 }}>
+          <TableContainer
+            sx={{
+              borderRadius: 3,
+              border: '1px solid rgba(255,255,255,.06)',
+              maxHeight: 420,
+              overflow: 'auto'
+            }}
+          >
+            <Table stickyHeader size="small" sx={{ minWidth: 980 }}>
               <TableHead>
-                <TableRow sx={{ background: 'rgba(14,54,96,.55)' }}>
-                  <TableCell sx={{ color: '#eaf2ff', fontWeight: 900 }}>Área</TableCell>
-                  <TableCell sx={{ color: '#eaf2ff', fontWeight: 900 }}>Sub-área</TableCell>
-                  <TableCell sx={{ color: '#eaf2ff', fontWeight: 900 }}>Status</TableCell>
-                  <TableCell sx={{ color: '#eaf2ff', fontWeight: 900 }}>Items</TableCell>
-                  <TableCell sx={{ color: '#eaf2ff', fontWeight: 900 }}>Solicitó</TableCell>
-                  <TableCell sx={{ color: '#eaf2ff', fontWeight: 900 }}>Nota</TableCell>
-                  <TableCell sx={{ color: '#eaf2ff', fontWeight: 900, textAlign: 'center' }}>Acción</TableCell>
+                <TableRow>
+                  <TableCell sx={{ background: 'rgba(14,54,96,.75)', color: '#eaf2ff', fontWeight: 900 }}>Área</TableCell>
+                  <TableCell sx={{ background: 'rgba(14,54,96,.75)', color: '#eaf2ff', fontWeight: 900 }}>Sub-área</TableCell>
+                  <TableCell sx={{ background: 'rgba(14,54,96,.75)', color: '#eaf2ff', fontWeight: 900 }}>Status</TableCell>
+                  <TableCell sx={{ background: 'rgba(14,54,96,.75)', color: '#eaf2ff', fontWeight: 900 }}>Items</TableCell>
+                  <TableCell sx={{ background: 'rgba(14,54,96,.75)', color: '#eaf2ff', fontWeight: 900 }}>Solicitó</TableCell>
+                  <TableCell sx={{ background: 'rgba(14,54,96,.75)', color: '#eaf2ff', fontWeight: 900 }}>Nota</TableCell>
+                  <TableCell sx={{ background: 'rgba(14,54,96,.75)', color: '#eaf2ff', fontWeight: 900, textAlign: 'center' }}>Acción</TableCell>
                 </TableRow>
               </TableHead>
 
@@ -609,17 +695,17 @@ export default function ProductionPage() {
                         </Typography>
                       </TableCell>
 
-                      <TableCell sx={{ color: '#cfe3ff', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <TableCell sx={{ color: '#cfe3ff', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         <Tooltip title={itemsText} arrow>
-                          <span>{itemsText.length > 30 ? itemsText.slice(0, 30) + '…' : itemsText}</span>
+                          <span>{itemsText.length > 38 ? itemsText.slice(0, 38) + '…' : itemsText}</span>
                         </Tooltip>
                       </TableCell>
 
                       <TableCell sx={{ color: '#cfe3ff' }}>{r.requestedBy?.email || '—'}</TableCell>
 
-                      <TableCell sx={{ color: '#cfe3ff', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <TableCell sx={{ color: '#cfe3ff', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         <Tooltip title={r.note || '—'} arrow>
-                          <span>{(r.note || '—').length > 30 ? (r.note || '—').slice(0, 30) + '…' : (r.note || '—')}</span>
+                          <span>{(r.note || '—').length > 38 ? (r.note || '—').slice(0, 38) + '…' : (r.note || '—')}</span>
                         </Tooltip>
                       </TableCell>
 
