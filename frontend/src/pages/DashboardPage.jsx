@@ -1,8 +1,8 @@
 import { io } from 'socket.io-client'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/auth'
-import { apiFetch } from '../services/api'
+import { apiFetch, apiUpload } from '../services/api' // ✅ apiUpload
 import { usePageStyles } from '../ui/pageStyles'
 
 import Paper from '@mui/material/Paper'
@@ -16,6 +16,7 @@ import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
 import IconButton from '@mui/material/IconButton'
 import TooltipMUI from '@mui/material/Tooltip'
+import LinearProgress from '@mui/material/LinearProgress'
 
 import RefreshIcon from '@mui/icons-material/Refresh'
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner'
@@ -28,6 +29,7 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import BlockIcon from '@mui/icons-material/Block'
 import Inventory2Icon from '@mui/icons-material/Inventory2'
+import UploadFileIcon from '@mui/icons-material/UploadFile'
 
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
 
@@ -55,11 +57,9 @@ function Pill({ label, icon, ps }) {
 }
 
 export default function DashboardPage() {
-  const { token } = useAuth()
+  const { token, user } = useAuth() // ✅ asumimos que useAuth trae user (si no, abajo te pongo fallback)
   const nav = useNavigate()
   const ps = usePageStyles()
-
-  useMemo(() => io, [])
 
   const [stats, setStats] = useState({ occupancyPct: 0, occupied: 0, total: 0, entradasHoy: 0, salidasHoy: 0 })
   const [series, setSeries] = useState([])
@@ -69,6 +69,14 @@ export default function DashboardPage() {
   const [err, setErr] = useState('')
   const [range, setRange] = useState('7D')
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null)
+
+  // ✅ Import Excel UI
+  const fileRef = useRef(null)
+  const [importing, setImporting] = useState(false)
+  const [importMsg, setImportMsg] = useState('')
+
+  // ✅ Detect admin (si tu auth no trae user, lo dejamos false sin romper)
+  const isAdmin = Boolean(user?.role === 'ADMIN' || user?.isAdmin === true)
 
   const refresh = async () => {
     let alive = true
@@ -133,6 +141,44 @@ export default function DashboardPage() {
     return () => { alive = false }
   }
 
+  // ✅ Socket.IO realtime: cuando alguien importe Excel o cambie algo, refresca dashboard
+  useEffect(() => {
+    if (!token) return
+
+    const base = import.meta.env.VITE_API_URL
+    if (!base) return
+
+    const socket = io(String(base).replace(/\/+$/, ''), {
+      transports: ['websocket', 'polling'],
+      auth: { token }, // tu backend no lo usa hoy, pero no estorba
+    })
+
+    const onAnyUpdate = () => {
+      refresh()
+    }
+
+    socket.on('connect', () => {
+      // opcional: console.log('socket connected', socket.id)
+    })
+
+    socket.on('dashboard:update', onAnyUpdate)
+    socket.on('palletDashboard:update', onAnyUpdate)
+    socket.on('production:update', onAnyUpdate)
+
+    socket.on('connect_error', (e) => {
+      // No rompemos UI si socket falla
+      // opcional: console.warn('socket error', e?.message)
+    })
+
+    return () => {
+      socket.off('dashboard:update', onAnyUpdate)
+      socket.off('palletDashboard:update', onAnyUpdate)
+      socket.off('production:update', onAnyUpdate)
+      socket.disconnect()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
+
   useEffect(() => {
     let alive = true
     ;(async () => {
@@ -159,6 +205,27 @@ export default function DashboardPage() {
     { label: 'Ordenes', icon: <AssignmentIcon fontSize="small" />, to: '/ordenes' },
     { label: 'Produccion', icon: <PrecisionManufacturingIcon fontSize="small" />, to: '/produccion' },
   ]
+
+  const doImportExcel = async (file) => {
+    if (!file) return
+    setImportMsg('')
+    setErr('')
+    setImporting(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+
+      const resp = await apiUpload('/api/admin/import-excel', fd)
+
+      setImportMsg(`✅ Importado. Hojas: ${JSON.stringify(resp?.result?.sheets || {})}`)
+      await refresh()
+    } catch (e) {
+      setErr(e?.message || 'Error importando Excel')
+    } finally {
+      setImporting(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
 
   return (
     <Box sx={ps.page}>
@@ -188,6 +255,31 @@ export default function DashboardPage() {
             ))}
           </Stack>
 
+          {/* ✅ Import Excel (solo admin) */}
+          {isAdmin && (
+            <TooltipMUI title="Importar Excel (solo admin)">
+              <span>
+                <Button
+                  variant="outlined"
+                  startIcon={<UploadFileIcon />}
+                  disabled={importing}
+                  onClick={() => fileRef.current?.click()}
+                  sx={{ borderRadius: 2 }}
+                >
+                  Importar Excel
+                </Button>
+              </span>
+            </TooltipMUI>
+          )}
+
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".xlsx,.xls"
+            style={{ display: 'none' }}
+            onChange={(e) => doImportExcel(e.target.files?.[0])}
+          />
+
           <TooltipMUI title="Actualizar">
             <IconButton onClick={refresh} sx={ps.actionBtn('primary')}>
               <RefreshIcon fontSize="small" />
@@ -196,6 +288,14 @@ export default function DashboardPage() {
         </Stack>
       </Box>
 
+      {importing && (
+        <Paper elevation={0} sx={{ ...ps.card, mb: 2, p: 1.5 }}>
+          <Typography sx={{ fontWeight: 800, mb: 1 }}>Importando Excel...</Typography>
+          <LinearProgress />
+        </Paper>
+      )}
+
+      {importMsg && <Alert severity="success" sx={{ mb: 2 }}>{importMsg}</Alert>}
       {err && <Alert severity="warning" sx={{ mb: 2 }}>Dashboard cargo con fallas: {err}</Alert>}
 
       {/* KPIs */}

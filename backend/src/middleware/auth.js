@@ -132,6 +132,17 @@ const ROLE_PERMISSIONS = {
     operador: [],
 };
 
+
+function requireAdmin(req, res, next) {
+    // Ajusta según tu user (role, isAdmin, etc.)
+    const u = req.user
+    const isAdmin = u?.role === 'ADMIN' || u?.isAdmin === true
+    if (!isAdmin) return res.status(403).json({ message: 'Solo admin' })
+    next()
+}
+
+module.exports = { requireAuth, requireAdmin }
+
 function safeParsePermissions(val) {
     try {
         const parsed = JSON.parse(val);

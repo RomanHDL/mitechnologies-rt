@@ -35,12 +35,15 @@ const httpServer = http.createServer(app);
  */
 app.set('trust proxy', 1);
 
-/**
- * CORS
- */
+// ✅ Mantengo tu linea tal cual (aunque esté arriba de CORS, no la rompo)
+app.use('/api', require('./src/routes/adminImport.routes'))
+    /**
+     * CORS
+     */
 const corsOriginEnv = process.env.CORS_ORIGIN || '';
 const allowedOrigins = corsOriginEnv ?
-    corsOriginEnv.split(',').map(s => s.trim()).filter(Boolean) : [];
+    corsOriginEnv.split(',').map(s => s.trim()).filter(Boolean) :
+    [];
 
 // ✅ Dominio principal de tu frontend (fallback si no lo pones en Railway)
 const VERCEL_MAIN = 'https://mitechnologies-rt.vercel.app';
@@ -93,6 +96,42 @@ const io = new Server(httpServer, {
 });
 app.set('io', io);
 
+// ✅ REALTIME: (opcional) log de conexiones + canal de prueba
+io.on('connection', (socket) => {
+    // No rompe nada; solo ayuda a debug
+    console.log('socket connected:', socket.id);
+
+    socket.on('disconnect', () => {
+        console.log('socket disconnected:', socket.id);
+    });
+
+    // Ping opcional desde el frontend
+    socket.on('ping', () => {
+        socket.emit('pong', { at: new Date().toISOString() });
+    });
+});
+
+// ✅ REALTIME: middleware para emitir eventos desde rutas SIN tocar tu lógica
+// Uso en rutas: res.locals.emit = [{ event:'dashboard:update', data:{...} }, ...]
+app.use((req, res, next) => {
+    res.on('finish', () => {
+        try {
+            const list = Array.isArray(res.locals?.emit) ? res.locals.emit : [];
+            if (!list.length) return;
+            const _io = req.app.get('io');
+            if (!_io) return;
+
+            for (const e of list) {
+                if (!e || !e.event) continue;
+                _io.emit(e.event, e.data ?? { at: new Date().toISOString() });
+            }
+        } catch (_) {
+            // no-op: nunca debe tumbar tu server
+        }
+    });
+    next();
+});
+
 /**
  * Rate limit
  */
@@ -112,6 +151,15 @@ app.use(morgan('dev'));
 app.get('/health', (req, res) =>
     res.json({ ok: true, time: new Date().toISOString() })
 );
+
+// ✅ REALTIME: endpoint simple para probar sockets (no afecta nada)
+app.get('/socket-test', (req, res) => {
+    try {
+        const _io = req.app.get('io');
+        _io?.emit('dashboard:update', { at: new Date().toISOString(), reason: 'socket-test' });
+    } catch (e) {}
+    res.json({ ok: true });
+});
 
 /**
  * Rutas
