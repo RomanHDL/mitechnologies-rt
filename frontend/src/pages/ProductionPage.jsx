@@ -106,6 +106,7 @@ export default function ProductionPage() {
   const [note, setNote] = useState('')
 
   // ✅ Paletizado dashboard (FFT > Paletizado)
+  // 🔥 ULTIMA MOD: esto garantiza que SOLO salga en FFT + Paletizado (en TODOS los demás NO)
   const isFftPaletizado = area === 'P2' && subarea === 'Paletizado'
 
   // guardamos ISO real para request
@@ -381,207 +382,8 @@ export default function ProductionPage() {
         </Box>
       </Paper>
 
-      {/* ✅ FFT > Paletizado — Dashboard Diario (2 columnas + scroll interno) */}
-      {isFftPaletizado && (
-        <Paper elevation={0} sx={{ ...card, mb: 4 }}>
-          <Box
-            sx={{
-              ...cardHeader,
-              flexDirection: { xs: 'column', md: 'row' },
-              alignItems: { xs: 'flex-start', md: 'center' },
-              gap: 1.2
-            }}
-          >
-            <Box>
-              <Typography sx={{ fontWeight: 950, color: '#eaf2ff' }}>
-                FFT &gt; Paletizado — Control diario
-              </Typography>
-              <Typography sx={{ ...subtleText, color: '#cfe3ff' }}>
-                Consulta por día y marca pallets como procesados/pendientes.
-              </Typography>
-            </Box>
-
-            <Box sx={{ flex: 1 }} />
-
-            {/* ✅ Fecha SIN escribir: picker nativo + botones (hoy / -1 / +1) */}
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ width: { xs: '100%', md: 'auto' } }}>
-              <Tooltip title="Día anterior">
-                <IconButton
-                  onClick={() => {
-                    const nextIso = isoAddDays(dashDayISO, -1)
-                    setDashDayISO(nextIso)
-                    setDashDayDMY(isoToDMY(nextIso))
-                  }}
-                  sx={{
-                    borderRadius: 3,
-                    border: '1px solid rgba(255,255,255,.12)',
-                    background: 'rgba(255,255,255,.06)',
-                    color: '#eaf2ff',
-                    '&:hover': { background: 'rgba(255,255,255,.10)' }
-                  }}
-                >
-                  <ChevronLeftIcon />
-                </IconButton>
-              </Tooltip>
-
-              <TextField
-                type="date"
-                label="Día"
-                value={dashDayISO}
-                onChange={(e) => {
-                  const iso = e.target.value || isoToday()
-                  setDashDayISO(iso)
-                  setDashDayDMY(isoToDMY(iso))
-                }}
-                sx={{
-                  ...inputSx,
-                  minWidth: { xs: '100%', md: 260 },
-                  width: { xs: '100%', md: 'auto' }
-                }}
-                helperText={`Mostrando: ${dashDayDMY}  (ISO: ${dashDayISO})`}
-                FormHelperTextProps={{ sx: { color: 'rgba(207,227,255,.7)' } }}
-                InputLabelProps={{ shrink: true }}
-              />
-
-              <Tooltip title="Día siguiente">
-                <IconButton
-                  onClick={() => {
-                    const nextIso = isoAddDays(dashDayISO, 1)
-                    setDashDayISO(nextIso)
-                    setDashDayDMY(isoToDMY(nextIso))
-                  }}
-                  sx={{
-                    borderRadius: 3,
-                    border: '1px solid rgba(255,255,255,.12)',
-                    background: 'rgba(255,255,255,.06)',
-                    color: '#eaf2ff',
-                    '&:hover': { background: 'rgba(255,255,255,.10)' }
-                  }}
-                >
-                  <ChevronRightIcon />
-                </IconButton>
-              </Tooltip>
-
-              <Tooltip title="Ir a hoy">
-                <IconButton
-                  onClick={() => {
-                    const today = isoToday()
-                    setDashDayISO(today)
-                    setDashDayDMY(isoToDMY(today))
-                  }}
-                  sx={{
-                    borderRadius: 3,
-                    border: '1px solid rgba(255,255,255,.12)',
-                    background: 'rgba(255,255,255,.06)',
-                    color: '#eaf2ff',
-                    '&:hover': { background: 'rgba(255,255,255,.10)' }
-                  }}
-                >
-                  <TodayIcon />
-                </IconButton>
-              </Tooltip>
-            </Stack>
-          </Box>
-
-          <Box sx={{ p: 2 }}>
-            <Grid container spacing={2}>
-              {/* Panel izquierdo */}
-              <Grid item xs={12} md={4}>
-                <Paper
-                  elevation={0}
-                  sx={{
-                    p: 2,
-                    borderRadius: 3,
-                    border: '1px solid rgba(255,255,255,.06)',
-                    background: 'rgba(255,255,255,.03)'
-                  }}
-                >
-                  <Typography sx={{ fontWeight: 950, color: '#eaf2ff', mb: 1 }}>
-                    Estado del día
-                  </Typography>
-
-                  <Stack spacing={1.2} sx={{ mb: 2 }}>
-                    {metricChip(`Total: ${dash.resumen?.total ?? 0}`)}
-                    {metricChip(`Pendientes: ${dash.resumen?.pendientes ?? 0}`, 'warn')}
-                    {metricChip(`Procesados: ${dash.resumen?.procesados ?? 0}`, 'ok')}
-                  </Stack>
-
-                  <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,.08)' }} />
-
-                  <Typography sx={{ ...subtleText, color: 'rgba(207,227,255,.8)' }}>
-                    Tip: desplázate en la tabla (derecha) y marca procesados sin recargar.
-                  </Typography>
-                </Paper>
-              </Grid>
-
-              {/* Tabla derecha */}
-              <Grid item xs={12} md={8}>
-                <TableContainer
-                  sx={{
-                    borderRadius: 3,
-                    border: '1px solid rgba(255,255,255,.06)',
-                    maxHeight: 380,
-                    overflow: 'auto'
-                  }}
-                >
-                  <Table stickyHeader size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell sx={{ background: 'rgba(14,54,96,.75)', fontWeight: 900, color: '#eaf2ff' }}>PalletID</TableCell>
-                        <TableCell sx={{ background: 'rgba(14,54,96,.75)', fontWeight: 900, color: '#eaf2ff' }}>Status</TableCell>
-                        <TableCell sx={{ background: 'rgba(14,54,96,.75)', fontWeight: 900, color: '#eaf2ff', textAlign: 'center' }}>Acción</TableCell>
-                      </TableRow>
-                    </TableHead>
-
-                    <TableBody>
-                      {(dash.rows || []).map((r, i) => (
-                        <TableRow
-                          key={r.id}
-                          sx={{
-                            background: i % 2 === 0 ? 'rgba(255,255,255,.03)' : 'rgba(255,255,255,.02)',
-                            '&:hover': { background: 'rgba(56,189,248,.08)' }
-                          }}
-                        >
-                          <TableCell sx={{ color: '#eaf2ff', fontWeight: 800 }}>{r.palletId}</TableCell>
-                          <TableCell sx={{ color: '#cfe3ff' }}>{r.status}</TableCell>
-                          <TableCell sx={{ textAlign: 'center' }}>
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              onClick={() => setDashStatus(r.id, r.status === 'PROCESADO' ? 'PENDIENTE' : 'PROCESADO')}
-                              sx={{
-                                borderRadius: 3,
-                                textTransform: 'none',
-                                fontWeight: 900,
-                                borderColor: 'rgba(255,255,255,.18)',
-                                color: '#eaf2ff',
-                                '&:hover': { borderColor: 'rgba(56,189,248,.55)', background: 'rgba(56,189,248,.10)' }
-                              }}
-                            >
-                              {r.status === 'PROCESADO' ? 'Marcar Pendiente' : 'Marcar Procesado'}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-
-                      {(!dash.rows || dash.rows.length === 0) && (
-                        <TableRow>
-                          <TableCell colSpan={3} sx={{ opacity: 0.8, color: '#cfe3ff' }}>
-                            No hay pallets cargados para este día. (Importa el Excel o cambia la fecha)
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Grid>
-            </Grid>
-          </Box>
-        </Paper>
-      )}
-
-      {/* ✅ Nueva solicitud (izquierda) + Solicitudes (derecha) */}
-      <Grid container spacing={2.5}>
+      {/* ✅ ARRIBA: Nueva solicitud + Solicitudes */}
+      <Grid container spacing={2.5} sx={{ mb: 4 }}>
         {/* IZQUIERDA: Nueva solicitud */}
         <Grid item xs={12} lg={4}>
           <Paper elevation={0} sx={{ ...card, height: '100%' }}>
@@ -840,6 +642,205 @@ export default function ProductionPage() {
           </Paper>
         </Grid>
       </Grid>
+
+      {/* ✅ ABAJO: FFT > Paletizado — Dashboard Diario (SOLO en FFT+Paletizado) */}
+      {isFftPaletizado && (
+        <Paper elevation={0} sx={{ ...card, mb: 1 }}>
+          <Box
+            sx={{
+              ...cardHeader,
+              flexDirection: { xs: 'column', md: 'row' },
+              alignItems: { xs: 'flex-start', md: 'center' },
+              gap: 1.2
+            }}
+          >
+            <Box>
+              <Typography sx={{ fontWeight: 950, color: '#eaf2ff' }}>
+                FFT &gt; Paletizado — Control diario
+              </Typography>
+              <Typography sx={{ ...subtleText, color: '#cfe3ff' }}>
+                Consulta por día y marca pallets como procesados/pendientes.
+              </Typography>
+            </Box>
+
+            <Box sx={{ flex: 1 }} />
+
+            {/* ✅ Fecha SIN escribir: picker nativo + botones (hoy / -1 / +1) */}
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ width: { xs: '100%', md: 'auto' } }}>
+              <Tooltip title="Día anterior">
+                <IconButton
+                  onClick={() => {
+                    const nextIso = isoAddDays(dashDayISO, -1)
+                    setDashDayISO(nextIso)
+                    setDashDayDMY(isoToDMY(nextIso))
+                  }}
+                  sx={{
+                    borderRadius: 3,
+                    border: '1px solid rgba(255,255,255,.12)',
+                    background: 'rgba(255,255,255,.06)',
+                    color: '#eaf2ff',
+                    '&:hover': { background: 'rgba(255,255,255,.10)' }
+                  }}
+                >
+                  <ChevronLeftIcon />
+                </IconButton>
+              </Tooltip>
+
+              <TextField
+                type="date"
+                label="Día"
+                value={dashDayISO}
+                onChange={(e) => {
+                  const iso = e.target.value || isoToday()
+                  setDashDayISO(iso)
+                  setDashDayDMY(isoToDMY(iso))
+                }}
+                sx={{
+                  ...inputSx,
+                  minWidth: { xs: '100%', md: 260 },
+                  width: { xs: '100%', md: 'auto' }
+                }}
+                helperText={`Mostrando: ${dashDayDMY}  (ISO: ${dashDayISO})`}
+                FormHelperTextProps={{ sx: { color: 'rgba(207,227,255,.7)' } }}
+                InputLabelProps={{ shrink: true }}
+              />
+
+              <Tooltip title="Día siguiente">
+                <IconButton
+                  onClick={() => {
+                    const nextIso = isoAddDays(dashDayISO, 1)
+                    setDashDayISO(nextIso)
+                    setDashDayDMY(isoToDMY(nextIso))
+                  }}
+                  sx={{
+                    borderRadius: 3,
+                    border: '1px solid rgba(255,255,255,.12)',
+                    background: 'rgba(255,255,255,.06)',
+                    color: '#eaf2ff',
+                    '&:hover': { background: 'rgba(255,255,255,.10)' }
+                  }}
+                >
+                  <ChevronRightIcon />
+                </IconButton>
+              </Tooltip>
+
+              <Tooltip title="Ir a hoy">
+                <IconButton
+                  onClick={() => {
+                    const today = isoToday()
+                    setDashDayISO(today)
+                    setDashDayDMY(isoToDMY(today))
+                  }}
+                  sx={{
+                    borderRadius: 3,
+                    border: '1px solid rgba(255,255,255,.12)',
+                    background: 'rgba(255,255,255,.06)',
+                    color: '#eaf2ff',
+                    '&:hover': { background: 'rgba(255,255,255,.10)' }
+                  }}
+                >
+                  <TodayIcon />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+          </Box>
+
+          <Box sx={{ p: 2 }}>
+            <Grid container spacing={2}>
+              {/* Panel izquierdo */}
+              <Grid item xs={12} md={4}>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2,
+                    borderRadius: 3,
+                    border: '1px solid rgba(255,255,255,.06)',
+                    background: 'rgba(255,255,255,.03)'
+                  }}
+                >
+                  <Typography sx={{ fontWeight: 950, color: '#eaf2ff', mb: 1 }}>
+                    Estado del día
+                  </Typography>
+
+                  <Stack spacing={1.2} sx={{ mb: 2 }}>
+                    {metricChip(`Total: ${dash.resumen?.total ?? 0}`)}
+                    {metricChip(`Pendientes: ${dash.resumen?.pendientes ?? 0}`, 'warn')}
+                    {metricChip(`Procesados: ${dash.resumen?.procesados ?? 0}`, 'ok')}
+                  </Stack>
+
+                  <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,.08)' }} />
+
+                  <Typography sx={{ ...subtleText, color: 'rgba(207,227,255,.8)' }}>
+                    Tip: desplázate en la tabla (derecha) y marca procesados sin recargar.
+                  </Typography>
+                </Paper>
+              </Grid>
+
+              {/* Tabla derecha */}
+              <Grid item xs={12} md={8}>
+                <TableContainer
+                  sx={{
+                    borderRadius: 3,
+                    border: '1px solid rgba(255,255,255,.06)',
+                    maxHeight: 380,
+                    overflow: 'auto'
+                  }}
+                >
+                  <Table stickyHeader size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ background: 'rgba(14,54,96,.75)', fontWeight: 900, color: '#eaf2ff' }}>PalletID</TableCell>
+                        <TableCell sx={{ background: 'rgba(14,54,96,.75)', fontWeight: 900, color: '#eaf2ff' }}>Status</TableCell>
+                        <TableCell sx={{ background: 'rgba(14,54,96,.75)', fontWeight: 900, color: '#eaf2ff', textAlign: 'center' }}>Acción</TableCell>
+                      </TableRow>
+                    </TableHead>
+
+                    <TableBody>
+                      {(dash.rows || []).map((r, i) => (
+                        <TableRow
+                          key={r.id}
+                          sx={{
+                            background: i % 2 === 0 ? 'rgba(255,255,255,.03)' : 'rgba(255,255,255,.02)',
+                            '&:hover': { background: 'rgba(56,189,248,.08)' }
+                          }}
+                        >
+                          <TableCell sx={{ color: '#eaf2ff', fontWeight: 800 }}>{r.palletId}</TableCell>
+                          <TableCell sx={{ color: '#cfe3ff' }}>{r.status}</TableCell>
+                          <TableCell sx={{ textAlign: 'center' }}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => setDashStatus(r.id, r.status === 'PROCESADO' ? 'PENDIENTE' : 'PROCESADO')}
+                              sx={{
+                                borderRadius: 3,
+                                textTransform: 'none',
+                                fontWeight: 900,
+                                borderColor: 'rgba(255,255,255,.18)',
+                                color: '#eaf2ff',
+                                '&:hover': { borderColor: 'rgba(56,189,248,.55)', background: 'rgba(56,189,248,.10)' }
+                              }}
+                            >
+                              {r.status === 'PROCESADO' ? 'Marcar Pendiente' : 'Marcar Procesado'}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+
+                      {(!dash.rows || dash.rows.length === 0) && (
+                        <TableRow>
+                          <TableCell colSpan={3} sx={{ opacity: 0.8, color: '#cfe3ff' }}>
+                            No hay pallets cargados para este día. (Importa el Excel o cambia la fecha)
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Grid>
+            </Grid>
+          </Box>
+        </Paper>
+      )}
     </Box>
   )
 }
