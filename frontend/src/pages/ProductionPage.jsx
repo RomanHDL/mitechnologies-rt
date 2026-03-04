@@ -29,6 +29,9 @@ import CancelIcon from '@mui/icons-material/Cancel'
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import DownloadIcon from '@mui/icons-material/Download'
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
+import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import TodayIcon from '@mui/icons-material/Today'
 
 import * as XLSX from 'xlsx'
 
@@ -82,6 +85,13 @@ function dmyToISO(dmy) {
   return `${y}-${m}-${d}`
 }
 
+function isoAddDays(iso, deltaDays) {
+  const base = new Date(`${iso}T00:00:00`)
+  if (Number.isNaN(base.getTime())) return iso
+  base.setDate(base.getDate() + Number(deltaDays || 0))
+  return base.toISOString().slice(0, 10)
+}
+
 export default function ProductionPage() {
   const { token } = useAuth()
 
@@ -100,7 +110,7 @@ export default function ProductionPage() {
 
   // guardamos ISO real para request
   const [dashDayISO, setDashDayISO] = useState(isoToday())
-  // UI en DD/MM/YYYY
+  // UI en DD/MM/YYYY (lo conservamos para NO romper nada)
   const [dashDayDMY, setDashDayDMY] = useState(isoToDMY(isoToday()))
 
   const [dash, setDash] = useState({
@@ -393,24 +403,84 @@ export default function ProductionPage() {
 
             <Box sx={{ flex: 1 }} />
 
-            <TextField
-              label="Día (DD/MM/AAAA)"
-              value={dashDayDMY}
-              onChange={(e) => {
-                const v = e.target.value
-                setDashDayDMY(v)
-                const iso = dmyToISO(v)
-                if (iso) setDashDayISO(iso)
-              }}
-              sx={{
-                ...inputSx,
-                minWidth: { xs: '100%', md: 260 },
-                width: { xs: '100%', md: 'auto' }
-              }}
-              placeholder="27/02/2026"
-              helperText={`Consultando (ISO): ${dashDayISO}`}
-              FormHelperTextProps={{ sx: { color: 'rgba(207,227,255,.7)' } }}
-            />
+            {/* ✅ Fecha SIN escribir: picker nativo + botones (hoy / -1 / +1) */}
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ width: { xs: '100%', md: 'auto' } }}>
+              <Tooltip title="Día anterior">
+                <IconButton
+                  onClick={() => {
+                    const nextIso = isoAddDays(dashDayISO, -1)
+                    setDashDayISO(nextIso)
+                    setDashDayDMY(isoToDMY(nextIso))
+                  }}
+                  sx={{
+                    borderRadius: 3,
+                    border: '1px solid rgba(255,255,255,.12)',
+                    background: 'rgba(255,255,255,.06)',
+                    color: '#eaf2ff',
+                    '&:hover': { background: 'rgba(255,255,255,.10)' }
+                  }}
+                >
+                  <ChevronLeftIcon />
+                </IconButton>
+              </Tooltip>
+
+              <TextField
+                type="date"
+                label="Día"
+                value={dashDayISO}
+                onChange={(e) => {
+                  const iso = e.target.value || isoToday()
+                  setDashDayISO(iso)
+                  setDashDayDMY(isoToDMY(iso))
+                }}
+                sx={{
+                  ...inputSx,
+                  minWidth: { xs: '100%', md: 260 },
+                  width: { xs: '100%', md: 'auto' }
+                }}
+                helperText={`Mostrando: ${dashDayDMY}  (ISO: ${dashDayISO})`}
+                FormHelperTextProps={{ sx: { color: 'rgba(207,227,255,.7)' } }}
+                InputLabelProps={{ shrink: true }}
+              />
+
+              <Tooltip title="Día siguiente">
+                <IconButton
+                  onClick={() => {
+                    const nextIso = isoAddDays(dashDayISO, 1)
+                    setDashDayISO(nextIso)
+                    setDashDayDMY(isoToDMY(nextIso))
+                  }}
+                  sx={{
+                    borderRadius: 3,
+                    border: '1px solid rgba(255,255,255,.12)',
+                    background: 'rgba(255,255,255,.06)',
+                    color: '#eaf2ff',
+                    '&:hover': { background: 'rgba(255,255,255,.10)' }
+                  }}
+                >
+                  <ChevronRightIcon />
+                </IconButton>
+              </Tooltip>
+
+              <Tooltip title="Ir a hoy">
+                <IconButton
+                  onClick={() => {
+                    const today = isoToday()
+                    setDashDayISO(today)
+                    setDashDayDMY(isoToDMY(today))
+                  }}
+                  sx={{
+                    borderRadius: 3,
+                    border: '1px solid rgba(255,255,255,.12)',
+                    background: 'rgba(255,255,255,.06)',
+                    color: '#eaf2ff',
+                    '&:hover': { background: 'rgba(255,255,255,.10)' }
+                  }}
+                >
+                  <TodayIcon />
+                </IconButton>
+              </Tooltip>
+            </Stack>
           </Box>
 
           <Box sx={{ p: 2 }}>
@@ -510,261 +580,266 @@ export default function ProductionPage() {
         </Paper>
       )}
 
-      {/* Nueva solicitud (2 filas limpias) */}
-      <Paper elevation={0} sx={{ ...card, mb: 4 }}>
-        <Box sx={cardHeader}>
-          <Typography sx={{ fontWeight: 950, color: '#eaf2ff' }}>Nueva solicitud</Typography>
-          <Typography sx={{ ...subtleText, color: '#cfe3ff' }}>
-            Registra una solicitud para el área/sub-área seleccionada.
-          </Typography>
-        </Box>
+      {/* ✅ Nueva solicitud (izquierda) + Solicitudes (derecha) */}
+      <Grid container spacing={2.5}>
+        {/* IZQUIERDA: Nueva solicitud */}
+        <Grid item xs={12} lg={4}>
+          <Paper elevation={0} sx={{ ...card, height: '100%' }}>
+            <Box sx={cardHeader}>
+              <Typography sx={{ fontWeight: 950, color: '#eaf2ff' }}>Nueva solicitud</Typography>
+              <Typography sx={{ ...subtleText, color: '#cfe3ff' }}>
+                Registra una solicitud para el área/sub-área seleccionada.
+              </Typography>
+            </Box>
 
-        <Box sx={{ p: 2 }}>
-          <Grid container spacing={2}>
-            {/* fila 1 */}
-            <Grid item xs={12} md={6}>
+            <Box sx={{ p: 2 }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <TextField
+                    select
+                    fullWidth
+                    label="Área"
+                    value={area}
+                    onChange={(e) => setArea(e.target.value)}
+                    sx={inputSx}
+                  >
+                    {AREAS.map(a => (
+                      <MenuItem key={a.code} value={a.code}>{a.label}</MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+
+                <Grid item xs={12}>
+                  <TextField
+                    select
+                    fullWidth
+                    label="Sub-área"
+                    value={subarea}
+                    onChange={(e) => setSubarea(e.target.value)}
+                    sx={inputSx}
+                  >
+                    {(SUBAREAS_BY_AREA[area] || []).map(s => (
+                      <MenuItem key={s} value={s}>{s}</MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="PalletID"
+                    value={sku}
+                    onChange={(e) => setSku(e.target.value)}
+                    sx={inputSx}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Items"
+                    type="number"
+                    value={qty}
+                    onChange={(e) => setQty(e.target.value)}
+                    sx={inputSx}
+                    inputProps={{ min: 1 }}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Nota"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    sx={inputSx}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    onClick={create}
+                    sx={{
+                      height: 52,
+                      borderRadius: 3,
+                      fontWeight: 950,
+                      textTransform: 'none',
+                      background: 'linear-gradient(90deg, rgba(56,189,248,.85), rgba(37,99,235,.85))',
+                      boxShadow: '0 10px 25px rgba(0,0,0,.18)',
+                      '&:hover': { filter: 'brightness(1.06)' }
+                    }}
+                    disabled={!area || !subarea || !sku || Number(qty) <= 0}
+                  >
+                    Crear
+                  </Button>
+                </Grid>
+              </Grid>
+
+              {isFftAccesorios(area, subarea) && (
+                <Typography sx={{ mt: 1.5, fontSize: 12, opacity: .8, color: '#cfe3ff' }}>
+                  *FFT &gt; Accesorios usará estantes H1–H5 en el siguiente paso (BINs/estantes).
+                </Typography>
+              )}
+            </Box>
+          </Paper>
+        </Grid>
+
+        {/* DERECHA: Solicitudes */}
+        <Grid item xs={12} lg={8}>
+          <Paper elevation={0} sx={{ ...card, height: '100%' }}>
+            <Box
+              sx={{
+                ...cardHeader,
+                flexDirection: { xs: 'column', md: 'row' },
+                alignItems: { xs: 'flex-start', md: 'center' },
+                gap: 1.2
+              }}
+            >
+              <Typography sx={{ fontWeight: 950, color: '#eaf2ff' }}>Solicitudes</Typography>
+              <Box sx={{ flex: 1 }} />
+
               <TextField
                 select
-                fullWidth
-                label="Área"
-                value={area}
-                onChange={(e) => setArea(e.target.value)}
-                sx={inputSx}
-              >
-                {AREAS.map(a => (
-                  <MenuItem key={a.code} value={a.code}>{a.label}</MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <TextField
-                select
-                fullWidth
-                label="Sub-área"
-                value={subarea}
-                onChange={(e) => setSubarea(e.target.value)}
-                sx={inputSx}
-              >
-                {(SUBAREAS_BY_AREA[area] || []).map(s => (
-                  <MenuItem key={s} value={s}>{s}</MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-
-            {/* fila 2 */}
-            <Grid item xs={12} md={8}>
-              <TextField
-                fullWidth
-                label="PalletID"
-                value={sku}
-                onChange={(e) => setSku(e.target.value)}
-                sx={inputSx}
-              />
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <TextField
-                fullWidth
-                label="Items"
-                type="number"
-                value={qty}
-                onChange={(e) => setQty(e.target.value)}
-                sx={inputSx}
-                inputProps={{ min: 1 }}
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Nota"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                sx={inputSx}
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <Button
-                fullWidth
-                variant="contained"
-                onClick={create}
+                label="Filtrar status"
+                value={filtroStatus}
+                onChange={e => setFiltroStatus(e.target.value)}
                 sx={{
-                  height: 52,
-                  borderRadius: 3,
-                  fontWeight: 950,
-                  textTransform: 'none',
-                  background: 'linear-gradient(90deg, rgba(56,189,248,.85), rgba(37,99,235,.85))',
-                  boxShadow: '0 10px 25px rgba(0,0,0,.18)',
-                  '&:hover': { filter: 'brightness(1.06)' }
+                  ...inputSx,
+                  minWidth: { xs: '100%', md: 240 },
+                  width: { xs: '100%', md: 'auto' }
                 }}
-                disabled={!area || !subarea || !sku || Number(qty) <= 0}
               >
-                Crear
-              </Button>
-            </Grid>
-          </Grid>
+                <MenuItem value="">Todos</MenuItem>
+                <MenuItem value="PENDIENTE">Pendiente</MenuItem>
+                <MenuItem value="EN PROCESO">En proceso</MenuItem>
+                <MenuItem value="COMPLETADA">Completada</MenuItem>
+                <MenuItem value="CANCELADA">Cancelada</MenuItem>
+              </TextField>
+            </Box>
 
-          {isFftAccesorios(area, subarea) && (
-            <Typography sx={{ mt: 1.5, fontSize: 12, opacity: .8, color: '#cfe3ff' }}>
-              *FFT &gt; Accesorios usará estantes H1–H5 en el siguiente paso (BINs/estantes).
-            </Typography>
-          )}
-        </Box>
-      </Paper>
-
-      {/* Solicitudes (sticky header + scroll) */}
-      <Paper elevation={0} sx={{ ...card }}>
-        <Box
-          sx={{
-            ...cardHeader,
-            flexDirection: { xs: 'column', md: 'row' },
-            alignItems: { xs: 'flex-start', md: 'center' },
-            gap: 1.2
-          }}
-        >
-          <Typography sx={{ fontWeight: 950, color: '#eaf2ff' }}>Solicitudes</Typography>
-          <Box sx={{ flex: 1 }} />
-
-          <TextField
-            select
-            label="Filtrar status"
-            value={filtroStatus}
-            onChange={e => setFiltroStatus(e.target.value)}
-            sx={{
-              ...inputSx,
-              minWidth: { xs: '100%', md: 240 },
-              width: { xs: '100%', md: 'auto' }
-            }}
-          >
-            <MenuItem value="">Todos</MenuItem>
-            <MenuItem value="PENDIENTE">Pendiente</MenuItem>
-            <MenuItem value="EN PROCESO">En proceso</MenuItem>
-            <MenuItem value="COMPLETADA">Completada</MenuItem>
-            <MenuItem value="CANCELADA">Cancelada</MenuItem>
-          </TextField>
-        </Box>
-
-        <Box sx={{ p: 2 }}>
-          <TableContainer
-            sx={{
-              borderRadius: 3,
-              border: '1px solid rgba(255,255,255,.06)',
-              maxHeight: 420,
-              overflow: 'auto'
-            }}
-          >
-            <Table stickyHeader size="small" sx={{ minWidth: 980 }}>
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{ background: 'rgba(14,54,96,.75)', color: '#eaf2ff', fontWeight: 900 }}>Área</TableCell>
-                  <TableCell sx={{ background: 'rgba(14,54,96,.75)', color: '#eaf2ff', fontWeight: 900 }}>Sub-área</TableCell>
-                  <TableCell sx={{ background: 'rgba(14,54,96,.75)', color: '#eaf2ff', fontWeight: 900 }}>Status</TableCell>
-                  <TableCell sx={{ background: 'rgba(14,54,96,.75)', color: '#eaf2ff', fontWeight: 900 }}>Items</TableCell>
-                  <TableCell sx={{ background: 'rgba(14,54,96,.75)', color: '#eaf2ff', fontWeight: 900 }}>Solicitó</TableCell>
-                  <TableCell sx={{ background: 'rgba(14,54,96,.75)', color: '#eaf2ff', fontWeight: 900 }}>Nota</TableCell>
-                  <TableCell sx={{ background: 'rgba(14,54,96,.75)', color: '#eaf2ff', fontWeight: 900, textAlign: 'center' }}>Acción</TableCell>
-                </TableRow>
-              </TableHead>
-
-              <TableBody>
-                {filteredRows.map((r, idx) => {
-                  let statusIcon = <HourglassEmptyIcon sx={{ color: '#fbbf24', verticalAlign: 'middle' }} fontSize="small" />
-                  if (r.status === 'EN PROCESO') statusIcon = <EditIcon sx={{ color: '#38bdf8', verticalAlign: 'middle' }} fontSize="small" />
-                  if (r.status === 'COMPLETADA') statusIcon = <CheckCircleIcon sx={{ color: '#22c55e', verticalAlign: 'middle' }} fontSize="small" />
-                  if (r.status === 'CANCELADA') statusIcon = <CancelIcon sx={{ color: '#ef4444', verticalAlign: 'middle' }} fontSize="small" />
-
-                  const itemsText = (r.items || []).map(i => `${i.sku}(${i.qty})`).join(', ')
-
-                  return (
-                    <TableRow
-                      key={r._id}
-                      sx={{
-                        background: idx % 2 === 0 ? 'rgba(255,255,255,.03)' : 'rgba(255,255,255,.02)',
-                        '&:hover': { background: 'rgba(56,189,248,.08)' }
-                      }}
-                    >
-                      <TableCell sx={{ color: '#eaf2ff', fontWeight: 900 }}>{areaLabel(r.area)}</TableCell>
-                      <TableCell sx={{ color: '#cfe3ff' }}>{r.subarea || '—'}</TableCell>
-
-                      <TableCell sx={{ color: '#cfe3ff', whiteSpace: 'nowrap' }}>
-                        <Tooltip title={r.status} arrow>{statusIcon}</Tooltip>
-                        <Typography variant="caption" sx={{ ml: 1, color: '#eaf2ff', fontWeight: 800 }}>
-                          {r.status}
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell sx={{ color: '#cfe3ff', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        <Tooltip title={itemsText} arrow>
-                          <span>{itemsText.length > 38 ? itemsText.slice(0, 38) + '…' : itemsText}</span>
-                        </Tooltip>
-                      </TableCell>
-
-                      <TableCell sx={{ color: '#cfe3ff' }}>{r.requestedBy?.email || '—'}</TableCell>
-
-                      <TableCell sx={{ color: '#cfe3ff', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        <Tooltip title={r.note || '—'} arrow>
-                          <span>{(r.note || '—').length > 38 ? (r.note || '—').slice(0, 38) + '…' : (r.note || '—')}</span>
-                        </Tooltip>
-                      </TableCell>
-
-                      <TableCell sx={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        <Tooltip title="Marcar como completada">
-                          <span>
-                            <IconButton
-                              size="small"
-                              sx={{
-                                color: '#22c55e',
-                                borderRadius: 2,
-                                border: '1px solid rgba(34,197,94,.25)',
-                                background: 'rgba(34,197,94,.08)',
-                                '&:hover': { background: 'rgba(34,197,94,.14)' }
-                              }}
-                              onClick={() => markCompleted(r._id)}
-                              disabled={r.status === 'COMPLETADA' || r.status === 'CANCELADA'}
-                            >
-                              <DoneIcon fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-
-                        <Tooltip title="Cancelar">
-                          <span>
-                            <IconButton
-                              size="small"
-                              sx={{
-                                ml: 1,
-                                color: '#ef4444',
-                                borderRadius: 2,
-                                border: '1px solid rgba(239,68,68,.25)',
-                                background: 'rgba(239,68,68,.08)',
-                                '&:hover': { background: 'rgba(239,68,68,.14)' }
-                              }}
-                              onClick={() => markCancelled(r._id)}
-                              disabled={r.status === 'COMPLETADA' || r.status === 'CANCELADA'}
-                            >
-                              <CancelIcon fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      </TableCell>
+            <Box sx={{ p: 2 }}>
+              <TableContainer
+                sx={{
+                  borderRadius: 3,
+                  border: '1px solid rgba(255,255,255,.06)',
+                  maxHeight: 520,
+                  overflow: 'auto'
+                }}
+              >
+                <Table stickyHeader size="small" sx={{ minWidth: 980 }}>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ background: 'rgba(14,54,96,.75)', color: '#eaf2ff', fontWeight: 900 }}>Área</TableCell>
+                      <TableCell sx={{ background: 'rgba(14,54,96,.75)', color: '#eaf2ff', fontWeight: 900 }}>Sub-área</TableCell>
+                      <TableCell sx={{ background: 'rgba(14,54,96,.75)', color: '#eaf2ff', fontWeight: 900 }}>Status</TableCell>
+                      <TableCell sx={{ background: 'rgba(14,54,96,.75)', color: '#eaf2ff', fontWeight: 900 }}>Items</TableCell>
+                      <TableCell sx={{ background: 'rgba(14,54,96,.75)', color: '#eaf2ff', fontWeight: 900 }}>Solicitó</TableCell>
+                      <TableCell sx={{ background: 'rgba(14,54,96,.75)', color: '#eaf2ff', fontWeight: 900 }}>Nota</TableCell>
+                      <TableCell sx={{ background: 'rgba(14,54,96,.75)', color: '#eaf2ff', fontWeight: 900, textAlign: 'center' }}>Acción</TableCell>
                     </TableRow>
-                  )
-                })}
+                  </TableHead>
 
-                {filteredRows.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} sx={{ color: '#cfe3ff', opacity: 0.8 }}>
-                      No hay solicitudes para el filtro seleccionado.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Box>
-      </Paper>
+                  <TableBody>
+                    {filteredRows.map((r, idx) => {
+                      let statusIcon = <HourglassEmptyIcon sx={{ color: '#fbbf24', verticalAlign: 'middle' }} fontSize="small" />
+                      if (r.status === 'EN PROCESO') statusIcon = <EditIcon sx={{ color: '#38bdf8', verticalAlign: 'middle' }} fontSize="small" />
+                      if (r.status === 'COMPLETADA') statusIcon = <CheckCircleIcon sx={{ color: '#22c55e', verticalAlign: 'middle' }} fontSize="small" />
+                      if (r.status === 'CANCELADA') statusIcon = <CancelIcon sx={{ color: '#ef4444', verticalAlign: 'middle' }} fontSize="small" />
+
+                      const itemsText = (r.items || []).map(i => `${i.sku}(${i.qty})`).join(', ')
+
+                      return (
+                        <TableRow
+                          key={r._id}
+                          sx={{
+                            background: idx % 2 === 0 ? 'rgba(255,255,255,.03)' : 'rgba(255,255,255,.02)',
+                            '&:hover': { background: 'rgba(56,189,248,.08)' }
+                          }}
+                        >
+                          <TableCell sx={{ color: '#eaf2ff', fontWeight: 900 }}>{areaLabel(r.area)}</TableCell>
+                          <TableCell sx={{ color: '#cfe3ff' }}>{r.subarea || '—'}</TableCell>
+
+                          <TableCell sx={{ color: '#cfe3ff', whiteSpace: 'nowrap' }}>
+                            <Tooltip title={r.status} arrow>{statusIcon}</Tooltip>
+                            <Typography variant="caption" sx={{ ml: 1, color: '#eaf2ff', fontWeight: 800 }}>
+                              {r.status}
+                            </Typography>
+                          </TableCell>
+
+                          <TableCell sx={{ color: '#cfe3ff', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <Tooltip title={itemsText} arrow>
+                              <span>{itemsText.length > 38 ? itemsText.slice(0, 38) + '…' : itemsText}</span>
+                            </Tooltip>
+                          </TableCell>
+
+                          <TableCell sx={{ color: '#cfe3ff' }}>{r.requestedBy?.email || '—'}</TableCell>
+
+                          <TableCell sx={{ color: '#cfe3ff', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <Tooltip title={r.note || '—'} arrow>
+                              <span>{(r.note || '—').length > 38 ? (r.note || '—').slice(0, 38) + '…' : (r.note || '—')}</span>
+                            </Tooltip>
+                          </TableCell>
+
+                          <TableCell sx={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                            <Tooltip title="Marcar como completada">
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  sx={{
+                                    color: '#22c55e',
+                                    borderRadius: 2,
+                                    border: '1px solid rgba(34,197,94,.25)',
+                                    background: 'rgba(34,197,94,.08)',
+                                    '&:hover': { background: 'rgba(34,197,94,.14)' }
+                                  }}
+                                  onClick={() => markCompleted(r._id)}
+                                  disabled={r.status === 'COMPLETADA' || r.status === 'CANCELADA'}
+                                >
+                                  <DoneIcon fontSize="small" />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+
+                            <Tooltip title="Cancelar">
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  sx={{
+                                    ml: 1,
+                                    color: '#ef4444',
+                                    borderRadius: 2,
+                                    border: '1px solid rgba(239,68,68,.25)',
+                                    background: 'rgba(239,68,68,.08)',
+                                    '&:hover': { background: 'rgba(239,68,68,.14)' }
+                                  }}
+                                  onClick={() => markCancelled(r._id)}
+                                  disabled={r.status === 'COMPLETADA' || r.status === 'CANCELADA'}
+                                >
+                                  <CancelIcon fontSize="small" />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+
+                    {filteredRows.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} sx={{ color: '#cfe3ff', opacity: 0.8 }}>
+                          No hay solicitudes para el filtro seleccionado.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+          </Paper>
+        </Grid>
+      </Grid>
     </Box>
   )
 }
