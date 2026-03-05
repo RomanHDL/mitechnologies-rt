@@ -34,13 +34,9 @@ async function requireAuth(req, res, next) {
             position: user.position,
             employeeNumber: user.employeeNumber,
 
-            // ✅ opcional: si tu tabla User tiene "permissions" (JSON string / CSV / array)
             permissions: Array.isArray(user.permissions) ?
                 user.permissions :
                 (typeof user.permissions === 'string' ? safeParsePermissions(user.permissions) : []),
-
-            // ✅ opcional: si en tu tabla User tienes algo como canOutbound/outboundAllowed/etc.
-            // outboundAllowed: Boolean(user.outboundAllowed),
         };
 
         next();
@@ -93,9 +89,6 @@ function requirePermission(permission) {
 /**
  * ✅ requireOutboundAuthorization
  * Middleware para permitir salidas (/pallets/:id/out).
- * - Por defecto deja pasar a ADMIN y SUPERVISOR
- * - También deja pasar si el usuario tiene permiso 'outbound' o 'pallet_out'
- * Ajusta reglas si quieres.
  */
 function requireOutboundAuthorization(req, res, next) {
     try {
@@ -132,16 +125,12 @@ const ROLE_PERMISSIONS = {
     operador: [],
 };
 
-
 function requireAdmin(req, res, next) {
-    // Ajusta según tu user (role, isAdmin, etc.)
-    const u = req.user
-    const isAdmin = u?.role === 'ADMIN' || u?.isAdmin === true
-    if (!isAdmin) return res.status(403).json({ message: 'Solo admin' })
-    next()
+    const u = req.user;
+    const isAdmin = u?.role === 'ADMIN' || u?.role === 'admin' || u?.isAdmin === true;
+    if (!isAdmin) return res.status(403).json({ message: 'Solo admin' });
+    next();
 }
-
-module.exports = { requireAuth, requireAdmin }
 
 function safeParsePermissions(val) {
     try {
@@ -150,13 +139,14 @@ function safeParsePermissions(val) {
     } catch {
         return String(val)
             .split(',')
-            .map(s => s.trim())
+            .map((s) => s.trim())
             .filter(Boolean);
     }
 }
 
 module.exports = {
     requireAuth,
+    requireAdmin,
     requireRole,
     requirePermission,
     requireOutboundAuthorization,

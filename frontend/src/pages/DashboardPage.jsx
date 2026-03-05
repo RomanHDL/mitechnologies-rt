@@ -2,7 +2,7 @@ import { io } from 'socket.io-client'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/auth'
-import { apiFetch, apiUpload } from '../services/api' // ✅ apiUpload
+import { apiFetch, apiUpload } from '../services/api'
 import { usePageStyles } from '../ui/pageStyles'
 
 import Paper from '@mui/material/Paper'
@@ -56,8 +56,21 @@ function Pill({ label, icon, ps }) {
   )
 }
 
+// ✅ lee role del JWT sin verificar (solo UI)
+function getRoleFromToken(token) {
+  try {
+    if (!token) return ''
+    const parts = token.split('.')
+    if (parts.length < 2) return ''
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
+    return String(payload.role || payload.rol || payload.Role || '').toUpperCase()
+  } catch {
+    return ''
+  }
+}
+
 export default function DashboardPage() {
-  const { token, user } = useAuth() // ✅ asumimos que useAuth trae user (si no, abajo te pongo fallback)
+  const { token, user } = useAuth()
   const nav = useNavigate()
   const ps = usePageStyles()
 
@@ -75,8 +88,14 @@ export default function DashboardPage() {
   const [importing, setImporting] = useState(false)
   const [importMsg, setImportMsg] = useState('')
 
-  // ✅ Detect admin (si tu auth no trae user, lo dejamos false sin romper)
-  const isAdmin = Boolean(user?.role === 'ADMIN' || user?.isAdmin === true)
+  // ✅ Admin detection robusto:
+  const roleFromState = String(user?.role || '').toUpperCase()
+  const roleFromToken = getRoleFromToken(token)
+  const isAdmin = Boolean(
+    user?.isAdmin === true ||
+    roleFromState === 'ADMIN' ||
+    roleFromToken === 'ADMIN'
+  )
 
   const refresh = async () => {
     let alive = true
@@ -141,7 +160,7 @@ export default function DashboardPage() {
     return () => { alive = false }
   }
 
-  // ✅ Socket.IO realtime: cuando alguien importe Excel o cambie algo, refresca dashboard
+  // ✅ Socket.IO realtime
   useEffect(() => {
     if (!token) return
 
@@ -150,24 +169,19 @@ export default function DashboardPage() {
 
     const socket = io(String(base).replace(/\/+$/, ''), {
       transports: ['websocket', 'polling'],
-      auth: { token }, // tu backend no lo usa hoy, pero no estorba
+      auth: { token },
     })
 
     const onAnyUpdate = () => {
       refresh()
     }
 
-    socket.on('connect', () => {
-      // opcional: console.log('socket connected', socket.id)
-    })
-
     socket.on('dashboard:update', onAnyUpdate)
     socket.on('palletDashboard:update', onAnyUpdate)
     socket.on('production:update', onAnyUpdate)
 
-    socket.on('connect_error', (e) => {
-      // No rompemos UI si socket falla
-      // opcional: console.warn('socket error', e?.message)
+    socket.on('connect_error', () => {
+      // no romper UI
     })
 
     return () => {
@@ -212,12 +226,8 @@ export default function DashboardPage() {
     setErr('')
     setImporting(true)
     try {
-      const fd = new FormData()
-      fd.append('file', file)
-
-      const resp = await apiUpload('/api/admin/import-excel', fd)
-
-      setImportMsg(`✅ Importado. Hojas: ${JSON.stringify(resp?.result?.sheets || {})}`)
+      const resp = await apiUpload('/api/admin/import-excel', file)
+      setImportMsg(`✅ Importado correctamente`)
       await refresh()
     } catch (e) {
       setErr(e?.message || 'Error importando Excel')
@@ -255,22 +265,20 @@ export default function DashboardPage() {
             ))}
           </Stack>
 
-          {/* ✅ Import Excel (solo admin) */}
-          {isAdmin && (
-            <TooltipMUI title="Importar Excel (solo admin)">
-              <span>
-                <Button
-                  variant="outlined"
-                  startIcon={<UploadFileIcon />}
-                  disabled={importing}
-                  onClick={() => fileRef.current?.click()}
-                  sx={{ borderRadius: 2 }}
-                >
-                  Importar Excel
-                </Button>
-              </span>
-            </TooltipMUI>
-          )}
+          {/* ✅ Import Excel (solo admin - pero si no eres admin el backend igual bloquea) */}
+          <TooltipMUI title={isAdmin ? "Importar Excel (solo admin)" : "Solo admin puede importar"}>
+            <span>
+              <Button
+                variant="outlined"
+                startIcon={<UploadFileIcon />}
+                disabled={importing || !token || !isAdmin}
+                onClick={() => fileRef.current?.click()}
+                sx={{ borderRadius: 2 }}
+              >
+                Importar Excel
+              </Button>
+            </span>
+          </TooltipMUI>
 
           <input
             ref={fileRef}
