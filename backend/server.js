@@ -117,21 +117,23 @@ io.on('connection', (socket) => {
 app.use((req, res, next) => {
     res.on('finish', () => {
         try {
-            const list = Array.isArray(res.locals ? .emit) ? res.locals.emit : [];
-            if (!list.length) return;
-            const _io = req.app.get('io');
-            if (!_io) return;
+            const list = (res.locals && Array.isArray(res.locals.emit)) ? res.locals.emit : []
+            if (!list.length) return
+
+            const _io = req.app.get('io')
+            if (!_io) return
 
             for (const e of list) {
-                if (!e || !e.event) continue;
-                _io.emit(e.event, e.data ? ? { at: new Date().toISOString() });
+                if (!e || !e.event) continue
+                _io.emit(e.event, e.data || { at: new Date().toISOString() })
             }
         } catch (_) {
-            // no-op
+            // no-op: nunca tumba el server
         }
-    });
-    next();
-});
+    })
+
+    next()
+})
 
 /**
  * Rate limit
@@ -163,7 +165,7 @@ app.get('/health', (req, res) =>
 app.get('/socket-test', (req, res) => {
     try {
         const _io = req.app.get('io');
-        _io ? .emit('dashboard:update', { at: new Date().toISOString(), reason: 'socket-test' });
+        _io?.emit('dashboard:update', { at: new Date().toISOString(), reason: 'socket-test' });
     } catch (e) {}
     res.json({ ok: true });
 });
@@ -225,7 +227,7 @@ const PORT = process.env.PORT || 5000;
         await connectDB();
         console.log('Mongo connectDB OK');
     } catch (e) {
-        console.warn('Mongo connectDB falló (IGNORADO):', e ? .message || e);
+        console.warn('Mongo connectDB falló (IGNORADO):', e?.message || e);
     }
 
     httpServer.listen(PORT, () => console.log(`API listening on :${PORT}`));
