@@ -54,7 +54,7 @@ export async function apiFetch(path, options = {}) {
 }
 
 // ✅ NUEVO: subir archivos (Excel) por multipart/form-data
-export async function apiUpload(path, file, extraFields = {}) {
+export async function apiUpload(path, fileOrFormData, extraFields = {}) {
     const base =
         import.meta.env.VITE_API_URL;
     if (!base) throw new Error("Missing VITE_API_URL");
@@ -63,25 +63,28 @@ export async function apiUpload(path, file, extraFields = {}) {
     const baseClean = String(base).replace(/\/+$/, "");
     const pathClean = String(path).startsWith("/") ? String(path) : `/${String(path)}`;
 
-    const fd = new FormData();
-    fd.append("file", file);
+    const fd = (fileOrFormData instanceof FormData) ? fileOrFormData : new FormData();
 
-    Object.entries(extraFields || {}).forEach(([k, v]) => {
-        if (v === undefined || v === null) return;
-        fd.append(k, String(v));
-    });
+    if (!(fileOrFormData instanceof FormData)) {
+        fd.append("file", fileOrFormData);
+
+        Object.entries(extraFields || {}).forEach(([k, v]) => {
+            if (v === undefined || v === null) return;
+            fd.append(k, String(v));
+        });
+    }
 
     const res = await fetch(`${baseClean}${pathClean}`, {
         method: "POST",
         body: fd,
         headers: {
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            // NO pongas Content-Type manual; el navegador pone el boundary
         },
     });
 
     const text = await res.text();
     let data = null;
+
     try {
         data = text ? JSON.parse(text) : null;
     } catch {
@@ -93,6 +96,7 @@ export async function apiUpload(path, file, extraFields = {}) {
             (data && typeof data === "object" && (data.message || data.error)) ||
             (typeof data === "string" && data) ||
             `HTTP ${res.status}`;
+
         throw new Error(msg);
     }
 

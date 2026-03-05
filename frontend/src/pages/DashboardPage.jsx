@@ -220,14 +220,16 @@ export default function DashboardPage() {
     { label: 'Produccion', icon: <PrecisionManufacturingIcon fontSize="small" />, to: '/produccion' },
   ]
 
-  const doImportExcel = async (file) => {
+    const doImportExcel = async (file) => {
     if (!file) return
     setImportMsg('')
     setErr('')
     setImporting(true)
     try {
+      // ✅ apiUpload espera el FILE, NO un FormData
       const resp = await apiUpload('/api/admin/import-excel', file)
-      setImportMsg(`✅ Importado correctamente`)
+
+      setImportMsg(`✅ Importado. Hojas: ${JSON.stringify(resp?.result?.sheets || {})}`)
       await refresh()
     } catch (e) {
       setErr(e?.message || 'Error importando Excel')

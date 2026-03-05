@@ -20,7 +20,7 @@ import OrdersPage from './pages/OrdersPage'
 import CountsPage from './pages/CountsPage'
 import LocationsPage from './pages/LocationsPage'
 
-import AdminUsers from "./pages/AdminUsers";
+import AdminUsers from "./pages/AdminUsers"
 
 function PrivateRoute({ children }) {
   const { token } = useAuth()
@@ -30,8 +30,6 @@ function PrivateRoute({ children }) {
 export default function App() {
   return (
     <Routes>
-
-      <Route path="/admin/users" element={<AdminUsers />} />
       {/* públicas */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
@@ -39,7 +37,10 @@ export default function App() {
 
       {/* privadas */}
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
-        <Route path="/dashboard" element={<DashboardPage />} />
+        {/* ✅ ESTA ES LA CLAVE: si entras a "/", te manda a "/dashboard" */}
+        <Route index element={<Navigate to="dashboard" replace />} />
+
+        <Route path="dashboard" element={<DashboardPage />} />
         <Route path="inventario" element={<InventoryPage />} />
         <Route path="racks" element={<RacksPage />} />
         <Route path="produccion" element={<ProductionPage />} />
@@ -50,7 +51,9 @@ export default function App() {
         <Route path="ubicaciones" element={<LocationsPage />} />
         <Route path="usuarios" element={<UsersPage />} />
         <Route path="scan" element={<ScanPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
+
+        {/* (si quieres que solo admin vea esto, luego lo protegemos) */}
+        <Route path="admin/users" element={<AdminUsers />} />
       </Route>
 
       {/* fallback */}
