@@ -104,7 +104,8 @@ router.post('/pallet-dashboard/import', requireAuth, async(req, res, next) => {
                 day,
                 palletId: String((x && x.palletId) ? x.palletId : '').trim(),
                 status: (String((x && x.status) ? x.status : 'PENDIENTE').trim().toUpperCase() === 'PROCESADO') ?
-                    'PROCESADO' : 'PENDIENTE'
+                    'PROCESADO' :
+                    'PENDIENTE'
             }))
             .filter(x => x.palletId)
 
