@@ -85,21 +85,39 @@ router.post(
         } catch (e) { next(e); }
     }
 );
+// ✅ GET /api/pallets/by-code?code=XXXX
+router.get('/by-code', requireAuth, async(req, res, next) => {
+    try {
+        const code = String(req.query?.code || '').trim()
+        if (!code) return res.status(400).json({ message: 'code requerido' })
 
+        const p = await Pallet.findOne({
+            where: { code },
+            include: [{ model: Location, as: 'location' }]
+        })
+
+        if (!p) return res.status(404).json({ message: 'No existe tarima para ese código' })
+        res.json(p.toJSON())
+    } catch (e) { next(e) }
+})
 router.get('/', requireAuth, async(req, res, next) => {
     try {
         const { q } = req.query;
         const where = {};
         if (q) {
             where[Op.or] = [
-                { code: { [Op.like]: `%${q}%` } },
-                { lot: { [Op.like]: `%${q}%` } }
+                { code: {
+                        [Op.like]: `%${q}%` } },
+                { lot: {
+                        [Op.like]: `%${q}%` } }
             ];
         }
         const pallets = await Pallet.findAll({
             where,
             include: [{ model: Location, as: 'location' }],
-            order: [['createdAt', 'DESC']]
+            order: [
+                ['createdAt', 'DESC']
+            ]
         });
 
         res.json(pallets.map(p => p.toJSON()));
