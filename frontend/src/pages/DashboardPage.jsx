@@ -31,7 +31,17 @@ import BlockIcon from '@mui/icons-material/Block'
 import Inventory2Icon from '@mui/icons-material/Inventory2'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  CartesianGrid,
+} from 'recharts'
 
 function KpiCard({ title, value, subtitle, children, accent = 'blue', onClick, ps }) {
   return (
@@ -69,6 +79,61 @@ function getRoleFromToken(token) {
   }
 }
 
+/** ✅ defs reutilizables para gradientes elegantes */
+function ChartDefs() {
+  return (
+    <defs>
+      <linearGradient id="gradBlue" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#60A5FA" stopOpacity={0.9} />
+        <stop offset="100%" stopColor="#2563EB" stopOpacity={0.15} />
+      </linearGradient>
+
+      <linearGradient id="gradGreen" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#34D399" stopOpacity={0.9} />
+        <stop offset="100%" stopColor="#16A34A" stopOpacity={0.15} />
+      </linearGradient>
+
+      <linearGradient id="gradAmber" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#FBBF24" stopOpacity={0.9} />
+        <stop offset="100%" stopColor="#F59E0B" stopOpacity={0.18} />
+      </linearGradient>
+
+      {/* ✅ rojo elegante para SALIDAS */}
+      <linearGradient id="gradRed" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#FB7185" stopOpacity={0.9} />
+        <stop offset="100%" stopColor="#EF4444" stopOpacity={0.18} />
+      </linearGradient>
+    </defs>
+  )
+}
+
+/** ✅ Tooltip elegante */
+function ElegantTooltip({ active, payload, label }) {
+  if (!active || !payload || !payload.length) return null
+  const v = payload?.[0]?.value
+
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        px: 1.25,
+        py: 0.9,
+        borderRadius: 2,
+        border: '1px solid rgba(148,163,184,.25)',
+        bgcolor: 'rgba(2,6,23,.88)',
+        backdropFilter: 'blur(10px)',
+      }}
+    >
+      <Typography sx={{ fontSize: 12, fontWeight: 800, color: 'rgba(226,232,240,.95)' }}>
+        {label || 'Dato'}
+      </Typography>
+      <Typography sx={{ fontSize: 12, color: 'rgba(226,232,240,.85)' }}>
+        Valor: <b>{v ?? 0}</b>
+      </Typography>
+    </Paper>
+  )
+}
+
 export default function DashboardPage() {
   const { token, user } = useAuth()
   const nav = useNavigate()
@@ -82,6 +147,10 @@ export default function DashboardPage() {
   const [err, setErr] = useState('')
   const [range, setRange] = useState('7D')
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null)
+
+  // ✅ UX seguros
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [socketOnline, setSocketOnline] = useState(false)
 
   // ✅ Import Excel UI
   const fileRef = useRef(null)
@@ -97,25 +166,56 @@ export default function DashboardPage() {
     roleFromToken === 'ADMIN'
   )
 
+  // ✅ estilos suaves para ejes / grid
+  const axisStroke = ps.isDark ? 'rgba(148,163,184,.45)' : 'rgba(100,116,139,.6)'
+  const gridStroke = ps.isDark ? 'rgba(148,163,184,.12)' : 'rgba(148,163,184,.22)'
+
+  // ✅ helpers rango
+  const startOfDayMs = (d) => {
+    const x = new Date(d)
+    x.setHours(0, 0, 0, 0)
+    return x.getTime()
+  }
+
   const refresh = async () => {
     let alive = true
 
     const buildSeriesFromMovements = (movements) => {
       const base = (movements || []).slice(0, 24).reverse()
+
       if (base.length) {
-        const map = {}
+        const map = new Map()
+
         base.forEach((m) => {
           const d = new Date(m.createdAt || Date.now())
-          const key = `${d.getMonth() + 1}/${d.getDate()}`
-          map[key] = (map[key] || 0) + 1
+          const dayMs = startOfDayMs(d)
+          const name = `${d.getMonth() + 1}/${d.getDate()}`
+
+          const prev = map.get(dayMs)
+          if (!prev) {
+            map.set(dayMs, { name, v: 1, ts: dayMs }) // ✅ ts para filtrar por rango
+          } else {
+            map.set(dayMs, { ...prev, v: (prev.v || 0) + 1 })
+          }
         })
-        return Object.entries(map).map(([name, v]) => ({ name, v }))
+
+        return Array.from(map.values()).sort((a, b) => (a.ts || 0) - (b.ts || 0))
       }
+
+      // fallback demo
       return [
-        { name: 'Lun', v: 3 }, { name: 'Mar', v: 5 }, { name: 'Mie', v: 2 },
-        { name: 'Jue', v: 6 }, { name: 'Vie', v: 4 }, { name: 'Sab', v: 7 }, { name: 'Dom', v: 5 }
+        { name: 'Lun', v: 3, ts: Date.now() - 6 * 86400000 },
+        { name: 'Mar', v: 5, ts: Date.now() - 5 * 86400000 },
+        { name: 'Mie', v: 2, ts: Date.now() - 4 * 86400000 },
+        { name: 'Jue', v: 6, ts: Date.now() - 3 * 86400000 },
+        { name: 'Vie', v: 4, ts: Date.now() - 2 * 86400000 },
+        { name: 'Sab', v: 7, ts: Date.now() - 1 * 86400000 },
+        { name: 'Dom', v: 5, ts: Date.now() },
       ]
     }
+
+    if (isRefreshing) return
+    setIsRefreshing(true)
 
     setErr('')
     try {
@@ -155,12 +255,14 @@ export default function DashboardPage() {
     } catch (e) {
       if (!alive) return
       setErr(e?.message || 'Error cargando dashboard')
+    } finally {
+      setIsRefreshing(false)
     }
 
     return () => { alive = false }
   }
 
-  // ✅ Socket.IO realtime
+  // ✅ Socket.IO realtime + indicador online/offline
   useEffect(() => {
     if (!token) return
 
@@ -176,13 +278,13 @@ export default function DashboardPage() {
       refresh()
     }
 
+    socket.on('connect', () => setSocketOnline(true))
+    socket.on('disconnect', () => setSocketOnline(false))
+    socket.on('connect_error', () => setSocketOnline(false))
+
     socket.on('dashboard:update', onAnyUpdate)
     socket.on('palletDashboard:update', onAnyUpdate)
     socket.on('production:update', onAnyUpdate)
-
-    socket.on('connect_error', () => {
-      // no romper UI
-    })
 
     return () => {
       socket.off('dashboard:update', onAnyUpdate)
@@ -193,6 +295,7 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
+  // ✅ carga inicial
   useEffect(() => {
     let alive = true
     ;(async () => {
@@ -200,6 +303,16 @@ export default function DashboardPage() {
       if (!alive) return
     })()
     return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
+
+  // ✅ auto-refresh cada 60s
+  useEffect(() => {
+    if (!token) return
+    const id = setInterval(() => {
+      refresh()
+    }, 60 * 1000)
+    return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
@@ -220,15 +333,13 @@ export default function DashboardPage() {
     { label: 'Produccion', icon: <PrecisionManufacturingIcon fontSize="small" />, to: '/produccion' },
   ]
 
-    const doImportExcel = async (file) => {
+  const doImportExcel = async (file) => {
     if (!file) return
     setImportMsg('')
     setErr('')
     setImporting(true)
     try {
-      // ✅ apiUpload espera el FILE, NO un FormData
       const resp = await apiUpload('/api/admin/import-excel', file)
-
       setImportMsg(`✅ Importado. Hojas: ${JSON.stringify(resp?.result?.sheets || {})}`)
       await refresh()
     } catch (e) {
@@ -239,6 +350,34 @@ export default function DashboardPage() {
     }
   }
 
+  // ✅ AQUI ESTA LA FUNCIONALIDAD NUEVA:
+  // Filtra la grafica dependiendo de HOY/7D/30D
+  const seriesView = useMemo(() => {
+    const now = Date.now()
+    const todayStart = startOfDayMs(new Date())
+
+    let windowMs = 7 * 86400000
+    if (range === 'HOY') windowMs = 1 * 86400000
+    if (range === '30D') windowMs = 30 * 86400000
+
+    const minTs = (range === 'HOY')
+      ? todayStart
+      : (now - windowMs)
+
+    const filtered = (series || []).filter(p => (p?.ts || 0) >= minTs)
+
+    // si por datos limitados se queda vacío, no rompas: muestra lo que hay
+    return filtered.length ? filtered : (series || [])
+  }, [series, range])
+
+  // ✅ Mini-graficas: versión compacta para que no se vea saturado
+  const seriesMini = useMemo(() => {
+    // En mini, HOY (o si hay pocos) se ve mejor con máximo 8 puntos
+    const src = seriesView || []
+    if (src.length <= 8) return src
+    return src.slice(src.length - 8)
+  }, [seriesView])
+
   return (
     <Box sx={ps.page}>
       {/* Header */}
@@ -247,9 +386,41 @@ export default function DashboardPage() {
           <Typography variant="h5" sx={ps.pageTitle}>
             Centro de Operaciones
           </Typography>
-          <Typography variant="body2" sx={ps.pageSubtitle}>
-            Estado general del almacen - Ultima actualizacion: <b>{lastUpdatedLabel}</b>
-          </Typography>
+
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5, flexWrap: 'wrap' }}>
+            <Typography variant="body2" sx={ps.pageSubtitle}>
+              Estado general del almacen - Ultima actualizacion: <b>{lastUpdatedLabel}</b>
+            </Typography>
+
+            <Chip
+              size="small"
+              label={socketOnline ? 'Realtime: Online' : 'Realtime: Offline'}
+              sx={{
+                ml: 1,
+                fontWeight: 800,
+                borderRadius: 2,
+                bgcolor: socketOnline ? 'rgba(34,197,94,.12)' : 'rgba(244,63,94,.10)',
+                border: `1px solid ${socketOnline ? 'rgba(34,197,94,.35)' : 'rgba(244,63,94,.35)'}`,
+                color: socketOnline ? 'rgba(34,197,94,.95)' : 'rgba(244,63,94,.95)'
+              }}
+              variant="outlined"
+            />
+
+            {isRefreshing && (
+              <Chip
+                size="small"
+                label="Actualizando…"
+                sx={{
+                  fontWeight: 800,
+                  borderRadius: 2,
+                  bgcolor: 'rgba(59,130,246,.10)',
+                  border: '1px solid rgba(59,130,246,.25)',
+                  color: 'rgba(147,197,253,.95)'
+                }}
+                variant="outlined"
+              />
+            )}
+          </Stack>
         </Box>
 
         <Stack direction="row" spacing={1} alignItems="center">
@@ -267,7 +438,6 @@ export default function DashboardPage() {
             ))}
           </Stack>
 
-          {/* ✅ Import Excel (solo admin - pero si no eres admin el backend igual bloquea) */}
           <TooltipMUI title={isAdmin ? "Importar Excel (solo admin)" : "Solo admin puede importar"}>
             <span>
               <Button
@@ -291,16 +461,27 @@ export default function DashboardPage() {
           />
 
           <TooltipMUI title="Actualizar">
-            <IconButton onClick={refresh} sx={ps.actionBtn('primary')}>
-              <RefreshIcon fontSize="small" />
-            </IconButton>
+            <span>
+              <IconButton
+                onClick={refresh}
+                disabled={isRefreshing}
+                sx={{
+                  ...ps.actionBtn('primary'),
+                  opacity: isRefreshing ? 0.65 : 1,
+                }}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </span>
           </TooltipMUI>
         </Stack>
       </Box>
 
-      {importing && (
+      {(importing || isRefreshing) && (
         <Paper elevation={0} sx={{ ...ps.card, mb: 2, p: 1.5 }}>
-          <Typography sx={{ fontWeight: 800, mb: 1 }}>Importando Excel...</Typography>
+          <Typography sx={{ fontWeight: 800, mb: 1 }}>
+            {importing ? 'Importando Excel...' : 'Actualizando dashboard...'}
+          </Typography>
           <LinearProgress />
         </Paper>
       )}
@@ -323,13 +504,25 @@ export default function DashboardPage() {
               <Box sx={ps.progressBar}>
                 <Box sx={ps.progressFill(occupancyPct)} />
               </Box>
+
               <Box sx={{ height: 80, mt: 1.5 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={series}>
+                  <AreaChart data={seriesMini}>
+                    <ChartDefs />
                     <XAxis dataKey="name" hide />
                     <YAxis hide />
-                    <Tooltip />
-                    <Area dataKey="v" strokeWidth={2} fillOpacity={0.20} />
+                    <Tooltip content={<ElegantTooltip />} />
+                    <CartesianGrid stroke={gridStroke} strokeDasharray="4 6" vertical={false} />
+                    <Area
+                      dataKey="v"
+                      stroke="#60A5FA"
+                      fill="url(#gradBlue)"
+                      strokeWidth={2}
+                      fillOpacity={0.55}
+                      isAnimationActive
+                      animationDuration={900}
+                      animationEasing="ease-out"
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </Box>
@@ -348,11 +541,20 @@ export default function DashboardPage() {
           >
             <Box sx={{ height: 80 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={series}>
+                <BarChart data={seriesMini}>
+                  <ChartDefs />
                   <XAxis dataKey="name" hide />
                   <YAxis hide />
-                  <Tooltip />
-                  <Bar dataKey="v" />
+                  <Tooltip content={<ElegantTooltip />} />
+                  <CartesianGrid stroke={gridStroke} strokeDasharray="4 6" vertical={false} />
+                  <Bar
+                    dataKey="v"
+                    fill="url(#gradGreen)"
+                    radius={[8, 8, 2, 2]}
+                    isAnimationActive
+                    animationDuration={850}
+                    animationEasing="ease-out"
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </Box>
@@ -360,7 +562,34 @@ export default function DashboardPage() {
         </Grid>
 
         <Grid item xs={6} sm={6} md={4}>
-          <KpiCard title="Salidas Hoy" value={`${stats.salidasHoy || 0}`} subtitle="Movimientos de tipo SALIDA" accent="blue" onClick={() => nav('/movimientos')} ps={ps} />
+          <KpiCard
+            title="Salidas Hoy"
+            value={`${stats.salidasHoy || 0}`}
+            subtitle="Movimientos de tipo SALIDA"
+            accent="blue"
+            onClick={() => nav('/movimientos')}
+            ps={ps}
+          >
+            <Box sx={{ height: 80 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={seriesMini}>
+                  <ChartDefs />
+                  <XAxis dataKey="name" hide />
+                  <YAxis hide />
+                  <Tooltip content={<ElegantTooltip />} />
+                  <CartesianGrid stroke={gridStroke} strokeDasharray="4 6" vertical={false} />
+                  <Bar
+                    dataKey="v"
+                    fill="url(#gradRed)"
+                    radius={[8, 8, 2, 2]}
+                    isAnimationActive
+                    animationDuration={900}
+                    animationEasing="ease-out"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </Box>
+          </KpiCard>
         </Grid>
 
         <Grid item xs={6} sm={6} md={4}>
@@ -424,16 +653,25 @@ export default function DashboardPage() {
 
             <Box sx={{ p: 2.5 }}>
               <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-                Movimientos diarios (segun datos recientes). Rango visual: <b>{range}</b>
+                Movimientos diarios (segun datos recientes). Rango visual: <b>{range === 'HOY' ? 'Hoy' : range === '7D' ? '7 dias' : '30 dias'}</b>
               </Typography>
 
               <Box sx={{ height: 260 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={series}>
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="v" />
+                  <BarChart data={seriesView}>
+                    <ChartDefs />
+                    <CartesianGrid stroke={gridStroke} strokeDasharray="4 6" vertical={false} />
+                    <XAxis dataKey="name" stroke={axisStroke} tickLine={false} axisLine={{ stroke: gridStroke }} />
+                    <YAxis stroke={axisStroke} tickLine={false} axisLine={{ stroke: gridStroke }} />
+                    <Tooltip content={<ElegantTooltip />} />
+                    <Bar
+                      dataKey="v"
+                      fill="url(#gradBlue)"
+                      radius={[10, 10, 3, 3]}
+                      isAnimationActive
+                      animationDuration={1000}
+                      animationEasing="ease-out"
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </Box>
@@ -449,8 +687,8 @@ export default function DashboardPage() {
                   const typ = (m.type || 'MOV').toUpperCase()
                   const icon =
                     typ === 'ENTRADA' ? <CheckCircleIcon sx={{ fontSize: 16 }} /> :
-                    typ === 'SALIDA' ? <SwapHorizIcon sx={{ fontSize: 16 }} /> :
-                    <Inventory2Icon sx={{ fontSize: 16 }} />
+                      typ === 'SALIDA' ? <SwapHorizIcon sx={{ fontSize: 16 }} /> :
+                        <Inventory2Icon sx={{ fontSize: 16 }} />
 
                   return (
                     <Paper
