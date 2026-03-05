@@ -1,10 +1,10 @@
-// lib/api.js
+// frontend/src/services/api.js
+// Mantiene compatibilidad con apiFetch y agrega apiUpload para Excel/archivos.
 
 export function getToken() {
     return localStorage.getItem("token") || "";
 }
 
-// ✅ helper para query params estilo axios { params: {..} }
 function withParams(path, params) {
     if (!params || typeof params !== "object") return path;
     const url = new URL(path, "http://dummy");
@@ -21,23 +21,20 @@ export async function apiFetch(path, options = {}) {
     if (!base) throw new Error("Missing VITE_API_URL");
 
     const token = getToken();
-
-    // ✅ evita problemas de slashes: base con/sin "/" + path con/sin "/"
     const baseClean = String(base).replace(/\/+$/, "");
     const pathClean = String(path).startsWith("/") ? String(path) : `/${String(path)}`;
 
     const res = await fetch(`${baseClean}${pathClean}`, {
         ...options,
         headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
             ...(options.headers || {}),
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            // ojo: NO forzamos Content-Type aquí porque apiUpload usa FormData
+            ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
         },
     });
 
     const text = await res.text();
-
-    // intenta JSON, si no, deja texto
     let data = null;
     try {
         data = text ? JSON.parse(text) : null;
@@ -46,7 +43,6 @@ export async function apiFetch(path, options = {}) {
     }
 
     if (!res.ok) {
-        // ✅ error message robusto (json o texto)
         const msg =
             (data && typeof data === "object" && (data.message || data.error)) ||
             (typeof data === "string" && data) ||
@@ -57,8 +53,54 @@ export async function apiFetch(path, options = {}) {
     return data;
 }
 
-// ✅ NUEVO: wrapper tipo axios para que tu código actual funcione igual
-export function api( /* tokenIgnored */ ) {
+// ✅ NUEVO: subir archivos (Excel) por multipart/form-data
+export async function apiUpload(path, file, extraFields = {}) {
+    const base =
+        import.meta.env.VITE_API_URL;
+    if (!base) throw new Error("Missing VITE_API_URL");
+
+    const token = getToken();
+    const baseClean = String(base).replace(/\/+$/, "");
+    const pathClean = String(path).startsWith("/") ? String(path) : `/${String(path)}`;
+
+    const fd = new FormData();
+    fd.append("file", file);
+
+    Object.entries(extraFields || {}).forEach(([k, v]) => {
+        if (v === undefined || v === null) return;
+        fd.append(k, String(v));
+    });
+
+    const res = await fetch(`${baseClean}${pathClean}`, {
+        method: "POST",
+        body: fd,
+        headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            // NO pongas Content-Type manual; el navegador pone el boundary
+        },
+    });
+
+    const text = await res.text();
+    let data = null;
+    try {
+        data = text ? JSON.parse(text) : null;
+    } catch {
+        data = text;
+    }
+
+    if (!res.ok) {
+        const msg =
+            (data && typeof data === "object" && (data.message || data.error)) ||
+            (typeof data === "string" && data) ||
+            `HTTP ${res.status}`;
+        throw new Error(msg);
+    }
+
+    return data;
+}
+
+// ✅ wrapper tipo axios (por si lo usas en otras pantallas)
+export function api() {
     return {
         get: async(path, config = {}) => {
             const finalPath = withParams(path, config.params);
@@ -69,7 +111,7 @@ export function api( /* tokenIgnored */ ) {
             const finalPath = withParams(path, config.params);
             const data = await apiFetch(finalPath, {
                 method: "POST",
-                body: JSON.stringify(body ?? {}),
+                body: JSON.stringify(body || {}),
                 headers: config.headers || {},
             });
             return { data };
@@ -78,7 +120,7 @@ export function api( /* tokenIgnored */ ) {
             const finalPath = withParams(path, config.params);
             const data = await apiFetch(finalPath, {
                 method: "PUT",
-                body: JSON.stringify(body ?? {}),
+                body: JSON.stringify(body || {}),
                 headers: config.headers || {},
             });
             return { data };
@@ -87,7 +129,7 @@ export function api( /* tokenIgnored */ ) {
             const finalPath = withParams(path, config.params);
             const data = await apiFetch(finalPath, {
                 method: "PATCH",
-                body: JSON.stringify(body ?? {}),
+                body: JSON.stringify(body || {}),
                 headers: config.headers || {},
             });
             return { data };
