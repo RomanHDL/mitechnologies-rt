@@ -38,9 +38,6 @@ const { sequelize } = require('./src/config/mysql');
 const app = express();
 const httpServer = http.createServer(app);
 
-// ✅ AHORA SÍ se pueden usar rutas
-app.use("/api", inventoryRoutes);
-
 /**
  * IMPORTANTE (Railway / proxies)
  */
@@ -48,25 +45,21 @@ app.set('trust proxy', 1);
 
 /**
  * CORS
+ * ✅ IMPORTANTE: CORS debe ir ANTES de CUALQUIER ruta (/api, etc.)
  */
 const corsOriginEnv = process.env.CORS_ORIGIN || '';
 const allowedOrigins = corsOriginEnv ?
-    corsOriginEnv.split(',').map(s => s.trim()).filter(Boolean) :
-    [];
+    corsOriginEnv.split(',').map(s => s.trim()).filter(Boolean) : [];
 
 const VERCEL_MAIN = 'https://mitechnologies-rt.vercel.app';
-
 const vercelPreviewRegex = /^https:\/\/mitechnologies-[a-z0-9-]+-romanhdls-projects\.vercel\.app$/i;
 
 const corsOptions = {
     origin: function(origin, callback) {
-
         if (!origin) return callback(null, true);
 
         if (origin === VERCEL_MAIN) return callback(null, true);
-
         if (vercelPreviewRegex.test(origin)) return callback(null, true);
-
         if (allowedOrigins.includes(origin)) return callback(null, true);
 
         return callback(new Error(`CORS not allowed for origin: ${origin}`));
@@ -80,6 +73,25 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
+
+/**
+ * Seguridad + logs + body
+ * (después de CORS está bien)
+ */
+app.use(helmet());
+app.use(express.json({ limit: '2mb' }));
+app.use(morgan('dev'));
+
+/**
+ * Rate limit
+ * ✅ IMPORTANTE: no bloquear OPTIONS (preflight)
+ */
+const limiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 120,
+    skip: (req) => req.method === 'OPTIONS',
+});
+app.use(limiter);
 
 /**
  * Socket.io
@@ -116,143 +128,113 @@ io.on('connection', (socket) => {
  * REALTIME middleware
  */
 app.use((req, res, next) => {
-
     res.on('finish', () => {
         try {
-
             const list = (res.locals && Array.isArray(res.locals.emit)) ?
-                res.locals.emit :
-                []
+                res.locals.emit : [];
 
-            if (!list.length) return
+            if (!list.length) return;
 
-            const _io = req.app.get('io')
-            if (!_io) return
+            const _io = req.app.get('io');
+            if (!_io) return;
 
             for (const e of list) {
-
-                if (!e || !e.event) continue
-
-                _io.emit(e.event, e.data || { at: new Date().toISOString() })
+                if (!e || !e.event) continue;
+                _io.emit(e.event, e.data || { at: new Date().toISOString() });
             }
-
         } catch (_) {}
-    })
+    });
 
-    next()
-
-})
-
-/**
- * Rate limit
- */
-const limiter = rateLimit({
-    windowMs: 60 * 1000,
-    max: 120
-})
-
-app.use(limiter)
+    next();
+});
 
 /**
- * Seguridad + logs
+ * ✅ AHORA SÍ se pueden usar rutas
+ * ✅ (se movió aquí para que SIEMPRE pase por CORS)
  */
-app.use(helmet())
-app.use(express.json({ limit: '2mb' }))
-app.use(morgan('dev'))
+app.use("/api", inventoryRoutes);
 
 /**
  * Admin Import Excel
  */
-app.use('/api', adminImportRoutes)
+app.use('/api', adminImportRoutes);
 
 /**
  * Healthcheck
  */
 app.get('/health', (req, res) =>
     res.json({ ok: true, time: new Date().toISOString() })
-)
+);
 
 /**
  * Socket test
  */
 app.get('/socket-test', (req, res) => {
     try {
-        const _io = req.app.get('io')
+        const _io = req.app.get('io');
         _io?.emit('dashboard:update', {
             at: new Date().toISOString(),
             reason: 'socket-test'
-        })
+        });
     } catch (e) {}
 
-    res.json({ ok: true })
-})
+    res.json({ ok: true });
+});
 
 /**
  * RUTAS
  */
-app.use('/api/auth', authRoutes)
-app.use('/api/locations', locationRoutes)
-app.use('/api/products', productRoutes)
-app.use('/api/orders', orderRoutes)
-app.use('/api/counts', countRoutes)
-app.use('/api/reports', reportRoutes)
-app.use('/api/users', usersRoutes)
-app.use('/api/pallets', palletRoutes)
-app.use('/api/movements', movementRoutes)
-app.use('/api/dashboard', dashboardRoutes)
-app.use('/api/admin', adminRoutes)
-app.use('/api/production', productionRoutes)
+app.use('/api/auth', authRoutes);
+app.use('/api/locations', locationRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/counts', countRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/users', usersRoutes);
+app.use('/api/pallets', palletRoutes);
+app.use('/api/movements', movementRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/production', productionRoutes);
 
-app.use('/api', palletDashboardRoutes)
+app.use('/api', palletDashboardRoutes);
 
 /**
  * ERROR HANDLER
  */
 app.use((err, req, res, next) => {
-
-    console.error(err)
+    console.error(err);
 
     if (String(err.message || '').toLowerCase().includes('cors')) {
-        return res.status(403).json({ message: err.message })
+        return res.status(403).json({ message: err.message });
     }
 
     res.status(err.status || 500).json({
         message: err.message || 'Internal Server Error',
         details: err.details || undefined
-    })
+    });
+});
 
-})
-
-const PORT = process.env.PORT || 5000
+const PORT = process.env.PORT || 5000;
 
 /**
  * START SERVER
  */
-    (async() => {
-
+(async() => {
     try {
-
-        await sequelize.authenticate()
-        console.log('MySQL OK (Sequelize conectado)')
-
+        await sequelize.authenticate();
+        console.log('MySQL OK (Sequelize conectado)');
     } catch (e) {
-
-        console.error('MySQL connection failed:', e)
-        process.exit(1)
-
+        console.error('MySQL connection failed:', e);
+        process.exit(1);
     }
 
     try {
-
-        await connectDB()
-        console.log('Mongo connectDB OK')
-
+        await connectDB();
+        console.log('Mongo connectDB OK');
     } catch (e) {
-
-        console.warn('Mongo connectDB falló (IGNORADO):', e?.message || e)
-
+        console.warn('Mongo connectDB falló (IGNORADO):', e?.message || e);
     }
 
-    httpServer.listen(PORT, () => console.log(`API listening on :${PORT}`))
-
+    httpServer.listen(PORT, () => console.log(`API listening on :${PORT}`));
 })();
