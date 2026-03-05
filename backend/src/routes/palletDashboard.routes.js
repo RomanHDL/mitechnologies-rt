@@ -31,10 +31,10 @@ router.get('/pallet-dashboard/details', requireAuth, async(req, res, next) => {
 router.post('/pallet-dashboard/import', requireAuth, async(req, res, next) => {
     try {
         // ✅ FIX: sin espacio, usando optional chaining correcto
-        const day = String(req.body?.day || '').slice(0, 10)
+        const day = String(req.body ? .day || '').slice(0, 10)
 
-        const items = Array.isArray(req.body?.items) ? req.body.items : []
-        const details = Array.isArray(req.body?.details) ? req.body.details : []
+        const items = Array.isArray(req.body ? .items) ? req.body.items : []
+        const details = Array.isArray(req.body ? .details) ? req.body.details : []
 
         if (!day) return res.status(400).json({ message: 'day requerido (YYYY-MM-DD)' })
 
@@ -46,8 +46,8 @@ router.post('/pallet-dashboard/import', requireAuth, async(req, res, next) => {
         const safeItems = items
             .map((x) => ({
                 day,
-                palletId: String(x?.palletId ?? '').trim(),
-                status: String(x?.status ?? 'PENDIENTE').trim().toUpperCase() === 'PROCESADO' ? 'PROCESADO' : 'PENDIENTE',
+                palletId: String(x ? .palletId ? ? '').trim(),
+                status: String(x ? .status ? ? 'PENDIENTE').trim().toUpperCase() === 'PROCESADO' ? 'PROCESADO' : 'PENDIENTE',
             }))
             .filter((x) => x.palletId)
 
@@ -57,10 +57,10 @@ router.post('/pallet-dashboard/import', requireAuth, async(req, res, next) => {
         const safeDetails = details
             .map((d) => ({
                 day,
-                palletId: String(d?.palletId ?? '').trim(),
-                sku: d?.sku == null ? null : String(d.sku).trim(),
-                qty: Number(d?.qty ?? 0) || 0,
-                note: d?.note == null ? null : String(d.note),
+                palletId: String(d ? .palletId ? ? '').trim(),
+                sku: d ? .sku == null ? null : String(d.sku).trim(),
+                qty: Number(d ? .qty ? ? 0) || 0,
+                note: d ? .note == null ? null : String(d.note),
             }))
             .filter((d) => d.palletId && (d.sku || d.qty > 0 || d.note))
 

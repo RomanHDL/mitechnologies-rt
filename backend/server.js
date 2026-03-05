@@ -1,4 +1,5 @@
 require('dotenv').config();
+
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -23,8 +24,14 @@ const productionRoutes = require('./src/routes/production.routes'); // ✅ ACTIV
 // ✅ NUEVO: Paletizado Dashboard (FFT > Paletizado)
 const palletDashboardRoutes = require('./src/routes/palletDashboard.routes');
 
+// ✅ NUEVO: Admin Import Excel
+const adminImportRoutes = require('./src/routes/adminImport.routes');
+
+// ⚠️ OJO: connectDB era para Mongo. NO lo borro, pero ya no tumbará el server si falla.
 const { connectDB } = require('./src/config/db');
-const { sequelize } = require('./src/config/mysql'); // ✅ IMPORTANTE
+
+// ✅ MySQL / Sequelize (Railway)
+const { sequelize } = require('./src/config/mysql');
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -35,15 +42,12 @@ const httpServer = http.createServer(app);
  */
 app.set('trust proxy', 1);
 
-// ✅ Mantengo tu linea tal cual (aunque esté arriba de CORS, no la rompo)
-app.use('/api', require('./src/routes/adminImport.routes'))
-    /**
-     * CORS
-     */
+/**
+ * CORS
+ */
 const corsOriginEnv = process.env.CORS_ORIGIN || '';
 const allowedOrigins = corsOriginEnv ?
-    corsOriginEnv.split(',').map(s => s.trim()).filter(Boolean) :
-    [];
+    corsOriginEnv.split(',').map(s => s.trim()).filter(Boolean) : [];
 
 // ✅ Dominio principal de tu frontend (fallback si no lo pones en Railway)
 const VERCEL_MAIN = 'https://mitechnologies-rt.vercel.app';
@@ -65,7 +69,6 @@ const corsOptions = {
         // ✅ Permite lo definido en Railway por env (CORS_ORIGIN="..., ...")
         if (allowedOrigins.includes(origin)) return callback(null, true);
 
-        // ❌ Mejor devolver error explícito (ayuda a debug y evita preflight raro)
         return callback(new Error(`CORS not allowed for origin: ${origin}`));
     },
     credentials: true,
@@ -96,16 +99,14 @@ const io = new Server(httpServer, {
 });
 app.set('io', io);
 
-// ✅ REALTIME: (opcional) log de conexiones + canal de prueba
+// ✅ REALTIME: log conexiones + canal ping/pong
 io.on('connection', (socket) => {
-    // No rompe nada; solo ayuda a debug
     console.log('socket connected:', socket.id);
 
     socket.on('disconnect', () => {
         console.log('socket disconnected:', socket.id);
     });
 
-    // Ping opcional desde el frontend
     socket.on('ping', () => {
         socket.emit('pong', { at: new Date().toISOString() });
     });
@@ -116,17 +117,17 @@ io.on('connection', (socket) => {
 app.use((req, res, next) => {
     res.on('finish', () => {
         try {
-            const list = Array.isArray(res.locals?.emit) ? res.locals.emit : [];
+            const list = Array.isArray(res.locals ? .emit) ? res.locals.emit : [];
             if (!list.length) return;
             const _io = req.app.get('io');
             if (!_io) return;
 
             for (const e of list) {
                 if (!e || !e.event) continue;
-                _io.emit(e.event, e.data ?? { at: new Date().toISOString() });
+                _io.emit(e.event, e.data ? ? { at: new Date().toISOString() });
             }
         } catch (_) {
-            // no-op: nunca debe tumbar tu server
+            // no-op
         }
     });
     next();
@@ -146,6 +147,12 @@ app.use(express.json({ limit: '2mb' }));
 app.use(morgan('dev'));
 
 /**
+ * ✅ Admin Import Excel (multipart/form-data)
+ * Lo montamos aquí para que ya tenga CORS/helmet/rate-limit/logs.
+ */
+app.use('/api', adminImportRoutes);
+
+/**
  * Healthcheck
  */
 app.get('/health', (req, res) =>
@@ -156,7 +163,7 @@ app.get('/health', (req, res) =>
 app.get('/socket-test', (req, res) => {
     try {
         const _io = req.app.get('io');
-        _io?.emit('dashboard:update', { at: new Date().toISOString(), reason: 'socket-test' });
+        _io ? .emit('dashboard:update', { at: new Date().toISOString(), reason: 'socket-test' });
     } catch (e) {}
     res.json({ ok: true });
 });
@@ -188,9 +195,7 @@ app.use((err, req, res, next) => {
 
     // ✅ Si el error viene por CORS, responde 403 en vez de 500
     if (String(err.message || '').toLowerCase().includes('cors')) {
-        return res.status(403).json({
-            message: err.message,
-        });
+        return res.status(403).json({ message: err.message });
     }
 
     res.status(err.status || 500).json({
@@ -203,13 +208,25 @@ const PORT = process.env.PORT || 5000;
 
 /**
  * INICIO DEL SERVIDOR
+ * ✅ Primero MySQL (Sequelize).
+ * ✅ Luego intentamos connectDB() (Mongo) pero si falla NO tumba el server.
  */
-connectDB()
-    .then(async() => {
-        // ✅ OJO: YA NO sync aquí porque ya lo controla connectDB()
-        httpServer.listen(PORT, () => console.log(`API listening on :${PORT}`));
-    })
-    .catch((e) => {
-        console.error('DB connection failed:', e);
+(async() => {
+    try {
+        await sequelize.authenticate();
+        console.log('MySQL OK (Sequelize conectado)');
+    } catch (e) {
+        console.error('MySQL connection failed:', e);
         process.exit(1);
-    });
+    }
+
+    try {
+        // No lo borro (por si aún lo usan en algo), pero ya NO rompe.
+        await connectDB();
+        console.log('Mongo connectDB OK');
+    } catch (e) {
+        console.warn('Mongo connectDB falló (IGNORADO):', e ? .message || e);
+    }
+
+    httpServer.listen(PORT, () => console.log(`API listening on :${PORT}`));
+})();
