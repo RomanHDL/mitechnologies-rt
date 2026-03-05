@@ -23,26 +23,26 @@ const productionRoutes = require('./src/routes/production.routes'); // ✅ ACTIV
 
 const inventoryRoutes = require("./src/routes/inventory.routes");
 
-app.use("/api", inventoryRoutes);
-
 // ✅ NUEVO: Paletizado Dashboard (FFT > Paletizado)
 const palletDashboardRoutes = require('./src/routes/palletDashboard.routes');
 
 // ✅ NUEVO: Admin Import Excel
 const adminImportRoutes = require('./src/routes/adminImport.routes');
 
-// ⚠️ OJO: connectDB era para Mongo. NO lo borro, pero ya no tumbará el server si falla.
+// ⚠️ OJO: connectDB era para Mongo. NO lo borro.
 const { connectDB } = require('./src/config/db');
 
-// ✅ MySQL / Sequelize (Railway)
+// ✅ MySQL / Sequelize
 const { sequelize } = require('./src/config/mysql');
 
 const app = express();
 const httpServer = http.createServer(app);
 
+// ✅ AHORA SÍ se pueden usar rutas
+app.use("/api", inventoryRoutes);
+
 /**
- * ✅ IMPORTANTE (Railway / proxies)
- * Arregla: ERR_ERL_UNEXPECTED_X_FORWARDED_FOR de express-rate-limit
+ * IMPORTANTE (Railway / proxies)
  */
 app.set('trust proxy', 1);
 
@@ -51,26 +51,22 @@ app.set('trust proxy', 1);
  */
 const corsOriginEnv = process.env.CORS_ORIGIN || '';
 const allowedOrigins = corsOriginEnv ?
-    corsOriginEnv.split(',').map(s => s.trim()).filter(Boolean) : [];
+    corsOriginEnv.split(',').map(s => s.trim()).filter(Boolean) :
+    [];
 
-// ✅ Dominio principal de tu frontend (fallback si no lo pones en Railway)
 const VERCEL_MAIN = 'https://mitechnologies-rt.vercel.app';
 
-// ✅ Previews (si usas deploy previews)
 const vercelPreviewRegex = /^https:\/\/mitechnologies-[a-z0-9-]+-romanhdls-projects\.vercel\.app$/i;
 
 const corsOptions = {
     origin: function(origin, callback) {
-        // Permite Postman / Server-to-server (sin Origin)
+
         if (!origin) return callback(null, true);
 
-        // ✅ Siempre permite tu Vercel principal
         if (origin === VERCEL_MAIN) return callback(null, true);
 
-        // ✅ Permite previews de Vercel
         if (vercelPreviewRegex.test(origin)) return callback(null, true);
 
-        // ✅ Permite lo definido en Railway por env (CORS_ORIGIN="..., ...")
         if (allowedOrigins.includes(origin)) return callback(null, true);
 
         return callback(new Error(`CORS not allowed for origin: ${origin}`));
@@ -79,7 +75,7 @@ const corsOptions = {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     optionsSuccessStatus: 204,
-    maxAge: 86400,
+    maxAge: 86400
 };
 
 app.use(cors(corsOptions));
@@ -98,12 +94,12 @@ const io = new Server(httpServer, {
             return callback(new Error(`Socket CORS not allowed: ${origin}`));
         },
         methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
-        credentials: true,
-    },
+        credentials: true
+    }
 });
+
 app.set('io', io);
 
-// ✅ REALTIME: log conexiones + canal ping/pong
 io.on('connection', (socket) => {
     console.log('socket connected:', socket.id);
 
@@ -116,123 +112,147 @@ io.on('connection', (socket) => {
     });
 });
 
-// ✅ REALTIME: middleware para emitir eventos desde rutas SIN tocar tu lógica
-// Uso en rutas: res.locals.emit = [{ event:'dashboard:update', data:{...} }, ...]
+/**
+ * REALTIME middleware
+ */
 app.use((req, res, next) => {
+
     res.on('finish', () => {
         try {
-            const list = (res.locals && Array.isArray(res.locals.emit)) ? res.locals.emit : []
+
+            const list = (res.locals && Array.isArray(res.locals.emit)) ?
+                res.locals.emit :
+                []
+
             if (!list.length) return
 
             const _io = req.app.get('io')
             if (!_io) return
 
             for (const e of list) {
+
                 if (!e || !e.event) continue
+
                 _io.emit(e.event, e.data || { at: new Date().toISOString() })
             }
-        } catch (_) {
-            // no-op: nunca tumba el server
-        }
+
+        } catch (_) {}
     })
 
     next()
+
 })
 
 /**
  * Rate limit
  */
-const limiter = rateLimit({ windowMs: 60 * 1000, max: 120 });
-app.use(limiter);
+const limiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 120
+})
+
+app.use(limiter)
 
 /**
  * Seguridad + logs
  */
-app.use(helmet());
-app.use(express.json({ limit: '2mb' }));
-app.use(morgan('dev'));
+app.use(helmet())
+app.use(express.json({ limit: '2mb' }))
+app.use(morgan('dev'))
 
 /**
- * ✅ Admin Import Excel (multipart/form-data)
- * Lo montamos aquí para que ya tenga CORS/helmet/rate-limit/logs.
+ * Admin Import Excel
  */
-app.use('/api', adminImportRoutes);
+app.use('/api', adminImportRoutes)
 
 /**
  * Healthcheck
  */
 app.get('/health', (req, res) =>
     res.json({ ok: true, time: new Date().toISOString() })
-);
+)
 
-// ✅ REALTIME: endpoint simple para probar sockets (no afecta nada)
+/**
+ * Socket test
+ */
 app.get('/socket-test', (req, res) => {
     try {
-        const _io = req.app.get('io');
-        _io?.emit('dashboard:update', { at: new Date().toISOString(), reason: 'socket-test' });
+        const _io = req.app.get('io')
+        _io?.emit('dashboard:update', {
+            at: new Date().toISOString(),
+            reason: 'socket-test'
+        })
     } catch (e) {}
-    res.json({ ok: true });
-});
+
+    res.json({ ok: true })
+})
 
 /**
- * Rutas
+ * RUTAS
  */
-app.use('/api/auth', authRoutes);
-app.use('/api/locations', locationRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/counts', countRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/users', usersRoutes);
-app.use('/api/pallets', palletRoutes);
-app.use('/api/movements', movementRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/production', productionRoutes); // ✅ AHORA SÍ ACTIVO
+app.use('/api/auth', authRoutes)
+app.use('/api/locations', locationRoutes)
+app.use('/api/products', productRoutes)
+app.use('/api/orders', orderRoutes)
+app.use('/api/counts', countRoutes)
+app.use('/api/reports', reportRoutes)
+app.use('/api/users', usersRoutes)
+app.use('/api/pallets', palletRoutes)
+app.use('/api/movements', movementRoutes)
+app.use('/api/dashboard', dashboardRoutes)
+app.use('/api/admin', adminRoutes)
+app.use('/api/production', productionRoutes)
 
-// ✅ NUEVO: monta /api/pallet-dashboard y /api/pallet-dashboard/:id/status
-app.use('/api', palletDashboardRoutes);
+app.use('/api', palletDashboardRoutes)
 
 /**
- * Error handler
+ * ERROR HANDLER
  */
 app.use((err, req, res, next) => {
-    console.error(err);
 
-    // ✅ Si el error viene por CORS, responde 403 en vez de 500
+    console.error(err)
+
     if (String(err.message || '').toLowerCase().includes('cors')) {
-        return res.status(403).json({ message: err.message });
+        return res.status(403).json({ message: err.message })
     }
 
     res.status(err.status || 500).json({
         message: err.message || 'Internal Server Error',
-        details: err.details || undefined,
-    });
-});
+        details: err.details || undefined
+    })
 
-const PORT = process.env.PORT || 5000;
+})
+
+const PORT = process.env.PORT || 5000
 
 /**
- * INICIO DEL SERVIDOR
- * ✅ Primero MySQL (Sequelize).
- * ✅ Luego intentamos connectDB() (Mongo) pero si falla NO tumba el server.
+ * START SERVER
  */
-(async() => {
+    (async() => {
+
     try {
-        await sequelize.authenticate();
-        console.log('MySQL OK (Sequelize conectado)');
+
+        await sequelize.authenticate()
+        console.log('MySQL OK (Sequelize conectado)')
+
     } catch (e) {
-        console.error('MySQL connection failed:', e);
-        process.exit(1);
+
+        console.error('MySQL connection failed:', e)
+        process.exit(1)
+
     }
 
     try {
-        // No lo borro (por si aún lo usan en algo), pero ya NO rompe.
-        await connectDB();
-        console.log('Mongo connectDB OK');
+
+        await connectDB()
+        console.log('Mongo connectDB OK')
+
     } catch (e) {
-        console.warn('Mongo connectDB falló (IGNORADO):', e?.message || e);
+
+        console.warn('Mongo connectDB falló (IGNORADO):', e?.message || e)
+
     }
 
-    httpServer.listen(PORT, () => console.log(`API listening on :${PORT}`));
+    httpServer.listen(PORT, () => console.log(`API listening on :${PORT}`))
+
 })();
