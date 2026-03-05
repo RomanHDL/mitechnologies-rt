@@ -21,6 +21,10 @@ const movementRoutes = require('./src/routes/movement.routes');
 const dashboardRoutes = require('./src/routes/dashboard.routes');
 const productionRoutes = require('./src/routes/production.routes'); // ✅ ACTIVADO
 
+const inventoryRoutes = require("./src/routes/inventory.routes");
+
+app.use("/api", inventoryRoutes);
+
 // ✅ NUEVO: Paletizado Dashboard (FFT > Paletizado)
 const palletDashboardRoutes = require('./src/routes/palletDashboard.routes');
 
