@@ -30,6 +30,13 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import BlockIcon from '@mui/icons-material/Block'
 import Inventory2Icon from '@mui/icons-material/Inventory2'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
+import TrendingUpIcon from '@mui/icons-material/TrendingUp'
+import TrendingDownIcon from '@mui/icons-material/TrendingDown'
+import WarehouseIcon from '@mui/icons-material/Warehouse'
+import LocalShippingIcon from '@mui/icons-material/LocalShipping'
+import BalanceIcon from '@mui/icons-material/Balance'
+import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck'
+import DownloadIcon from '@mui/icons-material/Download'
 
 import {
   XAxis,
@@ -43,6 +50,8 @@ import {
   Pie,
   Cell,
 } from 'recharts'
+
+import * as XLSX from 'xlsx'
 
 function KpiCard({ title, value, subtitle, children, accent = 'blue', onClick, ps }) {
   return (
@@ -116,6 +125,63 @@ function ElegantTooltip({ active, payload, label }) {
   )
 }
 
+function StatusMiniCard({ title, value, subtitle, icon, tone = 'info' }) {
+  const tones = {
+    info: {
+      bg: 'rgba(59,130,246,.08)',
+      border: 'rgba(59,130,246,.22)',
+      color: '#93C5FD',
+    },
+    success: {
+      bg: 'rgba(34,197,94,.08)',
+      border: 'rgba(34,197,94,.22)',
+      color: '#86EFAC',
+    },
+    warning: {
+      bg: 'rgba(245,158,11,.08)',
+      border: 'rgba(245,158,11,.22)',
+      color: '#FCD34D',
+    },
+    danger: {
+      bg: 'rgba(239,68,68,.08)',
+      border: 'rgba(239,68,68,.22)',
+      color: '#FCA5A5',
+    },
+  }
+
+  const t = tones[tone] || tones.info
+
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        p: 1.5,
+        borderRadius: 3,
+        border: `1px solid ${t.border}`,
+        bgcolor: t.bg,
+        height: '100%',
+      }}
+    >
+      <Stack direction="row" spacing={1.2} alignItems="center" sx={{ mb: 0.8 }}>
+        <Box sx={{ color: t.color, display: 'flex', alignItems: 'center' }}>
+          {icon}
+        </Box>
+        <Typography sx={{ fontSize: 12, fontWeight: 800, color: 'text.secondary' }}>
+          {title}
+        </Typography>
+      </Stack>
+
+      <Typography sx={{ fontSize: 28, lineHeight: 1, fontWeight: 900, color: 'text.primary' }}>
+        {value}
+      </Typography>
+
+      <Typography sx={{ mt: 0.6, fontSize: 12, color: 'text.secondary' }}>
+        {subtitle}
+      </Typography>
+    </Paper>
+  )
+}
+
 export default function DashboardPage() {
   const { token, user } = useAuth()
   const nav = useNavigate()
@@ -161,7 +227,7 @@ export default function DashboardPage() {
 
     try {
       const results = await Promise.allSettled([
-        apiFetch('/api/dashboard'),
+        apiFetch(`/api/dashboard?range=${encodeURIComponent(range)}`),
         apiFetch('/api/movements?limit=10'),
         apiFetch('/api/inventory/top?limit=5'),
         apiFetch('/api/orders'),
@@ -172,13 +238,21 @@ export default function DashboardPage() {
       const inv = results[2].status === 'fulfilled' ? results[2].value : null
       const ord = results[3].status === 'fulfilled' ? results[3].value : null
 
-      if (s) setStats(s)
+      if (s) {
+        setStats(s)
+        if (Array.isArray(s.latest) && s.latest.length) {
+          setLatest(s.latest)
+        }
+        if (Array.isArray(s.topSkus) && s.topSkus.length) {
+          setTop(s.topSkus)
+        }
+      }
 
       const movList = (mov?.data || mov || [])
-      setLatest(movList)
+      if (!s?.latest?.length) setLatest(movList)
 
       const invList = (inv?.data || inv || [])
-      setTop(invList)
+      if (!s?.topSkus?.length) setTop(invList)
 
       const ordList = (ord?.data || ord || [])
       setOrders((ordList || []).slice(0, 6))
@@ -228,13 +302,13 @@ export default function DashboardPage() {
       socket.disconnect()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token])
+  }, [token, range])
 
   useEffect(() => {
     if (!token) return
     refresh()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token])
+  }, [token, range])
 
   useEffect(() => {
     if (!token) return
@@ -243,7 +317,7 @@ export default function DashboardPage() {
     }, 60000)
     return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token])
+  }, [token, range])
 
   const doImportExcel = async (file) => {
     if (!file) return
@@ -268,13 +342,11 @@ export default function DashboardPage() {
   const available = Math.max(total - occupied, 0)
 
   const blockedCount = safeNum(stats.bloqueadas || stats.blocked || 0)
-  const alertsCount = blockedCount
 
   const lastUpdatedLabel = lastUpdatedAt
     ? lastUpdatedAt.toLocaleString()
     : '---'
 
-  // ✅ campos esperados para tu nuevo dashboard
   const entradasCamiones = safeNum(stats.entradasCamiones ?? stats.camionesEntrada ?? 0)
   const entradasPallets = safeNum(stats.entradasPallets ?? stats.palletsEntrada ?? 0)
   const entradasPiezas = safeNum(stats.entradasPiezas ?? stats.piezasEntrada ?? 0)
@@ -306,6 +378,17 @@ export default function DashboardPage() {
     { name: 'Piezas', value: entradasPiezas - salidasPiezas },
   ]
 
+  const diferencialTotal = useMemo(() => {
+    return safeNum(entradasPallets - salidasPallets)
+  }, [entradasPallets, salidasPallets])
+
+  const semaforoOperacion = useMemo(() => {
+    if (blockedCount > 0) return { label: 'Atención', tone: 'warning' }
+    if (diferencialTotal < 0) return { label: 'Bajo salida', tone: 'danger' }
+    if (entradasPallets === 0 && salidasPallets === 0) return { label: 'Sin movimiento', tone: 'info' }
+    return { label: 'Estable', tone: 'success' }
+  }, [blockedCount, diferencialTotal, entradasPallets, salidasPallets])
+
   const quickActions = [
     { label: 'Escanear', icon: <QrCodeScannerIcon fontSize="small" />, to: '/scan' },
     { label: 'Buscar Ubicacion', icon: <PlaceIcon fontSize="small" />, to: '/ubicaciones' },
@@ -315,9 +398,101 @@ export default function DashboardPage() {
     { label: 'Produccion', icon: <PrecisionManufacturingIcon fontSize="small" />, to: '/produccion' },
   ]
 
+  const alertsList = [
+    {
+      icon: <BlockIcon sx={{ color: 'error.main' }} fontSize="small" />,
+      label: 'Ubicaciones bloqueadas',
+      count: blockedCount || 0,
+      to: '/ubicaciones'
+    },
+    {
+      icon: <AssignmentIcon color="primary" fontSize="small" />,
+      label: 'Ordenes recientes',
+      count: orders?.length || 0,
+      to: '/ordenes'
+    },
+    {
+      icon: <Inventory2Icon color="primary" fontSize="small" />,
+      label: 'Top SKUs con movimiento',
+      count: top?.length || 0,
+      to: '/inventario'
+    },
+  ]
+
+  const exportDashboardExcel = () => {
+    const wb = XLSX.utils.book_new()
+
+    const resumenSheet = XLSX.utils.json_to_sheet([
+      {
+        Rango: range,
+        'Última actualización': lastUpdatedLabel,
+        'Ocupación %': occupancyPct,
+        'Ubicaciones ocupadas': occupied,
+        'Ubicaciones totales': total,
+        'Ubicaciones disponibles': available,
+        'Entradas operaciones': entradasCamiones,
+        'Entradas pallets': entradasPallets,
+        'Entradas piezas': entradasPiezas,
+        'Salidas órdenes': salidasOrdenes,
+        'Salidas pallets': salidasPallets,
+        'Salidas piezas': salidasPiezas,
+        'Diferencial pallets': diferencialTotal,
+        'Ubicaciones bloqueadas': blockedCount,
+        'Estado operación': semaforoOperacion.label,
+      }
+    ])
+    XLSX.utils.book_append_sheet(wb, resumenSheet, 'Resumen')
+
+    const entradasSheet = XLSX.utils.json_to_sheet(entradasData)
+    XLSX.utils.book_append_sheet(wb, entradasSheet, 'Entradas')
+
+    const salidasSheet = XLSX.utils.json_to_sheet(salidasData)
+    XLSX.utils.book_append_sheet(wb, salidasSheet, 'Salidas')
+
+    const diferencialSheet = XLSX.utils.json_to_sheet(diferencialData)
+    XLSX.utils.book_append_sheet(wb, diferencialSheet, 'Diferencial')
+
+    const movimientosSheet = XLSX.utils.json_to_sheet(
+      (latest || []).map((m) => ({
+        Fecha: m.createdAt ? new Date(m.createdAt).toLocaleString() : '',
+        Tipo: m.type || '',
+        Nota: m.note || '',
+        PalletId: m.palletId || '',
+        Usuario: m.userEmail || m.user?.email || '',
+      }))
+    )
+    XLSX.utils.book_append_sheet(wb, movimientosSheet, 'Movimientos')
+
+    const alertasSheet = XLSX.utils.json_to_sheet(
+      alertsList.map((a) => ({
+        Alerta: a.label,
+        Cantidad: a.count,
+      }))
+    )
+    XLSX.utils.book_append_sheet(wb, alertasSheet, 'Alertas')
+
+    const topSheet = XLSX.utils.json_to_sheet(
+      (top || []).map((t) => ({
+        SKU: t.sku,
+        Cantidad: t.totalQty ?? t.qty ?? 0,
+      }))
+    )
+    XLSX.utils.book_append_sheet(wb, topSheet, 'TopSKUs')
+
+    const ordenesSheet = XLSX.utils.json_to_sheet(
+      (orders || []).map((o) => ({
+        Orden: o.orderNumber || 'ORD',
+        Status: o.status || '',
+        Destino: `${o.destinationType || ''}${o.destinationRef ? ` - ${o.destinationRef}` : ''}`,
+      }))
+    )
+    XLSX.utils.book_append_sheet(wb, ordenesSheet, 'Ordenes')
+
+    XLSX.writeFile(wb, `dashboard_${String(range).toLowerCase()}_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+
   return (
     <Box sx={ps.page}>
-      {/* Header */}
       <Box
         sx={{
           display: 'flex',
@@ -348,6 +523,31 @@ export default function DashboardPage() {
                 bgcolor: socketOnline ? 'rgba(34,197,94,.12)' : 'rgba(244,63,94,.10)',
                 border: `1px solid ${socketOnline ? 'rgba(34,197,94,.35)' : 'rgba(244,63,94,.35)'}`,
                 color: socketOnline ? 'rgba(34,197,94,.95)' : 'rgba(244,63,94,.95)'
+              }}
+              variant="outlined"
+            />
+
+            <Chip
+              size="small"
+              label={`Operación: ${semaforoOperacion.label}`}
+              sx={{
+                fontWeight: 800,
+                borderRadius: 2,
+                bgcolor:
+                  semaforoOperacion.tone === 'success' ? 'rgba(34,197,94,.12)' :
+                  semaforoOperacion.tone === 'warning' ? 'rgba(245,158,11,.12)' :
+                  semaforoOperacion.tone === 'danger' ? 'rgba(239,68,68,.12)' :
+                  'rgba(59,130,246,.10)',
+                border:
+                  semaforoOperacion.tone === 'success' ? '1px solid rgba(34,197,94,.35)' :
+                  semaforoOperacion.tone === 'warning' ? '1px solid rgba(245,158,11,.35)' :
+                  semaforoOperacion.tone === 'danger' ? '1px solid rgba(239,68,68,.35)' :
+                  '1px solid rgba(59,130,246,.25)',
+                color:
+                  semaforoOperacion.tone === 'success' ? 'rgba(34,197,94,.95)' :
+                  semaforoOperacion.tone === 'warning' ? 'rgba(245,158,11,.95)' :
+                  semaforoOperacion.tone === 'danger' ? 'rgba(248,113,113,.95)' :
+                  'rgba(147,197,253,.95)'
               }}
               variant="outlined"
             />
@@ -383,6 +583,19 @@ export default function DashboardPage() {
               </Button>
             ))}
           </Stack>
+
+          <TooltipMUI title="Exportar dashboard a Excel">
+            <span>
+              <Button
+                variant="outlined"
+                startIcon={<DownloadIcon />}
+                onClick={exportDashboardExcel}
+                sx={{ borderRadius: 2 }}
+              >
+                Exportar Excel
+              </Button>
+            </span>
+          </TooltipMUI>
 
           <TooltipMUI title={isAdmin ? 'Importar Excel (solo admin)' : 'Solo admin puede importar'}>
             <span>
@@ -435,9 +648,49 @@ export default function DashboardPage() {
       {importMsg && <Alert severity="success" sx={{ mb: 2 }}>{importMsg}</Alert>}
       {err && <Alert severity="warning" sx={{ mb: 2 }}>Dashboard cargo con fallas: {err}</Alert>}
 
-      {/* ✅ NUEVO BLOQUE PRINCIPAL */}
       <Grid container spacing={2} sx={{ mb: 2.5 }}>
-        {/* Ocupación pastel */}
+        <Grid item xs={12} sm={6} md={3}>
+          <StatusMiniCard
+            title="Ocupación"
+            value={`${occupancyPct}%`}
+            subtitle={`${occupied}/${total} ubicaciones`}
+            icon={<WarehouseIcon fontSize="small" />}
+            tone="info"
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <StatusMiniCard
+            title="Entradas del día"
+            value={entradasPallets}
+            subtitle={`${entradasCamiones} operaciones de entrada`}
+            icon={<TrendingUpIcon fontSize="small" />}
+            tone="success"
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <StatusMiniCard
+            title="Salidas del día"
+            value={salidasPallets}
+            subtitle={`${salidasOrdenes} operaciones de salida`}
+            icon={<LocalShippingIcon fontSize="small" />}
+            tone="warning"
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <StatusMiniCard
+            title="Diferencial"
+            value={diferencialTotal}
+            subtitle={diferencialTotal < 0 ? 'Más salida que entrada' : 'Balance operativo'}
+            icon={diferencialTotal < 0 ? <TrendingDownIcon fontSize="small" /> : <BalanceIcon fontSize="small" />}
+            tone={diferencialTotal < 0 ? 'danger' : 'success'}
+          />
+        </Grid>
+      </Grid>
+
+      <Grid container spacing={2} sx={{ mb: 2.5 }}>
         <Grid item xs={12} md={4}>
           <KpiCard
             title="Ocupacion del Almacen"
@@ -470,7 +723,6 @@ export default function DashboardPage() {
           </KpiCard>
         </Grid>
 
-        {/* Entradas */}
         <Grid item xs={12} md={4}>
           <KpiCard
             title="Entradas"
@@ -500,7 +752,6 @@ export default function DashboardPage() {
           </KpiCard>
         </Grid>
 
-        {/* Salidas */}
         <Grid item xs={12} md={4}>
           <KpiCard
             title="Salidas"
@@ -531,7 +782,6 @@ export default function DashboardPage() {
         </Grid>
       </Grid>
 
-      {/* ✅ GRAFICA DIFERENCIAL */}
       <Paper elevation={0} sx={{ ...ps.card, mb: 2.5 }}>
         <Box sx={ps.cardHeader}>
           <Typography sx={ps.cardHeaderTitle}>Grafica diferencial</Typography>
@@ -589,13 +839,34 @@ export default function DashboardPage() {
                     </Stack>
                   </Paper>
                 ))}
+
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 1.2,
+                    borderRadius: 2,
+                    borderColor: 'rgba(59,130,246,.25)',
+                    bgcolor: 'rgba(59,130,246,.06)'
+                  }}
+                >
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <PlaylistAddCheckIcon color="primary" fontSize="small" />
+                    <Typography sx={{ fontWeight: 700, fontSize: 13 }}>
+                      Resumen
+                    </Typography>
+                  </Stack>
+                  <Typography sx={{ mt: 1, fontSize: 13, color: 'text.secondary' }}>
+                    {diferencialTotal < 0
+                      ? 'La operación está sacando más pallets de los que entran.'
+                      : 'La operación se mantiene estable o positiva en pallets.'}
+                  </Typography>
+                </Paper>
               </Stack>
             </Grid>
           </Grid>
         </Box>
       </Paper>
 
-      {/* Quick Actions */}
       <Paper elevation={0} sx={{ ...ps.card, mb: 2.5 }}>
         <Box sx={ps.cardHeader}>
           <Typography sx={ps.cardHeaderTitle}>Acciones rapidas</Typography>
@@ -628,12 +899,11 @@ export default function DashboardPage() {
         </Box>
       </Paper>
 
-      {/* Main content 70/30 */}
       <Grid container spacing={2}>
         <Grid item xs={12} md={8}>
           <Paper elevation={0} sx={ps.card}>
             <Box sx={ps.cardHeader}>
-              <Typography sx={ps.cardHeaderTitle}>Actividad (Movimientos)</Typography>
+              <Typography sx={ps.cardHeaderTitle}>Actividad reciente</Typography>
               <Box sx={{ flex: 1 }} />
               <Stack direction="row" spacing={1}>
                 <Pill label={`${latest?.length || 0} recientes`} icon={<SwapHorizIcon fontSize="small" />} ps={ps} />
@@ -693,31 +963,34 @@ export default function DashboardPage() {
                     </Paper>
                   )
                 })}
+
+                {!latest?.length && (
+                  <Typography sx={ps.emptyText}>Sin movimientos recientes por ahora.</Typography>
+                )}
               </Stack>
             </Box>
           </Paper>
         </Grid>
 
-        {/* Right column */}
         <Grid item xs={12} md={4}>
-          <Paper elevation={0} sx={{ ...ps.card, mb: 2 }}>
+          <Paper elevation={0} sx={ps.card}>
             <Box sx={ps.cardHeader}>
-              <Typography sx={ps.cardHeaderTitle}>Alertas / Pendientes</Typography>
+              <Typography sx={ps.cardHeaderTitle}>Panel operativo</Typography>
               <Box sx={{ flex: 1 }} />
               <WarningAmberIcon sx={{ color: 'warning.main', fontSize: 20 }} />
             </Box>
 
             <Box sx={{ p: 2 }}>
               <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
-                Acciones que requieren atencion.
+                Datos que sí requieren atención o seguimiento.
               </Typography>
 
-              <Stack spacing={1}>
-                {[
-                  { icon: <BlockIcon sx={{ color: 'error.main' }} fontSize="small" />, label: 'Ubicaciones bloqueadas', count: blockedCount || 0, to: '/ubicaciones' },
-                  { icon: <AssignmentIcon color="primary" fontSize="small" />, label: 'Ordenes recientes', count: orders?.length || 0, to: '/ordenes' },
-                  { icon: <Inventory2Icon color="primary" fontSize="small" />, label: 'Revisar inventario (Top SKUs)', count: top?.length || 0, to: '/inventario' },
-                ].map((item) => (
+              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
+                Alertas / Pendientes
+              </Typography>
+
+              <Stack spacing={1} sx={{ mb: 2 }}>
+                {alertsList.map((item) => (
                   <Paper
                     key={item.label}
                     variant="outlined"
@@ -741,16 +1014,15 @@ export default function DashboardPage() {
                   </Paper>
                 ))}
               </Stack>
-            </Box>
-          </Paper>
 
-          <Paper elevation={0} sx={{ ...ps.card, mb: 2 }}>
-            <Box sx={ps.cardHeader}>
-              <Typography sx={ps.cardHeaderTitle}>Top SKUs</Typography>
-            </Box>
-            <Box sx={{ p: 2 }}>
-              <Stack spacing={1}>
-                {top.map((t) => (
+              <Divider sx={{ my: 2 }} />
+
+              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
+                Top SKUs
+              </Typography>
+
+              <Stack spacing={1} sx={{ mb: 2 }}>
+                {top.slice(0, 5).map((t) => (
                   <Paper
                     key={t.sku}
                     variant="outlined"
@@ -768,22 +1040,22 @@ export default function DashboardPage() {
                       <Typography sx={{ fontWeight: 700, fontFamily: 'monospace', color: 'text.primary' }}>
                         {t.sku}
                       </Typography>
-                      <Chip size="small" label={t.totalQty} sx={ps.metricChip('info')} />
+                      <Chip size="small" label={t.totalQty ?? t.qty ?? 0} sx={ps.metricChip('info')} />
                     </Stack>
                   </Paper>
                 ))}
+
                 {!top?.length && <Typography sx={ps.emptyText}>Sin datos de Top SKUs por ahora.</Typography>}
               </Stack>
-            </Box>
-          </Paper>
 
-          <Paper elevation={0} sx={ps.card}>
-            <Box sx={ps.cardHeader}>
-              <Typography sx={ps.cardHeaderTitle}>Ordenes de salida</Typography>
-            </Box>
-            <Box sx={{ p: 2 }}>
+              <Divider sx={{ my: 2 }} />
+
+              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
+                Ordenes recientes
+              </Typography>
+
               <Stack spacing={1}>
-                {orders.map(o => (
+                {orders.slice(0, 4).map(o => (
                   <Paper
                     key={o._id || o.id || o.orderNumber}
                     variant="outlined"
@@ -808,6 +1080,7 @@ export default function DashboardPage() {
                     </Typography>
                   </Paper>
                 ))}
+
                 {!orders?.length && <Typography sx={ps.emptyText}>Sin ordenes recientes por ahora.</Typography>}
               </Stack>
             </Box>
