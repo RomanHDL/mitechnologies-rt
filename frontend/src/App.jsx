@@ -15,7 +15,6 @@ import MovementsPage from './pages/MovementsPage'
 import UsersPage from './pages/UsersPage'
 import ProductionPage from './pages/ProductionPage'
 import ScanPage from './pages/ScanPage'
-import ProductsPage from './pages/ProductsPage'
 import OrdersPage from './pages/OrdersPage'
 import CountsPage from './pages/CountsPage'
 import LocationsPage from './pages/LocationsPage'
@@ -45,7 +44,6 @@ export default function App() {
         <Route path="racks" element={<RacksPage />} />
         <Route path="produccion" element={<ProductionPage />} />
         <Route path="movimientos" element={<MovementsPage />} />
-        <Route path="productos" element={<ProductsPage />} />
         <Route path="ordenes" element={<OrdersPage />} />
         <Route path="conteos" element={<CountsPage />} />
         <Route path="ubicaciones" element={<LocationsPage />} />
