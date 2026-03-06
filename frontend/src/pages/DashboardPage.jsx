@@ -595,42 +595,6 @@ export default function DashboardPage() {
         </Box>
       </Paper>
 
-      {/* KPIs secundarios */}
-      <Grid container spacing={2} sx={{ mb: 2.5 }}>
-        <Grid item xs={6} sm={6} md={4}>
-          <KpiCard
-            title="Ubicaciones Bloqueadas"
-            value={`${blockedCount || 0}`}
-            subtitle="Revisar mantenimiento / auditoria"
-            accent="red"
-            onClick={() => nav('/ubicaciones')}
-            ps={ps}
-          />
-        </Grid>
-
-        <Grid item xs={6} sm={6} md={4}>
-          <KpiCard
-            title="Top SKUs (hoy)"
-            value={`${top?.length || 0}`}
-            subtitle="Mas inventario por SKU"
-            accent="blue"
-            onClick={() => nav('/inventario')}
-            ps={ps}
-          />
-        </Grid>
-
-        <Grid item xs={6} sm={6} md={4}>
-          <KpiCard
-            title="Alertas"
-            value={`${alertsCount || 0}`}
-            subtitle="Pendientes por validar"
-            accent="amber"
-            onClick={() => nav('/ubicaciones')}
-            ps={ps}
-          />
-        </Grid>
-      </Grid>
-
       {/* Quick Actions */}
       <Paper elevation={0} sx={{ ...ps.card, mb: 2.5 }}>
         <Box sx={ps.cardHeader}>
