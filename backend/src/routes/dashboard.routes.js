@@ -61,7 +61,6 @@ async function getKpis(req, res, next) {
             return s === 'BLOCKED' || s === 'BLOQUEADA' || s === 'BLOQUEADO';
         }).length;
 
-        // ✅ Movimientos para gráfica histórica
         const mv = await Movement.findAll({
             where: {
                 createdAt: {
@@ -74,7 +73,6 @@ async function getKpis(req, res, next) {
             ]
         });
 
-        // ✅ Movimientos según rango seleccionado (HOY/7D/30D)
         const rangeMovements = await Movement.findAll({
             where: {
                 createdAt: {
@@ -107,7 +105,6 @@ async function getKpis(req, res, next) {
             .sort((a, b) => b.qty - a.qty)
             .slice(0, 10);
 
-        // ✅ métricas del rango seleccionado
         const entradasMov = rangeMovements.filter((m) => String(m.type).toUpperCase() === 'IN');
         const salidasMov = rangeMovements.filter((m) => String(m.type).toUpperCase() === 'OUT');
 
@@ -146,20 +143,15 @@ async function getKpis(req, res, next) {
             0
         );
 
-        // ✅ equivalencias para tu dashboard
         const entradasCamiones = entradasHoy;
         const salidasOrdenes = salidasHoy;
         const entradasPallets = entradasPalletIds.length;
         const salidasPallets = salidasPalletIds.length;
 
-        // ✅ últimos movimientos para panel operativo
         const latest = rangeMovements.slice(0, 10);
 
         res.json({
-            // ✅ control de rango
             range,
-
-            // ✅ formato viejo, por compatibilidad
             occupancy: {
                 totalLocations: total,
                 occupiedLocations: occupied,
@@ -168,23 +160,16 @@ async function getKpis(req, res, next) {
             },
             movementsPerDay: perDay,
             topSkus,
-
-            // ✅ nuevos datos útiles para dashboard
             latest,
-
-            // ✅ formato nuevo, para DashboardPage.jsx
             occupancyPct: total ? Math.round((occupied / total) * 100) : 0,
             occupied,
             total,
             bloqueadas: blocked,
-
             entradasHoy,
             salidasHoy,
-
             entradasCamiones,
             entradasPallets,
             entradasPiezas,
-
             salidasOrdenes,
             salidasPallets,
             salidasPiezas
@@ -194,9 +179,6 @@ async function getKpis(req, res, next) {
     }
 }
 
-// ✅ funcionan:
-// GET /api/dashboard
-// GET /api/dashboard/kpis
 router.get('/', requireAuth, getKpis);
 router.get('/kpis', requireAuth, getKpis);
 
