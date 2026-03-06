@@ -18,7 +18,7 @@ function safeNum(v) {
 
 function sumPalletItemsQty(pallet) {
     if (!pallet || !Array.isArray(pallet.items)) return 0;
-    return pallet.items.reduce((acc, it) => acc + safeNum(it ? .qty), 0);
+   return pallet.items.reduce((acc, it) => acc + safeNum(it?.qty), 0);
 }
 
 function parseRangeToDays(range) {
