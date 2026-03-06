@@ -8,14 +8,51 @@ const loginSchema = z.object({
     message: "Debes enviar password o pin",
     path: ["password"]
 });
+
 const registerSchema = z.object({
-    email: z.string().email(),
-    password: z.string().min(6),
-    employeeNumber: z.string().min(1),
-    fullName: z.string().optional(),
-    role: z.enum(['ADMIN', 'SUPERVISOR', 'OPERADOR']).optional(),
-    position: z.string().optional(),
-    isActive: z.boolean().optional()
+    email: z.string().trim().email("Correo inválido"),
+    password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+
+    // ✅ acepta número o string y lo convierte a string
+    employeeNumber: z.union([z.string(), z.number()])
+        .transform((v) => String(v).trim())
+        .refine((v) => v.length > 0, { message: "El número de empleado es obligatorio" }),
+
+    // ✅ si viene vacío, lo deja como undefined
+    fullName: z.union([z.string(), z.undefined()])
+        .transform((v) => {
+            if (v === undefined) return undefined;
+            const s = String(v).trim();
+            return s === '' ? undefined : s;
+        })
+        .optional(),
+
+    // ✅ si viene vacío, usa OPERADOR por defecto
+    role: z.union([
+            z.enum(['ADMIN', 'SUPERVISOR', 'OPERADOR']),
+            z.literal(''),
+            z.undefined()
+        ])
+        .transform((v) => !v ? 'OPERADOR' : v)
+        .optional(),
+
+    // ✅ si viene vacío, lo deja como undefined
+    position: z.union([z.string(), z.undefined()])
+        .transform((v) => {
+            if (v === undefined) return undefined;
+            const s = String(v).trim();
+            return s === '' ? undefined : s;
+        })
+        .optional(),
+
+    // ✅ acepta boolean o string "true"/"false"
+    isActive: z.union([z.boolean(), z.string(), z.undefined()])
+        .transform((v) => {
+            if (v === undefined || v === '') return true;
+            if (typeof v === 'boolean') return v;
+            return String(v).toLowerCase() === 'true';
+        })
+        .optional()
 });
 
 const createPalletSchema = z.object({
