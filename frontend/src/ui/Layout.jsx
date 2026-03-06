@@ -42,7 +42,6 @@ const NAV_ITEMS = [
   { to: '/racks',        icon: <GridViewIcon />,               label: 'Racks' },
   { to: '/produccion',   icon: <PrecisionManufacturingIcon />, label: 'Produccion' },
   { to: '/movimientos',  icon: <SwapHorizIcon />,              label: 'Movimientos' },
-  { to: '/productos',    icon: <Inventory2Icon />,             label: 'Pallet Items' },
   { to: '/ordenes',      icon: <AssignmentIcon />,             label: 'Ordenes' },
   { to: '/conteos',      icon: <FactCheckIcon />,              label: 'Conteos' },
   { to: '/ubicaciones',  icon: <PlaceIcon />,                  label: 'Ubicaciones' },
