@@ -52,7 +52,7 @@ async function getKpis(req, res, next) {
 
         const occByArea = { A1: 0, A2: 0, A3: 0, A4: 0 };
         for (const p of pallets) {
-            const a = p.location ? .area;
+           const a = p.location?.area;
             if (a && occByArea[a] !== undefined) occByArea[a] += 1;
         }
 
