@@ -247,6 +247,13 @@ const PORT = process.env.PORT || 5000;
     try {
         await sequelize.authenticate();
         console.log('MySQL OK (Sequelize conectado)');
+
+        // Ensure new columns exist (safe idempotent migrations)
+        await sequelize.query(`
+          ALTER TABLE pallets ADD COLUMN expiryDate DATETIME NULL DEFAULT NULL
+        `).catch(e => {
+          if (!e.message.includes('Duplicate column')) throw e;
+        });
     } catch (e) {
         console.error('MySQL connection failed:', e);
         process.exit(1);
