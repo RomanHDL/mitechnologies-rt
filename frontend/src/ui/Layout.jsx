@@ -35,6 +35,15 @@ import DarkModeIcon from '@mui/icons-material/DarkMode'
 import LightModeIcon from '@mui/icons-material/LightMode'
 import MenuIcon from '@mui/icons-material/Menu'
 import LogoutIcon from '@mui/icons-material/Logout'
+import LocalShippingIcon from '@mui/icons-material/LocalShipping'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
+import QrCode2Icon from '@mui/icons-material/QrCode2'
+import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn'
+import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck'
+import BarChartIcon from '@mui/icons-material/BarChart'
+import HistoryIcon from '@mui/icons-material/History'
+import AssignmentReturnIcon from '@mui/icons-material/AssignmentReturn'
+import WebhookIcon from '@mui/icons-material/Webhook'
 
 const NAV_ITEMS = [
   { to: '/',             icon: <DashboardIcon />,              label: 'Dashboard' },
@@ -47,6 +56,15 @@ const NAV_ITEMS = [
   { to: '/ubicaciones',  icon: <PlaceIcon />,                  label: 'Ubicaciones' },
   { to: '/usuarios',     icon: <PeopleAltIcon />,              label: 'Usuarios' },
   { to: '/scan',         icon: <QrCodeScannerIcon />,          label: 'Escanear' },
+  { to: '/recepcion',    icon: <LocalShippingIcon />,          label: 'Recepcion' },
+  { to: '/alertas',      icon: <WarningAmberIcon />,           label: 'Alertas' },
+  { to: '/etiquetas',    icon: <QrCode2Icon />,                label: 'Etiquetas' },
+  { to: '/tareas',       icon: <AssignmentTurnedInIcon />,     label: 'Tareas' },
+  { to: '/picking',      icon: <PlaylistAddCheckIcon />,       label: 'Picking' },
+  { to: '/productividad', icon: <BarChartIcon />,              label: 'Productividad' },
+  { to: '/auditoria',    icon: <HistoryIcon />,                label: 'Auditoria' },
+  { to: '/devoluciones', icon: <AssignmentReturnIcon />,       label: 'Devoluciones' },
+  { to: '/webhooks',     icon: <WebhookIcon />,                label: 'Webhooks' },
 ]
 
 const DRAWER_WIDTH = 260

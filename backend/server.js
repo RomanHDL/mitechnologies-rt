@@ -29,6 +29,18 @@ const palletDashboardRoutes = require('./src/routes/palletDashboard.routes');
 // ✅ NUEVO: Admin Import Excel
 const adminImportRoutes = require('./src/routes/adminImport.routes');
 
+// ── NEW MODULE ROUTES (Fase 1-3) ──
+const inboundRoutes = require("./src/routes/inbound.routes");
+const alertsRoutes = require("./src/routes/alerts.routes");
+const qrprintRoutes = require("./src/routes/qrprint.routes");
+const tasksRoutes = require("./src/routes/tasks.routes");
+const pickingRoutes = require("./src/routes/picking.routes");
+const putawayRoutes = require("./src/routes/putaway.routes");
+const productivityRoutes = require("./src/routes/productivity.routes");
+const auditRoutes = require("./src/routes/audit.routes");
+const returnsRoutes = require("./src/routes/returns.routes");
+const webhooksRoutes = require("./src/routes/webhooks.routes");
+
 // ⚠️ OJO: connectDB era para Mongo. NO lo borro.
 const { connectDB } = require('./src/config/db');
 
@@ -196,6 +208,17 @@ app.use('/api/movements', movementRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/production', productionRoutes);
+// ── NEW MODULE ROUTES ──
+app.use('/api/inbound', inboundRoutes);
+app.use('/api/alerts', alertsRoutes);
+app.use('/api/qr', qrprintRoutes);
+app.use('/api/tasks', tasksRoutes);
+app.use('/api/picking', pickingRoutes);
+app.use('/api/putaway', putawayRoutes);
+app.use('/api/productivity', productivityRoutes);
+app.use('/api/audit', auditRoutes);
+app.use('/api/returns', returnsRoutes);
+app.use('/api/webhooks', webhooksRoutes);
 
 app.use('/api', palletDashboardRoutes);
 

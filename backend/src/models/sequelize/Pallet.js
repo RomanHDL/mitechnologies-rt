@@ -16,6 +16,11 @@ const Pallet = sequelize.define('Pallet', {
         type: DataTypes.STRING,
         defaultValue: ''
     },
+    expiryDate: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        defaultValue: null
+    },
     supplier: {
         type: DataTypes.STRING,
         defaultValue: ''
@@ -56,6 +61,7 @@ const Pallet = sequelize.define('Pallet', {
         // ✅ NUEVOS (NO rompen nada): aceleran filtros/reportes
         { fields: ['status'] },
         { fields: ['lot'] },
+        { fields: ['expiryDate'] },
         { fields: ['supplier'] },
         { fields: ['receivedAt'] },
         { fields: ['createdAt'] },
