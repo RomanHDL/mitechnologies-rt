@@ -52,7 +52,10 @@ const SIDEBAR_OPEN = 248
 const SIDEBAR_CLOSED = 64
 const TOPBAR_H = 56
 
-/* Grouped navigation */
+/* Grouped navigation
+ * items without `roles` are visible to ALL roles.
+ * items with `roles` are only visible to those roles.
+ */
 const NAV_SECTIONS = [
   {
     label: 'Principal',
@@ -66,7 +69,7 @@ const NAV_SECTIONS = [
       { to: '/inventario',   icon: <Inventory2Icon />,             label: 'Inventario' },
       { to: '/racks',        icon: <GridViewIcon />,               label: 'Racks' },
       { to: '/ubicaciones',  icon: <PlaceIcon />,                  label: 'Ubicaciones' },
-      { to: '/recepcion',    icon: <LocalShippingIcon />,          label: 'Recepcion' },
+      { to: '/recepcion',    icon: <LocalShippingIcon />,          label: 'Recepcion', roles: ['ADMIN', 'SUPERVISOR'] },
       { to: '/movimientos',  icon: <SwapHorizIcon />,              label: 'Movimientos' },
       { to: '/produccion',   icon: <PrecisionManufacturingIcon />, label: 'Produccion' },
       { to: '/scan',         icon: <QrCodeScannerIcon />,          label: 'Escanear' },
@@ -75,12 +78,12 @@ const NAV_SECTIONS = [
   {
     label: 'Ejecucion',
     items: [
-      { to: '/ordenes',      icon: <AssignmentIcon />,             label: 'Ordenes' },
+      { to: '/ordenes',      icon: <AssignmentIcon />,             label: 'Ordenes', roles: ['ADMIN', 'SUPERVISOR'] },
       { to: '/picking',      icon: <PlaylistAddCheckIcon />,       label: 'Picking' },
       { to: '/tareas',       icon: <AssignmentTurnedInIcon />,     label: 'Tareas' },
       { to: '/conteos',      icon: <FactCheckIcon />,              label: 'Conteos' },
       { to: '/etiquetas',    icon: <QrCode2Icon />,                label: 'Etiquetas' },
-      { to: '/devoluciones', icon: <AssignmentReturnIcon />,       label: 'Devoluciones' },
+      { to: '/devoluciones', icon: <AssignmentReturnIcon />,       label: 'Devoluciones', roles: ['ADMIN', 'SUPERVISOR'] },
     ],
   },
   {
@@ -89,11 +92,21 @@ const NAV_SECTIONS = [
       { to: '/alertas',       icon: <WarningAmberIcon />,          label: 'Alertas' },
       { to: '/productividad', icon: <BarChartIcon />,              label: 'Productividad' },
       { to: '/auditoria',     icon: <HistoryIcon />,               label: 'Auditoria' },
-      { to: '/usuarios',      icon: <PeopleAltIcon />,             label: 'Usuarios' },
-      { to: '/webhooks',      icon: <WebhookIcon />,               label: 'Webhooks' },
+      { to: '/usuarios',      icon: <PeopleAltIcon />,             label: 'Usuarios', roles: ['ADMIN'] },
+      { to: '/webhooks',      icon: <WebhookIcon />,               label: 'Webhooks', roles: ['ADMIN'] },
     ],
   },
 ]
+
+/** Filter NAV_SECTIONS by user role, removing empty sections */
+function getFilteredSections(role) {
+  return NAV_SECTIONS
+    .map(section => ({
+      ...section,
+      items: section.items.filter(item => !item.roles || item.roles.includes(role)),
+    }))
+    .filter(section => section.items.length > 0)
+}
 
 const ALL_ITEMS = NAV_SECTIONS.flatMap(s => s.items)
 
@@ -118,6 +131,8 @@ export default function Layout() {
   const expanded = isMobile ? mobileOpen : (pinned || hovered)
   const sidebarW = isMobile ? SIDEBAR_OPEN : (expanded ? SIDEBAR_OPEN : SIDEBAR_CLOSED)
   const isDark = theme.palette.mode === 'dark'
+
+  const filteredSections = getFilteredSections(user?.role)
 
   const handleLogout = () => { logout(); nav('/login') }
 
@@ -164,7 +179,7 @@ export default function Layout() {
         '&::-webkit-scrollbar-thumb': { background: 'rgba(255,255,255,0.12)', borderRadius: 99 },
         '&::-webkit-scrollbar-track': { background: 'transparent' },
       }}>
-        {NAV_SECTIONS.map((section) => (
+        {filteredSections.map((section) => (
           <Box key={section.label} sx={{ mb: 0.5 }}>
             {expanded && (
               <Typography sx={{

@@ -47,6 +47,19 @@ function PrivateRoute({ children }) {
   return token ? children : <Navigate to="/login" replace />
 }
 
+/**
+ * Role-based route guard.
+ * @param {string[]} roles – allowed roles (e.g. ['ADMIN','SUPERVISOR'])
+ * If the current user's role is not in the list, silently redirect to Dashboard.
+ */
+function RoleRoute({ roles, children }) {
+  const { user } = useAuth()
+  if (!user || !roles.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />
+  }
+  return children
+}
+
 export default function App() {
   return (
     <Suspense fallback={<PageLoader />}>
@@ -66,15 +79,15 @@ export default function App() {
           <Route path="racks" element={<RacksPage />} />
           <Route path="produccion" element={<ProductionPage />} />
           <Route path="movimientos" element={<MovementsPage />} />
-          <Route path="ordenes" element={<OrdersPage />} />
+          <Route path="ordenes" element={<RoleRoute roles={['ADMIN', 'SUPERVISOR']}><OrdersPage /></RoleRoute>} />
           <Route path="conteos" element={<CountsPage />} />
           <Route path="ubicaciones" element={<LocationsPage />} />
-          <Route path="usuarios" element={<UsersPage />} />
+          <Route path="usuarios" element={<RoleRoute roles={['ADMIN']}><UsersPage /></RoleRoute>} />
           <Route path="scan" element={<ScanPage />} />
-          <Route path="admin/users" element={<AdminUsers />} />
+          <Route path="admin/users" element={<RoleRoute roles={['ADMIN']}><AdminUsers /></RoleRoute>} />
 
           {/* NEW — Fase 1 */}
-          <Route path="recepcion" element={<InboundPage />} />
+          <Route path="recepcion" element={<RoleRoute roles={['ADMIN', 'SUPERVISOR']}><InboundPage /></RoleRoute>} />
           <Route path="alertas" element={<AlertsPage />} />
           <Route path="etiquetas" element={<QrPrintPage />} />
 
@@ -85,8 +98,8 @@ export default function App() {
 
           {/* NEW — Fase 3 */}
           <Route path="auditoria" element={<AuditPage />} />
-          <Route path="devoluciones" element={<ReturnsPage />} />
-          <Route path="webhooks" element={<WebhooksPage />} />
+          <Route path="devoluciones" element={<RoleRoute roles={['ADMIN', 'SUPERVISOR']}><ReturnsPage /></RoleRoute>} />
+          <Route path="webhooks" element={<RoleRoute roles={['ADMIN']}><WebhooksPage /></RoleRoute>} />
         </Route>
 
         {/* fallback */}
