@@ -1,14 +1,15 @@
 import { createTheme } from "@mui/material/styles";
 
 /* ─────────────────────────────────────────────
-   MyTechnologies – Enterprise Blue & White Theme
-   Responsive, consistent, professional.
+   MiTechnologies WMS — Enterprise Slate Theme
+   Neutral tones + blue accent. Clean, flat, scannable.
+   Optimized for daily warehouse operations.
    ───────────────────────────────────────────── */
 
-// Brand palette
+// Brand blue (accent)
 const BLUE = {
-  900: '#0A2540',
-  800: '#0D3B66',
+  900: '#0F172A',
+  800: '#1E293B',
   700: '#0D47A1',
   600: '#1565C0',
   500: '#1976D2',
@@ -16,7 +17,22 @@ const BLUE = {
   300: '#64B5F6',
   200: '#90CAF9',
   100: '#BBDEFB',
-  50:  '#E3F2FD',
+  50:  '#EFF6FF',
+}
+
+// Neutral slate (structure & text)
+const SLATE = {
+  950: '#020617',
+  900: '#0F172A',
+  800: '#1E293B',
+  700: '#334155',
+  600: '#475569',
+  500: '#64748B',
+  400: '#94A3B8',
+  300: '#CBD5E1',
+  200: '#E2E8F0',
+  100: '#F1F5F9',
+  50:  '#F8FAFC',
 }
 
 export function makeTheme(mode = 'light') {
@@ -27,7 +43,7 @@ export function makeTheme(mode = 'light') {
       mode,
       primary: {
         main:  isDark ? BLUE[400] : BLUE[600],
-        light: isDark ? BLUE[300] : BLUE[500],
+        light: isDark ? BLUE[300] : BLUE[400],
         dark:  isDark ? BLUE[500] : BLUE[700],
         contrastText: '#FFFFFF',
       },
@@ -36,31 +52,33 @@ export function makeTheme(mode = 'light') {
         contrastText: '#FFFFFF',
       },
       background: {
-        default: isDark ? '#0B1929' : '#F4F7FC',
-        paper:   isDark ? '#112240' : '#FFFFFF',
+        default: isDark ? SLATE[950] : SLATE[50],
+        paper:   isDark ? SLATE[900] : '#FFFFFF',
       },
-      divider: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(13,59,102,0.10)',
+      divider: isDark ? 'rgba(255,255,255,0.06)' : SLATE[200],
       text: {
-        primary:   isDark ? '#E8EDF4' : BLUE[900],
-        secondary: isDark ? 'rgba(232,237,244,0.70)' : '#546E7A',
+        primary:   isDark ? SLATE[100] : SLATE[900],
+        secondary: isDark ? SLATE[400] : SLATE[500],
       },
-      success: { main: '#2E7D32', light: '#43A047' },
-      warning: { main: '#E65100', light: '#EF6C00' },
-      error:   { main: '#C62828', light: '#E53935' },
-      info:    { main: isDark ? BLUE[400] : '#0288D1' },
+      success: { main: '#16A34A', light: '#22C55E' },
+      warning: { main: '#D97706', light: '#F59E0B' },
+      error:   { main: '#DC2626', light: '#EF4444' },
+      info:    { main: isDark ? BLUE[400] : BLUE[500] },
     },
 
-    shape: { borderRadius: 12 },
+    shape: { borderRadius: 8 },
 
     typography: {
       fontFamily: 'Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif',
-      h4: { fontWeight: 800, letterSpacing: -0.5 },
-      h5: { fontWeight: 800, letterSpacing: -0.3 },
-      h6: { fontWeight: 800, letterSpacing: -0.2 },
-      subtitle1: { fontWeight: 700 },
-      subtitle2: { fontWeight: 800 },
-      button: { fontWeight: 700, textTransform: 'none' },
-      body2: { fontSize: '0.8125rem' },
+      h4: { fontWeight: 700, letterSpacing: -0.4, lineHeight: 1.2 },
+      h5: { fontWeight: 700, letterSpacing: -0.2, lineHeight: 1.3 },
+      h6: { fontWeight: 700, letterSpacing: -0.1, lineHeight: 1.3 },
+      subtitle1: { fontWeight: 600, lineHeight: 1.4 },
+      subtitle2: { fontWeight: 600, fontSize: '0.8125rem', lineHeight: 1.4 },
+      body1: { fontSize: '0.875rem', lineHeight: 1.5 },
+      body2: { fontSize: '0.8125rem', lineHeight: 1.5 },
+      button: { fontWeight: 600, textTransform: 'none', letterSpacing: 0.1 },
+      caption: { fontSize: '0.75rem', lineHeight: 1.4, color: isDark ? SLATE[400] : SLATE[500] },
     },
 
     components: {
@@ -68,9 +86,13 @@ export function makeTheme(mode = 'light') {
       MuiCssBaseline: {
         styleOverrides: {
           body: {
-            backgroundImage: isDark
-              ? 'radial-gradient(ellipse 1200px 600px at 10% 0%, rgba(66,165,245,.12), transparent 55%)'
-              : 'radial-gradient(ellipse 1400px 700px at 0% 0%, rgba(21,101,192,.06), transparent 55%)',
+            backgroundColor: isDark ? SLATE[950] : SLATE[50],
+          },
+          '::-webkit-scrollbar': { width: 6 },
+          '::-webkit-scrollbar-track': { background: 'transparent' },
+          '::-webkit-scrollbar-thumb': {
+            background: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.12)',
+            borderRadius: 3,
           },
         },
       },
@@ -80,13 +102,11 @@ export function makeTheme(mode = 'light') {
         defaultProps: { elevation: 0 },
         styleOverrides: {
           root: {
-            border: isDark
-              ? '1px solid rgba(255,255,255,0.06)'
-              : '1px solid rgba(13,59,102,0.08)',
+            border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : SLATE[200]}`,
             backgroundImage: 'none',
             boxShadow: isDark
-              ? '0 4px 24px rgba(0,0,0,0.30)'
-              : '0 1px 4px rgba(13,59,102,0.06), 0 4px 16px rgba(13,59,102,0.04)',
+              ? '0 1px 3px rgba(0,0,0,0.30)'
+              : '0 1px 2px rgba(0,0,0,0.04), 0 1px 5px rgba(0,0,0,0.02)',
           },
         },
       },
@@ -95,13 +115,8 @@ export function makeTheme(mode = 'light') {
       MuiAppBar: {
         styleOverrides: {
           root: {
-            backgroundImage: isDark
-              ? `linear-gradient(135deg, ${BLUE[900]} 0%, #0B1929 100%)`
-              : `linear-gradient(135deg, ${BLUE[600]} 0%, ${BLUE[700]} 60%, ${BLUE[900]} 100%)`,
-            boxShadow: isDark
-              ? '0 2px 12px rgba(0,0,0,0.40)'
-              : '0 2px 16px rgba(13,59,102,0.20)',
-            borderBottom: 'none',
+            backgroundImage: 'none',
+            boxShadow: 'none',
           },
         },
       },
@@ -111,24 +126,34 @@ export function makeTheme(mode = 'light') {
         styleOverrides: {
           root: {
             textTransform: 'none',
-            fontWeight: 700,
-            borderRadius: 10,
-            letterSpacing: 0.2,
-            padding: '8px 20px',
+            fontWeight: 600,
+            borderRadius: 8,
+            letterSpacing: 0.1,
+            padding: '7px 16px',
           },
           contained: {
-            boxShadow: isDark
-              ? '0 4px 16px rgba(66,165,245,.20)'
-              : '0 2px 8px rgba(21,101,192,.18)',
+            boxShadow: 'none',
             '&:hover': {
               boxShadow: isDark
-                ? '0 6px 20px rgba(66,165,245,.28)'
-                : '0 4px 14px rgba(21,101,192,.25)',
+                ? '0 2px 8px rgba(66,165,245,.20)'
+                : '0 1px 4px rgba(21,101,192,.15)',
             },
           },
           outlined: {
-            borderWidth: '1.5px',
-            '&:hover': { borderWidth: '1.5px' },
+            borderWidth: '1px',
+            borderColor: isDark ? 'rgba(255,255,255,0.12)' : SLATE[300],
+            '&:hover': {
+              borderWidth: '1px',
+              backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : SLATE[50],
+            },
+          },
+          sizeSmall: {
+            padding: '4px 12px',
+            fontSize: '0.8125rem',
+          },
+          sizeLarge: {
+            padding: '10px 24px',
+            fontSize: '0.9375rem',
           },
         },
       },
@@ -137,20 +162,23 @@ export function makeTheme(mode = 'light') {
       MuiOutlinedInput: {
         styleOverrides: {
           root: {
-            borderRadius: 10,
-            backgroundColor: isDark ? 'rgba(11,25,41,.60)' : '#FFFFFF',
+            borderRadius: 8,
+            backgroundColor: isDark ? 'rgba(255,255,255,.03)' : '#FFFFFF',
             transition: 'box-shadow .15s ease, border-color .15s ease',
             '&:hover .MuiOutlinedInput-notchedOutline': {
-              borderColor: isDark ? 'rgba(66,165,245,.35)' : BLUE[400],
+              borderColor: isDark ? 'rgba(66,165,245,.30)' : SLATE[400],
             },
             '&.Mui-focused': {
               boxShadow: isDark
-                ? `0 0 0 3px rgba(66,165,245,.15)`
-                : `0 0 0 3px rgba(21,101,192,.10)`,
+                ? '0 0 0 2px rgba(66,165,245,.12)'
+                : '0 0 0 2px rgba(21,101,192,.08)',
             },
           },
           notchedOutline: {
-            borderColor: isDark ? 'rgba(255,255,255,.10)' : 'rgba(13,59,102,0.18)',
+            borderColor: isDark ? 'rgba(255,255,255,.10)' : SLATE[300],
+          },
+          input: {
+            fontSize: '0.875rem',
           },
         },
       },
@@ -158,8 +186,9 @@ export function makeTheme(mode = 'light') {
       MuiInputLabel: {
         styleOverrides: {
           root: {
-            fontWeight: 600,
-            color: isDark ? 'rgba(232,237,244,0.65)' : '#546E7A',
+            fontWeight: 500,
+            fontSize: '0.875rem',
+            color: isDark ? SLATE[400] : SLATE[500],
             '&.Mui-focused': {
               color: isDark ? BLUE[400] : BLUE[600],
             },
@@ -171,13 +200,18 @@ export function makeTheme(mode = 'light') {
       MuiChip: {
         styleOverrides: {
           root: {
-            borderRadius: 8,
-            fontWeight: 700,
+            borderRadius: 6,
+            fontWeight: 600,
             fontSize: '0.75rem',
+            height: 24,
           },
           colorPrimary: {
-            backgroundColor: isDark ? 'rgba(66,165,245,.15)' : BLUE[50],
+            backgroundColor: isDark ? 'rgba(66,165,245,.12)' : BLUE[50],
             color: isDark ? BLUE[300] : BLUE[600],
+          },
+          sizeSmall: {
+            height: 22,
+            fontSize: '0.6875rem',
           },
         },
       },
@@ -186,7 +220,7 @@ export function makeTheme(mode = 'light') {
       MuiDivider: {
         styleOverrides: {
           root: {
-            borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(13,59,102,0.08)',
+            borderColor: isDark ? 'rgba(255,255,255,0.06)' : SLATE[200],
           },
         },
       },
@@ -195,11 +229,17 @@ export function makeTheme(mode = 'light') {
       MuiTooltip: {
         styleOverrides: {
           tooltip: {
-            borderRadius: 8,
+            borderRadius: 6,
             fontSize: 12,
-            padding: '6px 12px',
-            backgroundColor: isDark ? '#112240' : BLUE[900],
-            boxShadow: '0 4px 14px rgba(0,0,0,0.20)',
+            fontWeight: 500,
+            padding: '5px 10px',
+            backgroundColor: isDark ? SLATE[800] : SLATE[800],
+            color: SLATE[100],
+            border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : SLATE[700]}`,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          },
+          arrow: {
+            color: SLATE[800],
           },
         },
       },
@@ -209,15 +249,14 @@ export function makeTheme(mode = 'light') {
         styleOverrides: {
           root: {
             '& .MuiTableCell-head': {
-              backgroundColor: isDark ? 'rgba(17,34,64,.80)' : BLUE[50],
-              color: isDark ? BLUE[200] : BLUE[700],
-              fontWeight: 800,
-              fontSize: '0.7rem',
+              backgroundColor: isDark ? 'rgba(255,255,255,.03)' : SLATE[50],
+              color: isDark ? SLATE[400] : SLATE[600],
+              fontWeight: 600,
+              fontSize: '0.6875rem',
               textTransform: 'uppercase',
-              letterSpacing: 0.8,
-              borderBottom: isDark
-                ? '1px solid rgba(255,255,255,0.06)'
-                : `2px solid ${BLUE[100]}`,
+              letterSpacing: 0.5,
+              borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : SLATE[200]}`,
+              padding: '10px 16px',
             },
           },
         },
@@ -226,13 +265,10 @@ export function makeTheme(mode = 'light') {
       MuiTableRow: {
         styleOverrides: {
           root: {
-            '&:nth-of-type(even)': {
-              backgroundColor: isDark ? 'rgba(255,255,255,.02)' : 'rgba(13,59,102,.02)',
-            },
             '&:hover': {
               backgroundColor: isDark
-                ? 'rgba(66,165,245,.06)'
-                : 'rgba(21,101,192,.04)',
+                ? 'rgba(255,255,255,.02)'
+                : 'rgba(0,0,0,.015)',
             },
           },
         },
@@ -241,10 +277,9 @@ export function makeTheme(mode = 'light') {
       MuiTableCell: {
         styleOverrides: {
           root: {
-            borderBottom: isDark
-              ? '1px solid rgba(255,255,255,0.05)'
-              : '1px solid rgba(13,59,102,0.06)',
+            borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : SLATE[100]}`,
             fontSize: '0.8125rem',
+            padding: '10px 16px',
           },
         },
       },
@@ -254,12 +289,10 @@ export function makeTheme(mode = 'light') {
         styleOverrides: {
           paper: {
             backgroundImage: 'none',
-            border: isDark
-              ? '1px solid rgba(255,255,255,0.08)'
-              : '1px solid rgba(13,59,102,0.10)',
+            border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : SLATE[200]}`,
             boxShadow: isDark
-              ? '0 20px 50px rgba(0,0,0,0.45)'
-              : '0 16px 48px rgba(13,59,102,0.12)',
+              ? '0 16px 48px rgba(0,0,0,0.50)'
+              : '0 12px 36px rgba(0,0,0,0.10)',
           },
         },
       },
@@ -268,9 +301,7 @@ export function makeTheme(mode = 'light') {
       MuiSwitch: {
         styleOverrides: {
           track: {
-            backgroundColor: isDark
-              ? 'rgba(255,255,255,.18)'
-              : 'rgba(13,59,102,.18)',
+            backgroundColor: isDark ? SLATE[700] : SLATE[300],
           },
         },
       },
@@ -279,8 +310,22 @@ export function makeTheme(mode = 'light') {
       MuiAlert: {
         styleOverrides: {
           root: {
-            borderRadius: 10,
-            fontWeight: 600,
+            borderRadius: 8,
+            fontWeight: 500,
+            fontSize: '0.8125rem',
+            border: '1px solid',
+          },
+          standardError: {
+            borderColor: isDark ? 'rgba(239,68,68,.20)' : 'rgba(239,68,68,.15)',
+          },
+          standardSuccess: {
+            borderColor: isDark ? 'rgba(34,197,94,.20)' : 'rgba(34,197,94,.15)',
+          },
+          standardWarning: {
+            borderColor: isDark ? 'rgba(245,158,11,.20)' : 'rgba(245,158,11,.15)',
+          },
+          standardInfo: {
+            borderColor: isDark ? 'rgba(59,130,246,.20)' : 'rgba(59,130,246,.15)',
           },
         },
       },
@@ -289,11 +334,51 @@ export function makeTheme(mode = 'light') {
       MuiDrawer: {
         styleOverrides: {
           paper: {
-            backgroundImage: isDark
-              ? `linear-gradient(180deg, ${BLUE[900]}, #0B1929)`
-              : `linear-gradient(180deg, ${BLUE[600]}, ${BLUE[800]})`,
+            backgroundImage: 'none',
+            backgroundColor: isDark ? SLATE[900] : SLATE[900],
             color: '#FFFFFF',
             borderRight: 'none',
+          },
+        },
+      },
+
+      /* ── Tabs ── */
+      MuiTab: {
+        styleOverrides: {
+          root: {
+            textTransform: 'none',
+            fontWeight: 600,
+            fontSize: '0.8125rem',
+            minHeight: 40,
+          },
+        },
+      },
+
+      MuiTabs: {
+        styleOverrides: {
+          indicator: {
+            height: 2,
+            borderRadius: 1,
+          },
+        },
+      },
+
+      /* ── Select ── */
+      MuiSelect: {
+        styleOverrides: {
+          select: {
+            fontSize: '0.875rem',
+          },
+        },
+      },
+
+      /* ── Linear Progress ── */
+      MuiLinearProgress: {
+        styleOverrides: {
+          root: {
+            borderRadius: 4,
+            height: 6,
+            backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : SLATE[100],
           },
         },
       },
