@@ -17,13 +17,10 @@ import TableBody from '@mui/material/TableBody'
 import Chip from '@mui/material/Chip'
 import Tooltip from '@mui/material/Tooltip'
 import IconButton from '@mui/material/IconButton'
-import Divider from '@mui/material/Divider'
 import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
 import FormControl from '@mui/material/FormControl'
 import InputLabel from '@mui/material/InputLabel'
-import LinearProgress from '@mui/material/LinearProgress'
-
 import DownloadIcon from '@mui/icons-material/Download'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
@@ -305,10 +302,26 @@ export default function ProductivityPage() {
     }))
     var ws3 = XLSX.utils.json_to_sheet(typeData.length > 0 ? typeData : [{ Tipo: '-', Cantidad: 0 }])
 
+    /* Task stats sheet */
+    var taskSheetData = []
+    if (taskStats && taskStats.byUser) {
+      Object.entries(taskStats.byUser).forEach(function(entry) {
+        var userId = entry[0]
+        var stats = entry[1]
+        taskSheetData.push({
+          Usuario: userId,
+          'Total Tareas': stats.total || 0,
+          'Por Tipo': stats.byType ? JSON.stringify(stats.byType) : '-',
+        })
+      })
+    }
+    var ws4 = XLSX.utils.json_to_sheet(taskSheetData.length > 0 ? taskSheetData : [{ Info: 'Sin datos de tareas' }])
+
     var wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws1, 'Ranking Operadores')
     XLSX.utils.book_append_sheet(wb, ws2, 'Resumen')
     XLSX.utils.book_append_sheet(wb, ws3, 'Por Tipo')
+    XLSX.utils.book_append_sheet(wb, ws4, 'Tareas')
     XLSX.writeFile(wb, 'productividad_' + dateFrom + '_' + dateTo + '.xlsx')
   }
 
@@ -647,184 +660,139 @@ export default function ProductivityPage() {
         </Paper>
       )}
 
-      {/* ── Operator Ranking Table (NEW - #3, #4, #6, #8) ── */}
+      {/* ── Top 3 Highlight: Gold / Silver / Bronze (NEW - #6) ── */}
+      {rankedOperators.length >= 1 && rankedOperators[0].totalCombined > 0 && (
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(' + Math.min(3, rankedOperators.filter(r => r.totalCombined > 0).length) + ', 1fr)' },
+            gap: 2,
+            mb: 3,
+          }}
+        >
+          {rankedOperators.slice(0, 3).filter(r => r.totalCombined > 0).map((r, idx) => {
+            const medal = MEDAL_COLORS[idx]
+            return (
+              <Paper
+                key={r.email || idx}
+                elevation={0}
+                sx={{
+                  p: 2.5,
+                  borderRadius: 3,
+                  border: '2px solid ' + medal.border,
+                  bgcolor: medal.bg,
+                  textAlign: 'center',
+                  transition: 'transform .15s ease, box-shadow .15s ease',
+                  '&:hover': { transform: 'translateY(-3px)', boxShadow: '0 8px 28px ' + medal.border },
+                }}
+              >
+                <EmojiEventsIcon sx={{ fontSize: 36, color: medal.icon, mb: 0.5 }} />
+                <Typography sx={{ fontSize: 11, fontWeight: 800, color: medal.icon, textTransform: 'uppercase', letterSpacing: 1 }}>
+                  {medal.label}
+                </Typography>
+                <Typography sx={{ fontSize: 16, fontWeight: 800, color: 'text.primary', mt: 0.5 }}>
+                  {r.name || r.email || '-'}
+                </Typography>
+                <Typography sx={{ fontSize: 26, fontWeight: 900, color: 'text.primary', mt: 0.5 }}>
+                  {r.totalCombined.toLocaleString()}
+                </Typography>
+                <Typography sx={{ fontSize: 11, color: 'text.secondary', fontWeight: 600, mb: 1 }}>acciones totales</Typography>
+                <Stack direction="row" spacing={1} justifyContent="center" flexWrap="wrap">
+                  <Chip size="small" label={'Mov: ' + r.totalMovements} sx={{ ...ps.metricChip('info'), height: 22, fontSize: 10 }} />
+                  <Chip size="small" label={'Tareas: ' + r.totalTasks} sx={{ ...ps.metricChip('ok'), height: 22, fontSize: 10 }} />
+                </Stack>
+                {/* Mini type breakdown bar */}
+                {(r.byType.IN + r.byType.OUT + r.byType.TRANSFER + r.byType.ADJUST) > 0 && (
+                  <Box sx={{ display: 'flex', height: 6, borderRadius: 999, overflow: 'hidden', mt: 1.5 }}>
+                    {Object.entries(r.byType).filter(([, v]) => v > 0).map(([type, count]) => {
+                      const typeTotal = r.byType.IN + r.byType.OUT + r.byType.TRANSFER + r.byType.ADJUST
+                      return (
+                        <Tooltip key={type} title={(TYPE_COLORS[type]?.label || type) + ': ' + count}>
+                          <Box sx={{ width: ((count / typeTotal) * 100) + '%', bgcolor: TYPE_COLORS[type]?.fill || '#999' }} />
+                        </Tooltip>
+                      )
+                    })}
+                  </Box>
+                )}
+              </Paper>
+            )
+          })}
+        </Box>
+      )}
+
+      {/* ── Operator Ranking Table (NEW - #3) ── */}
       <Paper elevation={1} sx={{ ...ps.card, p: 0, overflowX: 'auto', mb: 3 }}>
         <Box sx={ps.cardHeader}>
           <EmojiEventsIcon sx={{ color: ps.isDark ? '#FCD34D' : '#E65100', fontSize: 20 }} />
           <Typography sx={ps.cardHeaderTitle}>Ranking de Operadores</Typography>
-          <Typography sx={ps.cardHeaderSubtitle}>{'Periodo: ' + dateFrom + ' a ' + dateTo}</Typography>
+          <Typography sx={ps.cardHeaderSubtitle}>{'Periodo: ' + dateFrom + ' a ' + dateTo + ' | ' + rankedOperators.length + ' operadores'}</Typography>
         </Box>
-        <TableContainer>
-          <Table size="small">
-            <TableHead>
-              <TableRow sx={ps.tableHeaderRow}>
-                <TableCell sx={{ width: 50 }}></TableCell>
-                <TableCell sx={{ width: 60 }}>Rank</TableCell>
-                <TableCell>Nombre</TableCell>
-                <TableCell align="right">Total Movimientos</TableCell>
-                <TableCell align="right">Entradas</TableCell>
-                <TableCell align="right">Salidas</TableCell>
-                <TableCell align="right">Transferencias</TableCell>
-                <TableCell align="right">Ajustes</TableCell>
-                <TableCell align="right">Tareas</TableCell>
-                <TableCell align="right">Total</TableCell>
+        <Table size="small">
+          <TableHead>
+            <TableRow sx={ps.tableHeaderRow}>
+              <TableCell sx={{ width: 60 }}>Rank</TableCell>
+              <TableCell>Nombre</TableCell>
+              <TableCell align="right">Total</TableCell>
+              <TableCell align="right">Entradas</TableCell>
+              <TableCell align="right">Salidas</TableCell>
+              <TableCell align="right">Transferencias</TableCell>
+              <TableCell align="right">Ajustes</TableCell>
+              <TableCell align="right">Tareas</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {rankedOperators.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={8}>
+                  <Typography sx={ps.emptyText}>Sin datos de productividad.</Typography>
+                </TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {rankedOperators.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={10}>
-                    <Typography sx={ps.emptyText}>Sin datos de productividad.</Typography>
+            )}
+            {rankedOperators.map((r, idx) => {
+              const medal = idx <= 2 && r.totalCombined > 0 ? MEDAL_COLORS[idx] : null
+              return (
+                <TableRow
+                  key={r.email || idx}
+                  sx={{
+                    ...ps.tableRow(idx),
+                    ...(medal ? { borderLeft: '3px solid ' + medal.border, bgcolor: medal.bg } : {}),
+                  }}
+                >
+                  <TableCell>
+                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                      {medal && <EmojiEventsIcon sx={{ color: medal.icon, fontSize: 18 }} />}
+                      <Typography sx={{ fontWeight: 800, fontSize: 14, color: 'text.primary' }}>{idx + 1}</Typography>
+                    </Stack>
                   </TableCell>
+                  <TableCell>
+                    <Typography sx={{ fontWeight: medal ? 800 : 700, fontSize: 13, color: 'text.primary' }}>
+                      {r.name || r.email || '-'}
+                    </Typography>
+                    {r.email && r.name && (
+                      <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>{r.email}</Typography>
+                    )}
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography sx={{ fontWeight: 800, fontSize: 14, color: 'text.primary' }}>{r.totalCombined.toLocaleString()}</Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: TYPE_COLORS.IN.fill }}>{r.byType.IN}</Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: TYPE_COLORS.OUT.fill }}>{r.byType.OUT}</Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: TYPE_COLORS.TRANSFER.fill }}>{r.byType.TRANSFER}</Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: TYPE_COLORS.ADJUST.fill }}>{r.byType.ADJUST}</Typography>
+                  </TableCell>
+                  <TableCell align="right" sx={ps.cellText}>{r.totalTasks}</TableCell>
                 </TableRow>
-              )}
-              {rankedOperators.map((r, idx) => {
-                const medalIdx = getMedalIndex(r)
-                const medal = medalIdx >= 0 ? MEDAL_COLORS[medalIdx] : null
-                const operatorId = r.userId || r._id || r.id || r.email
-                const isExpanded = expandedOperator === operatorId
-
-                return (
-                  <React.Fragment key={operatorId || idx}>
-                    <TableRow
-                      sx={{
-                        ...ps.tableRow(idx),
-                        cursor: 'pointer',
-                        ...(medal ? {
-                          borderLeft: '3px solid ' + medal.border,
-                          bgcolor: medal.bg,
-                        } : {}),
-                      }}
-                      onClick={() => handleExpandOperator(operatorId)}
-                    >
-                      <TableCell sx={{ width: 50 }}>
-                        <IconButton size="small">
-                          {isExpanded ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
-                        </IconButton>
-                      </TableCell>
-                      <TableCell>
-                        <Stack direction="row" alignItems="center" spacing={0.5}>
-                          {medal && (
-                            <EmojiEventsIcon sx={{ color: medal.icon, fontSize: 18 }} />
-                          )}
-                          <Typography sx={{ fontWeight: 800, fontSize: 14, color: 'text.primary' }}>
-                            {idx + 1}
-                          </Typography>
-                        </Stack>
-                      </TableCell>
-                      <TableCell>
-                        <Typography sx={{ fontWeight: 700, fontSize: 13, color: 'text.primary' }}>
-                          {r.name || r.email || '-'}
-                        </Typography>
-                        <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>
-                          {r.email || ''}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right" sx={ps.cellText}>{r.totalMovements}</TableCell>
-                      <TableCell align="right">
-                        <Typography sx={{ fontSize: 13, fontWeight: 600, color: TYPE_COLORS.IN.fill }}>{r.byType.IN}</Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography sx={{ fontSize: 13, fontWeight: 600, color: TYPE_COLORS.OUT.fill }}>{r.byType.OUT}</Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography sx={{ fontSize: 13, fontWeight: 600, color: TYPE_COLORS.TRANSFER.fill }}>{r.byType.TRANSFER}</Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography sx={{ fontSize: 13, fontWeight: 600, color: TYPE_COLORS.ADJUST.fill }}>{r.byType.ADJUST}</Typography>
-                      </TableCell>
-                      <TableCell align="right" sx={ps.cellText}>{r.totalTasks}</TableCell>
-                      <TableCell align="right">
-                        <Typography sx={{ fontWeight: 800, fontSize: 14, color: 'text.primary' }}>
-                          {r.totalCombined}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-
-                    {/* ── Expanded operator detail row (NEW - #6) ── */}
-                    <TableRow>
-                      <TableCell colSpan={10} sx={{ py: 0, borderBottom: isExpanded ? undefined : 'none' }}>
-                        <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-                          <Box sx={{ py: 2, px: 2 }}>
-                            {detailLoading && <LinearProgress sx={{ mb: 1 }} />}
-                            <Typography sx={{ fontWeight: 700, fontSize: 14, mb: 1.5, color: 'text.primary' }}>
-                              {'Detalle diario - ' + (r.name || r.email || '-')}
-                            </Typography>
-                            {operatorDetail && operatorDetail.byUser ? (
-                              <Box>
-                                {/* Show byType breakdown for this operator */}
-                                {(() => {
-                                  const userId = r.userId || r._id || r.id
-                                  const userData = operatorDetail.byUser[userId]
-                                  if (!userData) return (
-                                    <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
-                                      Sin datos detallados para este operador.
-                                    </Typography>
-                                  )
-                                  const bt = userData.byType || {}
-                                  return (
-                                    <Box>
-                                      <Stack direction="row" spacing={2} sx={{ mb: 1.5, flexWrap: 'wrap' }}>
-                                        <Chip label={'Total tareas: ' + (userData.total || 0)} sx={ps.metricChip('info')} size="small" />
-                                        {Object.entries(bt).map(([type, count]) => (
-                                          <Chip
-                                            key={type}
-                                            label={type + ': ' + count}
-                                            size="small"
-                                            sx={{
-                                              fontWeight: 700,
-                                              borderRadius: '8px',
-                                              bgcolor: TYPE_COLORS[type] ? TYPE_COLORS[type].fill + '22' : 'rgba(0,0,0,.05)',
-                                              color: TYPE_COLORS[type] ? TYPE_COLORS[type].fill : 'text.primary',
-                                              border: '1px solid ' + (TYPE_COLORS[type] ? TYPE_COLORS[type].fill + '44' : 'rgba(0,0,0,.12)'),
-                                            }}
-                                          />
-                                        ))}
-                                      </Stack>
-                                      {/* Type distribution bar for this operator */}
-                                      <Box sx={{ display: 'flex', height: 24, borderRadius: 2, overflow: 'hidden', mb: 1 }}>
-                                        {Object.entries(bt).filter(([, v]) => v > 0).map(([type, count]) => {
-                                          const total = Object.values(bt).reduce((s, v) => s + v, 0)
-                                          const pct = total > 0 ? (count / total) * 100 : 0
-                                          return (
-                                            <Tooltip key={type} title={(TYPE_COLORS[type]?.label || type) + ': ' + count + ' (' + Math.round(pct) + '%)'}>
-                                              <Box sx={{
-                                                width: pct + '%',
-                                                bgcolor: TYPE_COLORS[type]?.fill || '#999',
-                                                transition: 'width .3s ease',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                              }}>
-                                                {pct > 12 && (
-                                                  <Typography sx={{ fontSize: 10, fontWeight: 700, color: '#fff' }}>
-                                                    {Math.round(pct) + '%'}
-                                                  </Typography>
-                                                )}
-                                              </Box>
-                                            </Tooltip>
-                                          )
-                                        })}
-                                      </Box>
-                                    </Box>
-                                  )
-                                })()}
-                              </Box>
-                            ) : !detailLoading ? (
-                              <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
-                                Sin datos detallados disponibles.
-                              </Typography>
-                            ) : null}
-                          </Box>
-                        </Collapse>
-                      </TableCell>
-                    </TableRow>
-                  </React.Fragment>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              )
+            })}
+          </TableBody>
+        </Table>
       </Paper>
 
       {/* ── Operator cards grid (existing) ── */}
@@ -850,8 +818,7 @@ export default function ProductivityPage() {
             const total = r.totalCombined
             const pct = maxTotal > 0 ? Math.round((total / maxTotal) * 100) : 0
             const globalIdx = rankedOperators.indexOf(r)
-            const medalIdx = getMedalIndex(r)
-            const medal = medalIdx >= 0 ? MEDAL_COLORS[medalIdx] : null
+            const medal = globalIdx >= 0 && globalIdx <= 2 && r.totalCombined > 0 ? MEDAL_COLORS[globalIdx] : null
 
             return (
               <Paper
