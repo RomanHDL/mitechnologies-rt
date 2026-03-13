@@ -24,6 +24,11 @@ import Tooltip from '@mui/material/Tooltip'
 import IconButton from '@mui/material/IconButton'
 import Alert from '@mui/material/Alert'
 import Divider from '@mui/material/Divider'
+import Grid from '@mui/material/Grid'
+import Stepper from '@mui/material/Stepper'
+import Step from '@mui/material/Step'
+import StepLabel from '@mui/material/StepLabel'
+/* Timeline built with core MUI (no @mui/lab needed) */
 
 import AddIcon from '@mui/icons-material/Add'
 import InfoIcon from '@mui/icons-material/Info'
@@ -33,6 +38,14 @@ import CancelIcon from '@mui/icons-material/Cancel'
 import SearchIcon from '@mui/icons-material/Search'
 import FactCheckIcon from '@mui/icons-material/FactCheck'
 import AssignmentReturnIcon from '@mui/icons-material/AssignmentReturn'
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import ErrorIcon from '@mui/icons-material/Error'
+import BuildIcon from '@mui/icons-material/Build'
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
+import InventoryIcon from '@mui/icons-material/Inventory'
+import ThumbUpIcon from '@mui/icons-material/ThumbUp'
+import ThumbDownIcon from '@mui/icons-material/ThumbDown'
+import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck'
 
 import dayjs from 'dayjs'
 
@@ -60,11 +73,148 @@ const QC_RESULT_OPTIONS = [
   { value: 'REPARACION', label: 'Requiere reparacion' },
 ]
 
+/* ── Workflow stepper steps ── */
+const WORKFLOW_STEPS = ['PENDIENTE', 'EN INSPECCION', 'APROBADA', 'COMPLETADA']
+const WORKFLOW_STEPS_REJECTED = ['PENDIENTE', 'EN INSPECCION', 'RECHAZADA']
+
+function getWorkflowIndex(status) {
+  if (status === 'RECHAZADA' || status === 'CANCELADA') {
+    return WORKFLOW_STEPS_REJECTED.indexOf(status) !== -1
+      ? WORKFLOW_STEPS_REJECTED.indexOf(status)
+      : 2
+  }
+  var idx = WORKFLOW_STEPS.indexOf(status)
+  return idx !== -1 ? idx : 0
+}
+
+function isRejectedPath(status) {
+  return status === 'RECHAZADA' || status === 'CANCELADA'
+}
+
+/* ── Reason chip colors ── */
+function reasonChipSx(reason) {
+  var map = {
+    DEFECTO:    { bg: 'rgba(239,68,68,.12)', color: '#C62828', border: 'rgba(239,68,68,.25)' },
+    DANADO:     { bg: 'rgba(239,68,68,.12)', color: '#C62828', border: 'rgba(239,68,68,.25)' },
+    GARANTIA:   { bg: 'rgba(245,158,11,.12)', color: '#E65100', border: 'rgba(245,158,11,.25)' },
+    EQUIVOCADO: { bg: 'rgba(66,165,245,.12)', color: '#1565C0', border: 'rgba(21,101,192,.25)' },
+    SOBRANTE:   { bg: 'rgba(66,165,245,.12)', color: '#1565C0', border: 'rgba(21,101,192,.25)' },
+    OTRO:       { bg: 'rgba(158,158,158,.12)', color: '#616161', border: 'rgba(158,158,158,.25)' },
+  }
+  var s = map[reason] || map['OTRO']
+  return {
+    fontWeight: 700,
+    borderRadius: '8px',
+    height: 28,
+    bgcolor: s.bg,
+    color: s.color,
+    border: '1px solid ' + s.border,
+  }
+}
+
 function statusTone(st) {
   if (st === 'APROBADA' || st === 'COMPLETADA') return 'ok'
   if (st === 'RECHAZADA' || st === 'CANCELADA') return 'bad'
   if (st === 'EN INSPECCION') return 'info'
   return 'warn'
+}
+
+/* ── QC result indicator ── */
+function QcResultBadge({ result }) {
+  if (!result) return null
+  var config = {
+    APROBADO:   { icon: <CheckCircleIcon fontSize="small" />, label: 'Aprobado', color: '#2E7D32', bg: 'rgba(34,197,94,.12)' },
+    RECHAZADO:  { icon: <ErrorIcon fontSize="small" />,       label: 'Rechazado', color: '#C62828', bg: 'rgba(239,68,68,.12)' },
+    REPARACION: { icon: <BuildIcon fontSize="small" />,       label: 'Reparacion', color: '#E65100', bg: 'rgba(245,158,11,.12)' },
+  }
+  var c = config[result] || config['RECHAZADO']
+  return (
+    <Box sx={{
+      display: 'inline-flex', alignItems: 'center', gap: 0.5,
+      px: 1.5, py: 0.5, borderRadius: 2,
+      bgcolor: c.bg, color: c.color, fontWeight: 700, fontSize: 13,
+    }}>
+      {c.icon} {c.label}
+    </Box>
+  )
+}
+
+/* ── Status workflow stepper component ── */
+function StatusStepper({ status }) {
+  var rejected = isRejectedPath(status)
+  var steps = rejected ? WORKFLOW_STEPS_REJECTED : WORKFLOW_STEPS
+  var activeStep = getWorkflowIndex(status)
+
+  return (
+    <Stepper
+      activeStep={activeStep}
+      alternativeLabel
+      sx={{
+        py: 1,
+        '& .MuiStepLabel-label': { fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' },
+        '& .MuiStepIcon-root.Mui-completed': { color: rejected ? '#C62828' : '#2E7D32' },
+        '& .MuiStepIcon-root.Mui-active': { color: rejected ? '#C62828' : '#1565C0' },
+      }}
+    >
+      {steps.map(function(label) {
+        return (
+          <Step key={label} completed={steps.indexOf(label) <= activeStep}>
+            <StepLabel error={rejected && label === status}>{label}</StepLabel>
+          </Step>
+        )
+      })}
+    </Stepper>
+  )
+}
+
+/* ── Trazabilidad timeline component ── */
+function TrazabilidadTimeline({ history }) {
+  if (!history || history.length === 0) {
+    return (
+      <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic', py: 1 }}>
+        Sin historial de cambios registrado.
+      </Typography>
+    )
+  }
+
+  const dotSx = (tone) => {
+    const colorMap = { ok: 'success.main', bad: 'error.main', info: 'info.main', warn: 'warning.main' }
+    return { width: 12, height: 12, borderRadius: '50%', bgcolor: colorMap[tone] || 'warning.main', flexShrink: 0, mt: 0.5 }
+  }
+
+  return (
+    <Box sx={{ pl: 1 }}>
+      {history.map(function(entry, idx) {
+        var tone = statusTone(entry.status || entry.newStatus || '')
+        return (
+          <Box key={idx} sx={{ display: 'flex', gap: 1.5, pb: 1.5 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <Box sx={dotSx(tone)} />
+              {idx < history.length - 1 && <Box sx={{ width: 2, flex: 1, bgcolor: 'divider', mt: 0.5 }} />}
+            </Box>
+            <Box sx={{ pb: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                {entry.status || entry.newStatus || entry.action || 'Cambio'}
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                {dayjs(entry.timestamp || entry.createdAt || entry.date).format('YYYY-MM-DD HH:mm:ss')}
+              </Typography>
+              {(entry.user || entry.changedBy || entry.email) && (
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                  Por: {entry.user?.email || entry.changedBy?.email || entry.changedBy || entry.email || '-'}
+                </Typography>
+              )}
+              {entry.notes && (
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic', display: 'block' }}>
+                  {entry.notes}
+                </Typography>
+              )}
+            </Box>
+          </Box>
+        )
+      })}
+    </Box>
+  )
 }
 
 export default function ReturnsPage() {
@@ -207,6 +357,54 @@ export default function ReturnsPage() {
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenCreate(true)} sx={{ borderRadius: 2 }}>Crear RMA</Button>
       </Stack>
 
+      {/* ── KPI Summary Cards ── */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper sx={ps.kpiCard('blue')}>
+            <Stack spacing={0.5}>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <AssignmentReturnIcon sx={{ color: '#1565C0', fontSize: 28 }} />
+                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>{resumen.total}</Typography>
+              </Stack>
+              <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Total devoluciones</Typography>
+            </Stack>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper sx={ps.kpiCard('amber')}>
+            <Stack spacing={0.5}>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <HourglassEmptyIcon sx={{ color: '#E65100', fontSize: 28 }} />
+                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>{resumen.pendientes + resumen.enInspeccion}</Typography>
+              </Stack>
+              <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Pendientes de inspeccion</Typography>
+            </Stack>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper sx={ps.kpiCard('green')}>
+            <Stack spacing={0.5}>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <ThumbUpIcon sx={{ color: '#2E7D32', fontSize: 28 }} />
+                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>{resumen.aprobadas}</Typography>
+              </Stack>
+              <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Aprobadas</Typography>
+            </Stack>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper sx={ps.kpiCard('red')}>
+            <Stack spacing={0.5}>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <ThumbDownIcon sx={{ color: '#C62828', fontSize: 28 }} />
+                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>{resumen.rechazadas}</Typography>
+              </Stack>
+              <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Rechazadas</Typography>
+            </Stack>
+          </Paper>
+        </Grid>
+      </Grid>
+
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2, flexWrap: 'wrap' }}>
         <Chip icon={<AssignmentReturnIcon sx={{ color: 'inherit' }} />} label={'Total: ' + resumen.total} sx={ps.metricChip('info')} />
         <Chip label={'Pendientes: ' + resumen.pendientes} sx={ps.metricChip('warn')} />
@@ -243,7 +441,9 @@ export default function ReturnsPage() {
                 <TableRow key={id} sx={ps.tableRow(idx)}>
                   <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace' }}>{r.rmaNumber || id}</TableCell>
                   <TableCell sx={ps.cellText}>{r.customer || '-'}</TableCell>
-                  <TableCell sx={ps.cellText}>{r.reason || '-'}</TableCell>
+                  <TableCell sx={ps.cellText}>
+                    <Chip size="small" label={r.reason || '-'} sx={reasonChipSx(r.reason)} />
+                  </TableCell>
                   <TableCell sx={ps.cellText}><Chip size="small" label={st} sx={ps.metricChip(statusTone(st))} /></TableCell>
                   <TableCell sx={ps.cellText}>{(r.lines || []).map(function(l) { return l.sku + '(' + l.qty + ')' }).join(', ') || '-'}</TableCell>
                   <TableCell sx={ps.cellTextSecondary}>{dayjs(r.createdAt).format('YYYY-MM-DD HH:mm')}</TableCell>
@@ -267,30 +467,104 @@ export default function ReturnsPage() {
         </Stack>
       </Paper>
 
-      {/* Detail dialog */}
-      <Dialog open={showDetail && !!selected} onClose={closeDetail} maxWidth="sm" fullWidth>
+      {/* Detail dialog – enhanced with stepper, inspection results, and trazabilidad */}
+      <Dialog open={showDetail && !!selected} onClose={closeDetail} maxWidth="md" fullWidth>
         <DialogTitle sx={ps.pageTitle}>Detalle de Devolucion</DialogTitle>
         <DialogContent dividers>
           {selected && (
-            <Stack spacing={1.5} sx={{ pt: 1 }}>
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              {/* ── Status Workflow Stepper ── */}
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>Flujo de estado</Typography>
+                <StatusStepper status={selected.status || 'PENDIENTE'} />
+              </Paper>
+
+              {/* ── Basic info ── */}
               <Typography variant="body2" sx={ps.cellText}><b>RMA:</b> {selected.rmaNumber || (selected.id || selected._id)}</Typography>
               <Typography variant="body2" sx={ps.cellText}><b>Cliente:</b> {selected.customer || '-'}</Typography>
-              <Typography variant="body2" sx={ps.cellText}><b>Razon:</b> {selected.reason || '-'}</Typography>
+              <Typography variant="body2" sx={ps.cellText}>
+                <b>Razon:</b>{' '}
+                <Chip size="small" label={selected.reason || '-'} sx={reasonChipSx(selected.reason)} />
+              </Typography>
               <Typography variant="body2" sx={ps.cellText}><b>Status:</b> <Chip size="small" label={selected.status || 'PENDIENTE'} sx={ps.metricChip(statusTone(selected.status || 'PENDIENTE'))} /></Typography>
               <Typography variant="body2" sx={ps.cellText}><b>Notas:</b> {selected.notes || '-'}</Typography>
+
               <Divider />
+
+              {/* ── Inspection Result (prominent) ── */}
+              {(selected.inspectionResult || selected.inspectionNotes || (selected.lines || []).some(function(l) { return l.qcResult })) && (
+                <>
+                  <Paper variant="outlined" sx={{
+                    p: 2, borderRadius: 2,
+                    bgcolor: selected.inspectionResult === 'APROBADO' ? 'rgba(34,197,94,.06)' :
+                             selected.inspectionResult === 'RECHAZADO' ? 'rgba(239,68,68,.06)' :
+                             'rgba(245,158,11,.06)',
+                    borderColor: selected.inspectionResult === 'APROBADO' ? 'rgba(34,197,94,.25)' :
+                                 selected.inspectionResult === 'RECHAZADO' ? 'rgba(239,68,68,.25)' :
+                                 'rgba(245,158,11,.25)',
+                  }}>
+                    <Stack spacing={1.5}>
+                      <Stack direction="row" alignItems="center" spacing={1}>
+                        <PlaylistAddCheckIcon sx={{ fontSize: 22 }} />
+                        <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Resultado de Inspeccion</Typography>
+                      </Stack>
+                      {selected.inspectionResult && (
+                        <QcResultBadge result={selected.inspectionResult} />
+                      )}
+                      {selected.inspectionNotes && (
+                        <Typography variant="body2" sx={ps.cellTextSecondary}>
+                          <b>Notas:</b> {selected.inspectionNotes}
+                        </Typography>
+                      )}
+                      {/* Per-line QC results */}
+                      {(selected.lines || []).some(function(l) { return l.qcResult }) && (
+                        <Stack spacing={1}>
+                          {(selected.lines || []).filter(function(l) { return l.qcResult }).map(function(l, i) {
+                            return (
+                              <Stack key={i} direction="row" alignItems="center" spacing={1.5} sx={{ pl: 1 }}>
+                                <Typography variant="body2" sx={{ ...ps.cellText, fontWeight: 700, minWidth: 100 }}>{l.sku}</Typography>
+                                <QcResultBadge result={l.qcResult} />
+                                {l.qcNotes && <Typography variant="caption" sx={ps.cellTextSecondary}>{l.qcNotes}</Typography>}
+                              </Stack>
+                            )
+                          })}
+                        </Stack>
+                      )}
+                    </Stack>
+                  </Paper>
+                  <Divider />
+                </>
+              )}
+
+              {/* ── Items ── */}
               <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Items</Typography>
               {(selected.lines || []).map(function(l, i) {
                 return (
                   <Paper key={i} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
                     <Typography variant="body2" sx={ps.cellText}><b>SKU:</b> {l.sku} | <b>Qty:</b> {l.qty || 0}</Typography>
-                    {l.qcResult && <Typography variant="body2" sx={ps.cellText}><b>QC:</b> {l.qcResult}</Typography>}
+                    {l.qcResult && (
+                      <Box sx={{ mt: 0.5 }}>
+                        <QcResultBadge result={l.qcResult} />
+                      </Box>
+                    )}
                     {l.qcNotes && <Typography variant="caption" sx={ps.cellTextSecondary}>{l.qcNotes}</Typography>}
                   </Paper>
                 )
               })}
+
+              <Divider />
+
+              {/* ── Trazabilidad / Timeline ── */}
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>Trazabilidad</Typography>
+                <TrazabilidadTimeline history={selected.history || selected.statusHistory || selected.audit || []} />
+              </Paper>
+
               <Typography variant="body2" sx={ps.cellTextSecondary}><b>Creado por:</b> {selected.createdBy?.email || '-'}</Typography>
-              <Typography variant="body2" sx={ps.cellTextSecondary}><b>Fecha:</b> {dayjs(selected.createdAt).format('YYYY-MM-DD HH:mm')}</Typography>
+              <Typography variant="body2" sx={ps.cellTextSecondary}><b>Fecha creacion:</b> {dayjs(selected.createdAt).format('YYYY-MM-DD HH:mm')}</Typography>
+              {selected.updatedAt && (
+                <Typography variant="body2" sx={ps.cellTextSecondary}><b>Ultima actualizacion:</b> {dayjs(selected.updatedAt).format('YYYY-MM-DD HH:mm')}</Typography>
+              )}
             </Stack>
           )}
         </DialogContent>

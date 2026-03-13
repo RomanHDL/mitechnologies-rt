@@ -107,7 +107,10 @@ export default function UsersPage() {
   const totals = useMemo(() => ({
     total: users.length,
     active: users.filter(u => u.isActive).length,
+    inactive: users.filter(u => !u.isActive).length,
     admins: users.filter(u => u.role === 'ADMIN').length,
+    supervisors: users.filter(u => u.role === 'SUPERVISOR').length,
+    operators: users.filter(u => u.role === 'OPERADOR').length,
   }), [users])
 
   const openEditDialog = (u) => {
@@ -231,7 +234,10 @@ export default function UsersPage() {
           <Stack direction="row" spacing={1} flexWrap="wrap">
             <Chip size="small" label={`Total: ${totals.total}`} sx={ps.metricChip('default')} />
             <Chip size="small" label={`Activos: ${totals.active}`} sx={ps.metricChip('ok')} />
+            <Chip size="small" label={`Inactivos: ${totals.inactive}`} sx={ps.metricChip(totals.inactive > 0 ? 'warn' : 'default')} />
             <Chip size="small" label={`Admins: ${totals.admins}`} sx={ps.metricChip('info')} />
+            <Chip size="small" label={`Supervisores: ${totals.supervisors}`} sx={ps.metricChip('info')} />
+            <Chip size="small" label={`Operadores: ${totals.operators}`} sx={ps.metricChip('default')} />
           </Stack>
         </Box>
       </Paper>
@@ -256,6 +262,8 @@ export default function UsersPage() {
               { key: 'ACTIVE', label: 'Activos' },
               { key: 'INACTIVE', label: 'Inactivos' },
               { key: 'ADMIN', label: 'Admins' },
+              { key: 'SUPERVISOR', label: 'Supervisores' },
+              { key: 'OPERADOR', label: 'Operadores' },
             ].map(f => (
               <Chip key={f.key} clickable label={f.label} onClick={() => setFilter(f.key)} sx={filterChipSx(f.key)} />
             ))}
@@ -295,6 +303,7 @@ export default function UsersPage() {
                 <TableCell>Nombre</TableCell>
                 <TableCell>Correo</TableCell>
                 <TableCell>Rol</TableCell>
+                <TableCell>Puesto</TableCell>
                 <TableCell>Estado</TableCell>
                 <TableCell align="right">Acciones</TableCell>
               </TableRow>
@@ -311,6 +320,7 @@ export default function UsersPage() {
                   <TableCell>
                     <Chip size="small" label={u.role} sx={roleChipSx(u.role)} />
                   </TableCell>
+                  <TableCell sx={ps.cellTextSecondary}>{u.position || '-'}</TableCell>
                   <TableCell>
                     <Chip size="small" label={u.isActive ? 'ACTIVO' : 'INACTIVO'} sx={statusChipSx(u.isActive)} />
                   </TableCell>
@@ -333,7 +343,7 @@ export default function UsersPage() {
 
               {!filteredUsers.length && (
                 <TableRow>
-                  <TableCell colSpan={6} sx={ps.emptyText}>
+                  <TableCell colSpan={7} sx={ps.emptyText}>
                     {loading ? 'Cargando...' : 'No hay usuarios para mostrar.'}
                   </TableCell>
                 </TableRow>

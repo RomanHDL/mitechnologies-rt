@@ -134,7 +134,10 @@ export default function QrPrintPage() {
         html += '<img src="' + label.qrUrl + '" />'
       }
       html += '<div class="code">' + (label.code || label.palletCode || '') + '</div>'
-      if (label.sku) html += '<div>' + label.sku + '</div>'
+      if (label.sku) html += '<div style="font-size:12px;color:#555;">' + label.sku + '</div>'
+      if (label.lot) html += '<div style="font-size:11px;color:#777;">Lote: ' + label.lot + '</div>'
+      if (label.location) html += '<div style="font-size:11px;color:#333;font-weight:bold;">Ubic: ' + label.location + '</div>'
+      if (label.totalQty != null) html += '<div style="font-size:11px;color:#555;">Cant: ' + label.totalQty + '</div>'
       html += '</div>'
     })
     html += '</body></html>'
@@ -245,7 +248,10 @@ export default function QrPrintPage() {
                   <Box component="img" src={label.qrDataUrl || label.qrUrl} sx={{ width: 140, height: 140, mb: 1 }} />
                 )}
                 <Typography sx={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 14 }}>{label.code || label.palletCode || ''}</Typography>
-                {label.sku && <Typography variant="caption" sx={ps.cellTextSecondary}>{label.sku}</Typography>}
+                {label.sku && <Typography variant="caption" display="block" sx={ps.cellTextSecondary}>{label.sku}</Typography>}
+                {label.lot && <Typography variant="caption" display="block" sx={ps.cellTextSecondary}>Lote: {label.lot}</Typography>}
+                {label.location && <Typography variant="caption" display="block" sx={{ ...ps.cellTextSecondary, fontWeight: 700 }}>Ubic: {label.location}</Typography>}
+                {label.totalQty != null && <Typography variant="caption" display="block" sx={ps.cellTextSecondary}>Cant: {label.totalQty}</Typography>}
               </Paper>
             ))}
           </Box>

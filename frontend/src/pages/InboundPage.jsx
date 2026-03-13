@@ -24,6 +24,14 @@ import Tooltip from '@mui/material/Tooltip'
 import IconButton from '@mui/material/IconButton'
 import Alert from '@mui/material/Alert'
 import Divider from '@mui/material/Divider'
+import Grid from '@mui/material/Grid'
+import Stepper from '@mui/material/Stepper'
+import Step from '@mui/material/Step'
+import StepLabel from '@mui/material/StepLabel'
+import List from '@mui/material/List'
+import ListItem from '@mui/material/ListItem'
+import ListItemText from '@mui/material/ListItemText'
+import CircularProgress from '@mui/material/CircularProgress'
 
 import AddIcon from '@mui/icons-material/Add'
 import DownloadIcon from '@mui/icons-material/Download'
@@ -33,17 +41,67 @@ import CancelIcon from '@mui/icons-material/Cancel'
 import LocalShippingIcon from '@mui/icons-material/LocalShipping'
 import DeleteIcon from '@mui/icons-material/Delete'
 import InventoryIcon from '@mui/icons-material/Inventory'
+import LocationOnIcon from '@mui/icons-material/LocationOn'
 
 import * as XLSX from 'xlsx'
 import dayjs from 'dayjs'
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
+  { value: 'ESPERADA', label: 'Esperada' },
+  { value: 'EN_DESCARGA', label: 'En Descarga' },
+  { value: 'EN_INSPECCION', label: 'En Inspeccion' },
+  { value: 'RECIBIDA', label: 'Recibida' },
+  { value: 'ALMACENADA', label: 'Almacenada' },
   { value: 'PENDIENTE', label: 'Pendiente' },
   { value: 'EN PROCESO', label: 'En Proceso' },
   { value: 'COMPLETADA', label: 'Completada' },
   { value: 'CANCELADA', label: 'Cancelada' },
 ]
+
+/* Status workflow steps for the stepper */
+const WORKFLOW_STEPS = ['ESPERADA', 'EN_DESCARGA', 'EN_INSPECCION', 'RECIBIDA', 'ALMACENADA']
+const WORKFLOW_LABELS = {
+  ESPERADA: 'Esperada',
+  EN_DESCARGA: 'En Descarga',
+  EN_INSPECCION: 'En Inspeccion',
+  RECIBIDA: 'Recibida',
+  ALMACENADA: 'Almacenada',
+}
+
+function getWorkflowStep(status) {
+  const idx = WORKFLOW_STEPS.indexOf(status)
+  return idx >= 0 ? idx : -1
+}
+
+/* Discrepancy color helper */
+function discrepancyColor(expected, received) {
+  if (received == null || expected == null) return 'inherit'
+  const exp = Number(expected)
+  const rec = Number(received)
+  if (rec === exp) return '#2E7D32'   // green - match
+  if (rec < exp) return '#C62828'     // red - shortage
+  return '#E65100'                     // amber/yellow - overage
+}
+
+function discrepancyBg(expected, received, isDark) {
+  if (received == null || expected == null) return 'transparent'
+  const exp = Number(expected)
+  const rec = Number(received)
+  if (rec === exp) return isDark ? 'rgba(34,197,94,.12)' : 'rgba(46,125,50,.08)'
+  if (rec < exp) return isDark ? 'rgba(239,68,68,.12)' : 'rgba(198,40,40,.08)'
+  return isDark ? 'rgba(245,158,11,.12)' : 'rgba(245,158,11,.08)'
+}
+
+function discrepancyLabel(expected, received) {
+  if (received == null || expected == null) return ''
+  const exp = Number(expected)
+  const rec = Number(received)
+  const diff = rec - exp
+  if (diff === 0) return 'OK'
+  if (diff < 0) return `Faltante: ${Math.abs(diff)}`
+  return `Excedente: +${diff}`
+}
 
 export default function InboundPage() {
   const { token, user } = useAuth()
@@ -53,6 +111,7 @@ export default function InboundPage() {
   const [rows, setRows] = useState([])
   const [q, setQ] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [supplierFilter, setSupplierFilter] = useState('')
   const [page, setPage] = useState(1)
   const pageSize = 12
 
@@ -71,6 +130,11 @@ export default function InboundPage() {
 
   const [selected, setSelected] = useState(null)
   const [showDetail, setShowDetail] = useState(false)
+
+  /* Putaway suggestion state */
+  const [putawaySuggestions, setPutawaySuggestions] = useState([])
+  const [putawayLoading, setPutawayLoading] = useState(false)
+  const [putawayErr, setPutawayErr] = useState('')
 
   const load = async () => {
     try {
@@ -92,9 +156,13 @@ export default function InboundPage() {
         (r.createdBy?.email || '').toLowerCase().includes(qq)
       )
     }
+    if (supplierFilter) {
+      const sf = supplierFilter.toLowerCase()
+      list = list.filter(r => (r.supplier || '').toLowerCase().includes(sf))
+    }
     if (statusFilter) list = list.filter(r => (r.status || '').toUpperCase() === statusFilter)
     return list
-  }, [rows, q, statusFilter])
+  }, [rows, q, statusFilter, supplierFilter])
 
   const resumen = useMemo(() => ({
     total: filtered.length,
@@ -103,6 +171,17 @@ export default function InboundPage() {
     completadas: filtered.filter(r => (r.status || '') === 'COMPLETADA').length,
     canceladas: filtered.filter(r => (r.status || '') === 'CANCELADA').length,
   }), [filtered])
+
+  /* KPI counts for the new workflow statuses */
+  const kpiCounts = useMemo(() => {
+    const all = rows
+    return {
+      total: all.length,
+      esperadas: all.filter(r => (r.status || '') === 'ESPERADA').length,
+      enProceso: all.filter(r => ['EN_DESCARGA', 'EN_INSPECCION'].includes(r.status || '')).length,
+      completadas: all.filter(r => ['RECIBIDA', 'ALMACENADA'].includes(r.status || '')).length,
+    }
+  }, [rows])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const paginated = useMemo(() => {
@@ -175,8 +254,52 @@ export default function InboundPage() {
     } catch (e) { setReceiveErr(e?.response?.data?.message || 'Error al recibir') }
   }
 
-  const openDetail = (r) => { setSelected(r); setShowDetail(true) }
+  const openDetail = (r) => {
+    setSelected(r)
+    setShowDetail(true)
+    setPutawaySuggestions([])
+    setPutawayErr('')
+  }
   const closeDetail = () => setShowDetail(false)
+
+  /* Putaway suggestion handler */
+  const handleSuggestPutaway = async () => {
+    if (!selected) return
+    setPutawayLoading(true)
+    setPutawayErr('')
+    setPutawaySuggestions([])
+    try {
+      const orderId = selected.id || selected._id
+      const res = await client.get('/api/putaway/suggest', { params: { palletId: orderId } })
+      const data = res.data
+      setPutawaySuggestions(Array.isArray(data) ? data : (data?.suggestions || data?.locations || [data]).filter(Boolean))
+    } catch (e) {
+      setPutawayErr(e?.response?.data?.message || 'Error al obtener sugerencia de ubicacion')
+    } finally {
+      setPutawayLoading(false)
+    }
+  }
+
+  /* Check if order has received data for discrepancy display */
+  const hasReceivedData = (order) => {
+    if (!order) return false
+    const st = order.status || ''
+    if (['RECIBIDA', 'ALMACENADA', 'COMPLETADA'].includes(st)) return true
+    return (order.receivedLines && order.receivedLines.length > 0) ||
+      (order.lines || []).some(l => l.qtyReceived != null)
+  }
+
+  /* Get the active workflow step index for stepper */
+  const getActiveStep = (status) => {
+    const idx = WORKFLOW_STEPS.indexOf(status)
+    if (idx >= 0) return idx
+    // Map legacy statuses
+    if (status === 'PENDIENTE' || status === 'ESPERADA') return 0
+    if (status === 'EN PROCESO') return 1
+    if (status === 'COMPLETADA') return 4
+    if (status === 'CANCELADA') return -1
+    return 0
+  }
 
   return (
     <Box sx={ps.page}>
@@ -191,6 +314,38 @@ export default function InboundPage() {
         </Stack>
       </Stack>
 
+      {/* ── KPI Summary Cards ── */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper sx={ps.kpiCard('blue')}>
+            <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.secondary', mb: 0.5 }}>Total Recepciones</Typography>
+            <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary' }}>{kpiCounts.total}</Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper sx={ps.kpiCard('amber')}>
+            <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.secondary', mb: 0.5 }}>Esperadas</Typography>
+            <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary' }}>{kpiCounts.esperadas}</Typography>
+            <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>Status: ESPERADA</Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper sx={ps.kpiCard('blue')}>
+            <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.secondary', mb: 0.5 }}>En Proceso</Typography>
+            <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary' }}>{kpiCounts.enProceso}</Typography>
+            <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>EN_DESCARGA + EN_INSPECCION</Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper sx={ps.kpiCard('green')}>
+            <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.secondary', mb: 0.5 }}>Completadas</Typography>
+            <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary' }}>{kpiCounts.completadas}</Typography>
+            <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>RECIBIDA + ALMACENADA</Typography>
+          </Paper>
+        </Grid>
+      </Grid>
+
+      {/* ── Existing metric chips (legacy statuses) ── */}
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2, flexWrap: 'wrap' }}>
         <Chip label={'Total: ' + resumen.total} sx={ps.metricChip('info')} />
         <Chip label={'Pendientes: ' + resumen.pendientes} sx={ps.metricChip('warn')} />
@@ -199,11 +354,19 @@ export default function InboundPage() {
         <Chip label={'Canceladas: ' + resumen.canceladas} sx={ps.metricChip('bad')} />
       </Stack>
 
+      {/* ── Filters (search, status, supplier) ── */}
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 2 }}>
         <TextField label="Buscar orden, proveedor o usuario" value={q} onChange={e => setQ(e.target.value)} sx={{ ...ps.inputSx, minWidth: 260 }} />
         <TextField select label="Status" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} sx={{ ...ps.inputSx, minWidth: 180 }}>
           {STATUS_OPTIONS.map(o => (<MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>))}
         </TextField>
+        <TextField
+          label="Filtrar por proveedor"
+          value={supplierFilter}
+          onChange={e => setSupplierFilter(e.target.value)}
+          sx={{ ...ps.inputSx, minWidth: 200 }}
+          placeholder="Nombre del proveedor..."
+        />
       </Stack>
 
       <Paper elevation={1} sx={{ ...ps.card, p: 0, overflowX: 'auto' }}>
@@ -217,9 +380,9 @@ export default function InboundPage() {
             {paginated.map((r, idx) => {
               const st = r.status || 'PENDIENTE'
               const id = r.id || r._id
-              const isPending = st === 'PENDIENTE'
-              const isEnProceso = st === 'EN PROCESO'
-              const isDone = st === 'COMPLETADA' || st === 'CANCELADA'
+              const isPending = st === 'PENDIENTE' || st === 'ESPERADA'
+              const isEnProceso = st === 'EN PROCESO' || st === 'EN_DESCARGA' || st === 'EN_INSPECCION'
+              const isDone = st === 'COMPLETADA' || st === 'CANCELADA' || st === 'RECIBIDA' || st === 'ALMACENADA'
               return (
                 <TableRow key={id} sx={ps.tableRow(idx)}>
                   <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace' }}>{r.orderNumber || id}</TableCell>
@@ -248,26 +411,189 @@ export default function InboundPage() {
         </Stack>
       </Paper>
 
-      <Dialog open={showDetail && !!selected} onClose={closeDetail} maxWidth="sm" fullWidth>
+      {/* ── Detail Dialog (with discrepancies, workflow stepper, putaway) ── */}
+      <Dialog open={showDetail && !!selected} onClose={closeDetail} maxWidth="md" fullWidth>
         <DialogTitle sx={ps.pageTitle}>Detalle de Recibo</DialogTitle>
         <DialogContent dividers>
           {selected && (
-            <Stack spacing={1.5} sx={{ pt: 1 }}>
+            <Stack spacing={2} sx={{ pt: 1 }}>
               <Typography variant="body2" sx={ps.cellText}><b>Orden:</b> {selected.orderNumber || (selected.id || selected._id)}</Typography>
               <Typography variant="body2" sx={ps.cellText}><b>Proveedor:</b> {selected.supplier || '-'}</Typography>
               <Typography variant="body2" sx={ps.cellText}><b>PO:</b> {selected.poNumber || '-'}</Typography>
               <Typography variant="body2" sx={ps.cellText}><b>Status:</b> <Chip size="small" label={selected.status || 'PENDIENTE'} sx={ps.statusChip(selected.status || 'PENDIENTE')} /></Typography>
               <Typography variant="body2" sx={ps.cellText}><b>Notas:</b> {selected.notes || '-'}</Typography>
+
+              {/* ── Status Workflow Stepper ── */}
+              {getWorkflowStep(selected.status) >= 0 && (
+                <>
+                  <Divider />
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Flujo de Estado</Typography>
+                  <Stepper activeStep={getActiveStep(selected.status)} alternativeLabel sx={{ py: 1 }}>
+                    {WORKFLOW_STEPS.map((step) => (
+                      <Step key={step} completed={getActiveStep(selected.status) > WORKFLOW_STEPS.indexOf(step)}>
+                        <StepLabel>{WORKFLOW_LABELS[step]}</StepLabel>
+                      </Step>
+                    ))}
+                  </Stepper>
+                </>
+              )}
+
+              {/* Fallback stepper for legacy statuses */}
+              {getWorkflowStep(selected.status) < 0 && (
+                <>
+                  <Divider />
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Flujo de Estado</Typography>
+                  <Stepper activeStep={getActiveStep(selected.status)} alternativeLabel sx={{ py: 1 }}>
+                    {WORKFLOW_STEPS.map((step) => (
+                      <Step key={step}>
+                        <StepLabel>{WORKFLOW_LABELS[step]}</StepLabel>
+                      </Step>
+                    ))}
+                  </Stepper>
+                  {selected.status === 'CANCELADA' && (
+                    <Alert severity="error" sx={{ mt: 1 }}>Esta orden fue cancelada.</Alert>
+                  )}
+                </>
+              )}
+
               <Divider />
               <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Lineas</Typography>
-              {(selected.lines || []).map((l, i) => (
-                <Paper key={i} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
-                  <Typography variant="body2" sx={ps.cellText}><b>SKU:</b> {l.sku} | <b>Esperado:</b> {l.qtyExpected || 0} | <b>Recibido:</b> {l.qtyReceived || 0}</Typography>
-                  {l.description && <Typography variant="caption" sx={ps.cellTextSecondary}>{l.description}</Typography>}
-                </Paper>
-              ))}
+              {(selected.lines || []).map((l, i) => {
+                const received = hasReceivedData(selected)
+                const qtyRec = l.qtyReceived != null ? Number(l.qtyReceived) : null
+                const qtyExp = Number(l.qtyExpected || 0)
+                return (
+                  <Paper
+                    key={i}
+                    variant="outlined"
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 2,
+                      borderLeft: received && qtyRec != null
+                        ? `4px solid ${discrepancyColor(qtyExp, qtyRec)}`
+                        : undefined,
+                      bgcolor: received && qtyRec != null
+                        ? discrepancyBg(qtyExp, qtyRec, ps.isDark)
+                        : undefined,
+                    }}
+                  >
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" spacing={1}>
+                      <Box>
+                        <Typography variant="body2" sx={ps.cellText}>
+                          <b>SKU:</b> {l.sku} | <b>Esperado:</b> {qtyExp} | <b>Recibido:</b> {qtyRec != null ? qtyRec : '-'}
+                        </Typography>
+                        {l.description && <Typography variant="caption" sx={ps.cellTextSecondary}>{l.description}</Typography>}
+                      </Box>
+                      {received && qtyRec != null && (
+                        <Chip
+                          size="small"
+                          label={discrepancyLabel(qtyExp, qtyRec)}
+                          sx={{
+                            fontWeight: 700,
+                            color: '#fff',
+                            bgcolor: discrepancyColor(qtyExp, qtyRec),
+                          }}
+                        />
+                      )}
+                    </Stack>
+                  </Paper>
+                )
+              })}
+
+              {/* ── Discrepancies section (if the order has explicit discrepancies field) ── */}
+              {selected.discrepancies && Array.isArray(selected.discrepancies) && selected.discrepancies.length > 0 && (
+                <>
+                  <Divider />
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#C62828' }}>Discrepancias Reportadas</Typography>
+                  {selected.discrepancies.map((disc, i) => (
+                    <Paper key={i} variant="outlined" sx={{ p: 1.5, borderRadius: 2, borderLeft: '4px solid #C62828' }}>
+                      <Typography variant="body2" sx={ps.cellText}>
+                        <b>SKU:</b> {disc.sku || '-'} | <b>Esperado:</b> {disc.qtyExpected ?? '-'} | <b>Recibido:</b> {disc.qtyReceived ?? '-'}
+                        {disc.note && <> | <b>Nota:</b> {disc.note}</>}
+                      </Typography>
+                    </Paper>
+                  ))}
+                </>
+              )}
+
+              {/* ── Received lines section ── */}
+              {selected.receivedLines && Array.isArray(selected.receivedLines) && selected.receivedLines.length > 0 && (
+                <>
+                  <Divider />
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Lineas Recibidas</Typography>
+                  {selected.receivedLines.map((rl, i) => {
+                    const matchingLine = (selected.lines || []).find(l => l.sku === rl.sku)
+                    const expQty = matchingLine ? Number(matchingLine.qtyExpected || 0) : null
+                    const recQty = Number(rl.qtyReceived || 0)
+                    return (
+                      <Paper
+                        key={i}
+                        variant="outlined"
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 2,
+                          borderLeft: expQty != null ? `4px solid ${discrepancyColor(expQty, recQty)}` : undefined,
+                          bgcolor: expQty != null ? discrepancyBg(expQty, recQty, ps.isDark) : undefined,
+                        }}
+                      >
+                        <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" spacing={1}>
+                          <Typography variant="body2" sx={ps.cellText}>
+                            <b>SKU:</b> {rl.sku} | <b>Recibido:</b> {recQty}
+                            {rl.note && <> | <b>Nota:</b> {rl.note}</>}
+                          </Typography>
+                          {expQty != null && (
+                            <Chip
+                              size="small"
+                              label={discrepancyLabel(expQty, recQty)}
+                              sx={{ fontWeight: 700, color: '#fff', bgcolor: discrepancyColor(expQty, recQty) }}
+                            />
+                          )}
+                        </Stack>
+                      </Paper>
+                    )
+                  })}
+                </>
+              )}
+
               <Typography variant="body2" sx={ps.cellTextSecondary}><b>Creado por:</b> {selected.createdBy?.email || '-'}</Typography>
               <Typography variant="body2" sx={ps.cellTextSecondary}><b>Fecha:</b> {dayjs(selected.createdAt).format('YYYY-MM-DD HH:mm')}</Typography>
+
+              {/* ── Putaway Suggestion ── */}
+              {hasReceivedData(selected) && (
+                <>
+                  <Divider />
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Button
+                      variant="outlined"
+                      startIcon={putawayLoading ? <CircularProgress size={16} /> : <LocationOnIcon />}
+                      onClick={handleSuggestPutaway}
+                      disabled={putawayLoading}
+                      sx={{ borderRadius: 2 }}
+                    >
+                      Sugerir ubicacion
+                    </Button>
+                  </Stack>
+                  {putawayErr && <Alert severity="error" sx={{ mt: 1 }}>{putawayErr}</Alert>}
+                  {putawaySuggestions.length > 0 && (
+                    <Paper variant="outlined" sx={{ borderRadius: 2, mt: 1 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, px: 2, pt: 1.5 }}>Ubicaciones Sugeridas</Typography>
+                      <List dense>
+                        {putawaySuggestions.map((loc, i) => (
+                          <ListItem key={i}>
+                            <ListItemText
+                              primary={loc.location || loc.locationCode || loc.name || loc.label || JSON.stringify(loc)}
+                              secondary={
+                                [loc.zone, loc.aisle, loc.rack, loc.level].filter(Boolean).join(' - ') ||
+                                (loc.reason || loc.description || '')
+                              }
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Paper>
+                  )}
+                </>
+              )}
             </Stack>
           )}
         </DialogContent>
