@@ -59,8 +59,7 @@ function Pill({ label, icon, ps }) {
       size="small"
       icon={icon}
       label={label}
-      sx={ps.metricChip('info')}
-      variant="outlined"
+      sx={{ ...ps.metricChip('info'), fontSize: '0.6875rem' }}
     />
   )
 }
@@ -84,11 +83,11 @@ function safeNum(v) {
 
 function movementTypeChipSx(type) {
   const t = String(type || '').toUpperCase()
-  if (t === 'IN' || t === 'ENTRADA') return { bgcolor: 'rgba(34,197,94,.15)', color: '#16A34A', border: '1px solid rgba(34,197,94,.30)', fontWeight: 700 }
-  if (t === 'OUT' || t === 'SALIDA') return { bgcolor: 'rgba(239,68,68,.15)', color: '#DC2626', border: '1px solid rgba(239,68,68,.30)', fontWeight: 700 }
-  if (t === 'TRANSFER' || t === 'TRANSFERENCIA') return { bgcolor: 'rgba(59,130,246,.15)', color: '#2563EB', border: '1px solid rgba(59,130,246,.30)', fontWeight: 700 }
-  if (t === 'ADJUST' || t === 'AJUSTE') return { bgcolor: 'rgba(245,158,11,.15)', color: '#D97706', border: '1px solid rgba(245,158,11,.30)', fontWeight: 700 }
-  return { bgcolor: 'rgba(148,163,184,.12)', color: 'text.secondary', border: '1px solid rgba(148,163,184,.25)', fontWeight: 700 }
+  if (t === 'IN' || t === 'ENTRADA') return { bgcolor: 'rgba(34,197,94,.08)', color: '#15803D', border: '1px solid rgba(34,197,94,.20)', fontWeight: 600 }
+  if (t === 'OUT' || t === 'SALIDA') return { bgcolor: 'rgba(239,68,68,.08)', color: '#B91C1C', border: '1px solid rgba(239,68,68,.20)', fontWeight: 600 }
+  if (t === 'TRANSFER' || t === 'TRANSFERENCIA') return { bgcolor: 'rgba(59,130,246,.08)', color: '#1D4ED8', border: '1px solid rgba(59,130,246,.20)', fontWeight: 600 }
+  if (t === 'ADJUST' || t === 'AJUSTE') return { bgcolor: 'rgba(245,158,11,.08)', color: '#B45309', border: '1px solid rgba(245,158,11,.20)', fontWeight: 600 }
+  return { bgcolor: 'rgba(148,163,184,.06)', color: 'text.secondary', border: '1px solid rgba(148,163,184,.15)', fontWeight: 600 }
 }
 
 function ElegantTooltip({ active, payload, label }) {
@@ -107,7 +106,7 @@ function ElegantTooltip({ active, payload, label }) {
         backdropFilter: 'blur(10px)',
       }}
     >
-      <Typography sx={{ fontSize: 12, fontWeight: 800, color: 'rgba(226,232,240,.95)' }}>
+      <Typography sx={{ fontSize: 12, fontWeight: 600, color: 'rgba(226,232,240,.95)' }}>
         {label || 'Dato'}
       </Typography>
       <Typography sx={{ fontSize: 12, color: 'rgba(226,232,240,.85)' }}>
@@ -120,24 +119,28 @@ function ElegantTooltip({ active, payload, label }) {
 function StatusMiniCard({ title, value, subtitle, icon, tone = 'info', progress }) {
   const tones = {
     info: {
-      bg: 'rgba(59,130,246,.08)',
-      border: 'rgba(59,130,246,.22)',
-      color: '#93C5FD',
+      border: 'rgba(59,130,246,.12)',
+      iconColor: '#3B82F6',
+      iconBg: 'rgba(59,130,246,.08)',
+      barColor: '#3B82F6',
     },
     success: {
-      bg: 'rgba(34,197,94,.08)',
-      border: 'rgba(34,197,94,.22)',
-      color: '#86EFAC',
+      border: 'rgba(34,197,94,.12)',
+      iconColor: '#16A34A',
+      iconBg: 'rgba(34,197,94,.08)',
+      barColor: '#16A34A',
     },
     warning: {
-      bg: 'rgba(245,158,11,.08)',
-      border: 'rgba(245,158,11,.22)',
-      color: '#FCD34D',
+      border: 'rgba(245,158,11,.12)',
+      iconColor: '#D97706',
+      iconBg: 'rgba(245,158,11,.08)',
+      barColor: '#D97706',
     },
     danger: {
-      bg: 'rgba(239,68,68,.08)',
-      border: 'rgba(239,68,68,.22)',
-      color: '#FCA5A5',
+      border: 'rgba(239,68,68,.12)',
+      iconColor: '#DC2626',
+      iconBg: 'rgba(239,68,68,.08)',
+      barColor: '#DC2626',
     },
   }
 
@@ -147,37 +150,44 @@ function StatusMiniCard({ title, value, subtitle, icon, tone = 'info', progress 
     <Paper
       elevation={0}
       sx={{
-        p: 1.5,
-        borderRadius: 3,
-        border: `1px solid ${t.border}`,
-        bgcolor: t.bg,
+        p: 2,
+        borderRadius: 2,
+        border: `1px solid`,
+        borderColor: t.border,
         height: '100%',
+        transition: 'border-color .15s ease',
+        '&:hover': { borderColor: 'rgba(0,0,0,.12)' },
       }}
     >
-      <Stack direction="row" spacing={1.2} alignItems="center" sx={{ mb: 0.8 }}>
-        <Box sx={{ color: t.color, display: 'flex', alignItems: 'center' }}>
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
+        <Box sx={{
+          width: 32, height: 32, borderRadius: 1.5,
+          bgcolor: t.iconBg,
+          display: 'grid', placeItems: 'center',
+          color: t.iconColor,
+        }}>
           {icon}
         </Box>
-        <Typography sx={{ fontSize: 12, fontWeight: 800, color: 'text.secondary' }}>
+        <Typography sx={{ fontSize: 12, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.3 }}>
           {title}
         </Typography>
       </Stack>
 
-      <Typography sx={{ fontSize: 28, lineHeight: 1, fontWeight: 900, color: 'text.primary' }}>
+      <Typography sx={{ fontSize: 26, lineHeight: 1, fontWeight: 700, color: 'text.primary', mb: 0.5 }}>
         {value}
       </Typography>
 
-      <Typography sx={{ mt: 0.6, fontSize: 12, color: 'text.secondary' }}>
+      <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
         {subtitle}
       </Typography>
 
       {typeof progress === 'number' && (
-        <Box sx={{ mt: 1, height: 6, borderRadius: 3, bgcolor: 'rgba(148,163,184,.15)', overflow: 'hidden' }}>
+        <Box sx={{ mt: 1.25, height: 4, borderRadius: 2, bgcolor: 'rgba(0,0,0,.04)', overflow: 'hidden' }}>
           <Box sx={{
             height: '100%',
             width: `${Math.min(progress, 100)}%`,
-            borderRadius: 3,
-            bgcolor: progress > 90 ? '#DC2626' : progress > 70 ? '#D97706' : t.color,
+            borderRadius: 2,
+            bgcolor: progress > 90 ? '#DC2626' : progress > 70 ? '#D97706' : t.barColor,
             transition: 'width 0.5s ease',
           }} />
         </Box>
@@ -525,8 +535,8 @@ export default function DashboardPage() {
               label={socketOnline ? 'Realtime: Online' : 'Realtime: Offline'}
               sx={{
                 ml: 1,
-                fontWeight: 800,
-                borderRadius: 2,
+                fontWeight: 600,
+                borderRadius: 1.5,
                 bgcolor: socketOnline ? 'rgba(34,197,94,.12)' : 'rgba(244,63,94,.10)',
                 border: `1px solid ${socketOnline ? 'rgba(34,197,94,.35)' : 'rgba(244,63,94,.35)'}`,
                 color: socketOnline ? 'rgba(34,197,94,.95)' : 'rgba(244,63,94,.95)'
@@ -538,8 +548,8 @@ export default function DashboardPage() {
               size="small"
               label={`Operación: ${semaforoOperacion.label}`}
               sx={{
-                fontWeight: 800,
-                borderRadius: 2,
+                fontWeight: 600,
+                borderRadius: 1.5,
                 bgcolor:
                   semaforoOperacion.tone === 'success' ? 'rgba(34,197,94,.12)' :
                   semaforoOperacion.tone === 'warning' ? 'rgba(245,158,11,.12)' :
@@ -564,11 +574,11 @@ export default function DashboardPage() {
                 size="small"
                 label="Actualizando…"
                 sx={{
-                  fontWeight: 800,
-                  borderRadius: 2,
-                  bgcolor: 'rgba(59,130,246,.10)',
-                  border: '1px solid rgba(59,130,246,.25)',
-                  color: 'rgba(147,197,253,.95)'
+                  fontWeight: 600,
+                  borderRadius: 1.5,
+                  bgcolor: 'rgba(59,130,246,.08)',
+                  border: '1px solid rgba(59,130,246,.15)',
+                  color: 'rgba(59,130,246,.90)'
                 }}
                 variant="outlined"
               />
@@ -645,7 +655,7 @@ export default function DashboardPage() {
 
       {(importing || isRefreshing) && (
         <Paper elevation={0} sx={{ ...ps.card, mb: 2, p: 1.5 }}>
-          <Typography sx={{ fontWeight: 800, mb: 1 }}>
+          <Typography sx={{ fontWeight: 600, mb: 1 }}>
             {importing ? 'Importando Excel...' : 'Actualizando dashboard...'}
           </Typography>
           <LinearProgress />
@@ -720,10 +730,10 @@ export default function DashboardPage() {
                 }}
               />
               <Box sx={{ flex: 1 }}>
-                <Typography sx={{ fontWeight: 800, fontSize: 13, color: 'text.secondary' }}>
+                <Typography sx={{ fontWeight: 600, fontSize: 12, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.3 }}>
                   Alertas Activas
                 </Typography>
-                <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1, color: 'text.primary' }}>
+                <Typography sx={{ fontWeight: 700, fontSize: 26, lineHeight: 1, color: 'text.primary' }}>
                   {activeAlerts.length}
                 </Typography>
               </Box>
@@ -772,10 +782,10 @@ export default function DashboardPage() {
             <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: lowStock.length > 0 ? 1.5 : 0 }}>
               <Inventory2Icon sx={{ color: lowStock.length > 0 ? 'warning.main' : 'text.secondary', fontSize: 28 }} />
               <Box sx={{ flex: 1 }}>
-                <Typography sx={{ fontWeight: 800, fontSize: 13, color: 'text.secondary' }}>
+                <Typography sx={{ fontWeight: 600, fontSize: 12, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.3 }}>
                   Stock Bajo
                 </Typography>
-                <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1, color: 'text.primary' }}>
+                <Typography sx={{ fontWeight: 700, fontSize: 26, lineHeight: 1, color: 'text.primary' }}>
                   {lowStock.length}
                 </Typography>
               </Box>
@@ -815,10 +825,10 @@ export default function DashboardPage() {
             <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: rackFull.length > 0 ? 1.5 : 0 }}>
               <WarehouseIcon sx={{ color: rackFull.length > 0 ? 'error.main' : 'text.secondary', fontSize: 28 }} />
               <Box sx={{ flex: 1 }}>
-                <Typography sx={{ fontWeight: 800, fontSize: 13, color: 'text.secondary' }}>
+                <Typography sx={{ fontWeight: 600, fontSize: 12, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.3 }}>
                   Areas Criticas
                 </Typography>
-                <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1, color: 'text.primary' }}>
+                <Typography sx={{ fontWeight: 700, fontSize: 26, lineHeight: 1, color: 'text.primary' }}>
                   {rackFull.length}
                 </Typography>
                 <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
@@ -966,7 +976,7 @@ export default function DashboardPage() {
 
               <Divider sx={{ my: 2 }} />
 
-              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1, color: 'text.primary' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: 'text.primary' }}>
                 Ultimos movimientos
               </Typography>
 
@@ -1035,7 +1045,7 @@ export default function DashboardPage() {
                 Datos que sí requieren atención o seguimiento.
               </Typography>
 
-              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
                 Alertas / Pendientes
               </Typography>
 
@@ -1067,7 +1077,7 @@ export default function DashboardPage() {
 
               <Divider sx={{ my: 2 }} />
 
-              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
                 Top SKUs
               </Typography>
 
@@ -1100,7 +1110,7 @@ export default function DashboardPage() {
 
               <Divider sx={{ my: 2 }} />
 
-              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
                 Ordenes recientes
               </Typography>
 
@@ -1162,10 +1172,10 @@ export default function DashboardPage() {
                   onClick={() => nav(action.to)}
                   sx={{
                     ...ps.actionBtn(action.color),
-                    py: 2,
-                    borderRadius: 2.5,
-                    fontSize: 14,
-                    fontWeight: 800,
+                    py: 1.5,
+                    borderRadius: 2,
+                    fontSize: 13,
+                    fontWeight: 600,
                     textTransform: 'none',
                     justifyContent: 'center',
                   }}
