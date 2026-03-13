@@ -19,12 +19,8 @@ import TooltipMUI from '@mui/material/Tooltip'
 import LinearProgress from '@mui/material/LinearProgress'
 
 import RefreshIcon from '@mui/icons-material/Refresh'
-import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner'
-import PlaceIcon from '@mui/icons-material/Place'
-import GridViewIcon from '@mui/icons-material/GridView'
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz'
 import AssignmentIcon from '@mui/icons-material/Assignment'
-import PrecisionManufacturingIcon from '@mui/icons-material/PrecisionManufacturing'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import BlockIcon from '@mui/icons-material/Block'
@@ -52,29 +48,10 @@ import {
   BarChart,
   Bar,
   CartesianGrid,
-  PieChart,
-  Pie,
   Cell,
 } from 'recharts'
 
 import * as XLSX from 'xlsx'
-
-function KpiCard({ title, value, subtitle, children, accent = 'blue', onClick, ps }) {
-  return (
-    <Paper elevation={0} onClick={onClick} sx={ps.kpiCard(accent)}>
-      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.secondary', fontSize: 12 }}>
-        {title}
-      </Typography>
-      <Typography variant="h4" sx={{ fontWeight: 800, mt: 0.5, letterSpacing: -0.5, color: 'text.primary' }}>
-        {value}
-      </Typography>
-      <Typography variant="body2" sx={{ color: 'text.secondary', mb: children ? 1 : 0 }}>
-        {subtitle}
-      </Typography>
-      {children}
-    </Paper>
-  )
-}
 
 function Pill({ label, icon, ps }) {
   return (
@@ -140,7 +117,7 @@ function ElegantTooltip({ active, payload, label }) {
   )
 }
 
-function StatusMiniCard({ title, value, subtitle, icon, tone = 'info' }) {
+function StatusMiniCard({ title, value, subtitle, icon, tone = 'info', progress }) {
   const tones = {
     info: {
       bg: 'rgba(59,130,246,.08)',
@@ -193,6 +170,18 @@ function StatusMiniCard({ title, value, subtitle, icon, tone = 'info' }) {
       <Typography sx={{ mt: 0.6, fontSize: 12, color: 'text.secondary' }}>
         {subtitle}
       </Typography>
+
+      {typeof progress === 'number' && (
+        <Box sx={{ mt: 1, height: 6, borderRadius: 3, bgcolor: 'rgba(148,163,184,.15)', overflow: 'hidden' }}>
+          <Box sx={{
+            height: '100%',
+            width: `${Math.min(progress, 100)}%`,
+            borderRadius: 3,
+            bgcolor: progress > 90 ? '#DC2626' : progress > 70 ? '#D97706' : t.color,
+            transition: 'width 0.5s ease',
+          }} />
+        </Box>
+      )}
     </Paper>
   )
 }
@@ -387,11 +376,6 @@ export default function DashboardPage() {
   const salidasPallets = safeNum(stats.salidasPallets ?? stats.palletsSalida ?? 0)
   const salidasPiezas = safeNum(stats.salidasPiezas ?? stats.piezasSalida ?? 0)
 
-  const pieData = [
-    { name: 'Ocupado', value: occupied },
-    { name: 'Disponible', value: available },
-  ]
-
   const entradasData = [
     { name: 'Camiones', value: entradasCamiones },
     { name: 'Pallets', value: entradasPallets },
@@ -420,15 +404,6 @@ export default function DashboardPage() {
     if (entradasPallets === 0 && salidasPallets === 0) return { label: 'Sin movimiento', tone: 'info' }
     return { label: 'Estable', tone: 'success' }
   }, [blockedCount, diferencialTotal, entradasPallets, salidasPallets])
-
-  const quickActions = [
-    { label: 'Escanear', icon: <QrCodeScannerIcon fontSize="small" />, to: '/scan' },
-    { label: 'Buscar Ubicacion', icon: <PlaceIcon fontSize="small" />, to: '/ubicaciones' },
-    { label: 'Ver Racks', icon: <GridViewIcon fontSize="small" />, to: '/racks' },
-    { label: 'Movimientos', icon: <SwapHorizIcon fontSize="small" />, to: '/movimientos' },
-    { label: 'Ordenes', icon: <AssignmentIcon fontSize="small" />, to: '/ordenes' },
-    { label: 'Produccion', icon: <PrecisionManufacturingIcon fontSize="small" />, to: '/produccion' },
-  ]
 
   const alertsList = [
     {
@@ -688,6 +663,7 @@ export default function DashboardPage() {
             subtitle={`${occupied}/${total} ubicaciones`}
             icon={<WarehouseIcon fontSize="small" />}
             tone="info"
+            progress={occupancyPct}
           />
         </Grid>
 
@@ -886,98 +862,6 @@ export default function DashboardPage() {
         </Grid>
       </Grid>
 
-      <Grid container spacing={2} sx={{ mb: 2.5 }}>
-        <Grid item xs={12} md={4}>
-          <KpiCard
-            title="Ocupacion del Almacen"
-            value={`${occupancyPct}%`}
-            subtitle={`${occupied} / ${total} ubicaciones ocupadas`}
-            accent="blue"
-            onClick={() => nav('/ubicaciones')}
-            ps={ps}
-          >
-            <Box sx={{ height: 240, mt: 1 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={55}
-                    outerRadius={85}
-                    paddingAngle={3}
-                    isAnimationActive
-                    animationDuration={900}
-                  >
-                    <Cell fill="#2563EB" />
-                    <Cell fill="#CBD5E1" />
-                  </Pie>
-                  <Tooltip content={<ElegantTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-            </Box>
-          </KpiCard>
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <KpiCard
-            title="Entradas"
-            value={`${entradasPallets}`}
-            subtitle={`Camiones: ${entradasCamiones} | Pallets: ${entradasPallets} | Piezas: ${entradasPiezas}`}
-            accent="green"
-            onClick={() => nav('/movimientos')}
-            ps={ps}
-          >
-            <Box sx={{ height: 240 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={entradasData}>
-                  <CartesianGrid stroke={gridStroke} strokeDasharray="4 6" vertical={false} />
-                  <XAxis dataKey="name" stroke={axisStroke} tickLine={false} axisLine={{ stroke: gridStroke }} />
-                  <YAxis stroke={axisStroke} tickLine={false} axisLine={{ stroke: gridStroke }} />
-                  <Tooltip content={<ElegantTooltip />} />
-                  <Bar
-                    dataKey="value"
-                    fill="#16A34A"
-                    radius={[8, 8, 0, 0]}
-                    isAnimationActive
-                    animationDuration={850}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </Box>
-          </KpiCard>
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <KpiCard
-            title="Salidas"
-            value={`${salidasPallets}`}
-            subtitle={`Órdenes: ${salidasOrdenes} | Pallets: ${salidasPallets} | Piezas: ${salidasPiezas}`}
-            accent="red"
-            onClick={() => nav('/ordenes')}
-            ps={ps}
-          >
-            <Box sx={{ height: 240 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={salidasData}>
-                  <CartesianGrid stroke={gridStroke} strokeDasharray="4 6" vertical={false} />
-                  <XAxis dataKey="name" stroke={axisStroke} tickLine={false} axisLine={{ stroke: gridStroke }} />
-                  <YAxis stroke={axisStroke} tickLine={false} axisLine={{ stroke: gridStroke }} />
-                  <Tooltip content={<ElegantTooltip />} />
-                  <Bar
-                    dataKey="value"
-                    fill="#DC2626"
-                    radius={[8, 8, 0, 0]}
-                    isAnimationActive
-                    animationDuration={900}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </Box>
-          </KpiCard>
-        </Grid>
-      </Grid>
-
       <Paper elevation={0} sx={{ ...ps.card, mb: 2.5 }}>
         <Box sx={ps.cardHeader}>
           <Typography sx={ps.cardHeaderTitle}>Grafica diferencial</Typography>
@@ -1059,38 +943,6 @@ export default function DashboardPage() {
                 </Paper>
               </Stack>
             </Grid>
-          </Grid>
-        </Box>
-      </Paper>
-
-      <Paper elevation={0} sx={{ ...ps.card, mb: 2.5 }}>
-        <Box sx={ps.cardHeader}>
-          <Typography sx={ps.cardHeaderTitle}>Acciones rapidas</Typography>
-          <Box sx={{ flex: 1 }} />
-          <Typography variant="caption" sx={ps.cardHeaderSubtitle}>Para operador y admin</Typography>
-        </Box>
-
-        <Box sx={{ p: 2 }}>
-          <Grid container spacing={1.5}>
-            {quickActions.map((a) => (
-              <Grid key={a.label} item xs={6} sm={4} md={2}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  onClick={() => nav(a.to)}
-                  startIcon={a.icon}
-                  sx={{
-                    borderRadius: 2.5,
-                    py: 1.4,
-                    justifyContent: 'flex-start',
-                    fontSize: 12,
-                    fontWeight: 700,
-                  }}
-                >
-                  {a.label}
-                </Button>
-              </Grid>
-            ))}
           </Grid>
         </Box>
       </Paper>
