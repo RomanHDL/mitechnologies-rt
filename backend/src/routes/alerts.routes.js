@@ -69,7 +69,13 @@ router.post('/check', requireAuth, requireRole('ADMIN','SUPERVISOR'), async (req
       }
     }
     res.json({ checked: products.length, alertsCreated: created.length, alerts: created });
-  } catch(e) { next(e); }
+  } catch(e) {
+    if (e?.original?.code === 'ER_NO_SUCH_TABLE' || (e?.message || '').includes("doesn't exist")) {
+      console.warn('stock_alerts table not ready:', e.message);
+      return res.json({ checked: 0, alertsCreated: 0, alerts: [], error: 'Table not ready' });
+    }
+    next(e);
+  }
 });
 
 // GET /api/alerts — list all alerts
@@ -84,7 +90,14 @@ router.get('/', requireAuth, async (req, res, next) => {
       include: [{ model: Product, as: 'product', attributes: ['id','sku','description','minStock'] }]
     });
     res.json(rows);
-  } catch(e) { next(e); }
+  } catch(e) {
+    // If table doesn't exist yet, return empty array instead of crashing
+    if (e?.original?.code === 'ER_NO_SUCH_TABLE' || (e?.message || '').includes("doesn't exist")) {
+      console.warn('stock_alerts table not ready, returning empty:', e.message);
+      return res.json([]);
+    }
+    next(e);
+  }
 });
 
 // PATCH /api/alerts/:id/acknowledge

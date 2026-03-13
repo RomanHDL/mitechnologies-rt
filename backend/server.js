@@ -254,6 +254,12 @@ const PORT = process.env.PORT || 5000;
         `).catch(e => {
           if (!e.message.includes('Duplicate column')) throw e;
         });
+
+        // Ensure stock_alerts table exists (safe idempotent)
+        const { StockAlert } = require('./src/models/sequelize');
+        await StockAlert.sync().catch(e => {
+          console.warn('stock_alerts sync warning:', e?.message || e);
+        });
     } catch (e) {
         console.error('MySQL connection failed:', e);
         process.exit(1);
