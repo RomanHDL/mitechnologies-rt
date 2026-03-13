@@ -1,6 +1,6 @@
-# MyTechnologies Almacén (Full‑Stack) — React + Node/Express + MongoDB Atlas
+# MiTechnologies WMS (Full‑Stack) — React + Node/Express + MySQL (Sequelize)
 
-Esta es una app web de almacén **funcional** (frontend + backend + base de datos) con:
+Sistema de gestión de almacén **full-stack** (frontend + backend + base de datos) con:
 - Login por **correo + contraseña** y validación adicional de **número de empleado**
 - Roles: **ADMIN / SUPERVISOR / OPERADOR**
 - Puestos (texto): ayudante, montacargista, coordinador, gerente, etc.
@@ -20,8 +20,8 @@ Esta es una app web de almacén **funcional** (frontend + backend + base de dato
 
 ## 1) Requisitos
 - Node.js 18+ (recomendado 20)
-- Cuenta en MongoDB Atlas
-- Cuenta en Render (backend)
+- MySQL 8.0+ (local o servicio como PlanetScale/Railway)
+- Cuenta en Render (backend) o Railway
 - Cuenta en Vercel (frontend)
 
 ---
