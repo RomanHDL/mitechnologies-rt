@@ -42,6 +42,9 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import PersonIcon from '@mui/icons-material/Person'
 import ReportProblemIcon from '@mui/icons-material/ReportProblem'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
+import VerifiedIcon from '@mui/icons-material/Verified'
 
 import dayjs from 'dayjs'
 
@@ -92,6 +95,21 @@ export default function PickingPage() {
   const [shortPickReason, setShortPickReason] = useState('')
   const [shortPickErr, setShortPickErr] = useState('')
   const [shortPickSubmitting, setShortPickSubmitting] = useState(false)
+
+  // Completion summary
+  const [showSummary, setShowSummary] = useState(false)
+
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERVISOR'
+
+  // Row color by status
+  const pickRowSx = (idx, status) => {
+    const base = ps.tableRow(idx)
+    const s = (status || '').toUpperCase()
+    if (s === 'PICKED' || s === 'COMPLETADA' || s === 'CONFIRMADO') return { ...base, bgcolor: ps.isDark ? 'rgba(46,125,50,.08)' : 'rgba(46,125,50,.04)' }
+    if (s === 'SHORT' || s === 'CANCELADA') return { ...base, bgcolor: ps.isDark ? 'rgba(239,68,68,.08)' : 'rgba(239,68,68,.04)' }
+    if (s === 'ASSIGNED' || s === 'ASIGNADA') return { ...base, bgcolor: ps.isDark ? 'rgba(21,101,192,.08)' : 'rgba(21,101,192,.04)' }
+    return base
+  }
 
   const loadOrders = async () => {
     try {
@@ -154,6 +172,24 @@ export default function PickingPage() {
     const total = pickList.length
     return { completed, total, pct: total > 0 ? Math.round((completed / total) * 100) : 0 }
   }, [pickList])
+
+  // Completion summary for pick list
+  const completionSummary = useMemo(() => {
+    if (!pickList.length) return null
+    const picked = pickList.filter(p => { const s = (p.status || ''); return s === 'PICKED' || s === 'COMPLETADA' || s === 'CONFIRMADO' })
+    const shorts = pickList.filter(p => { const s = (p.status || ''); return s === 'SHORT' || s === 'CANCELADA' })
+    const pending = pickList.length - picked.length - shorts.length
+    const totalQtyReq = pickList.reduce((s, p) => s + (p.qtyRequested || p.qty || 0), 0)
+    const totalQtyPicked = picked.reduce((s, p) => s + (p.qtyPicked || p.qty || 0), 0)
+    const accuracy = totalQtyReq > 0 ? Math.round((totalQtyPicked / totalQtyReq) * 100) : 0
+    const allDone = pending === 0
+    return { picked: picked.length, shorts: shorts.length, pending, totalQtyReq, totalQtyPicked, accuracy, allDone }
+  }, [pickList])
+
+  // Auto-show summary when all picks done
+  useEffect(() => {
+    if (completionSummary?.allDone && pickList.length > 0) setShowSummary(true)
+  }, [completionSummary?.allDone, pickList.length])
 
   // Orders filtering
   const filteredOrders = useMemo(() => {
@@ -245,6 +281,19 @@ export default function PickingPage() {
       setConfirmErr(e?.response?.data?.message || 'Error al confirmar')
       setConfirming(false)
     }
+  }
+
+  // Manual confirm (admin/supervisor only - no QR required)
+  const handleManualConfirm = async (pick) => {
+    if (!pick) return
+    try {
+      await client.patch('/api/picking/' + (pick.id || pick._id) + '/confirm', {
+        scannedCode: pick.palletCode || pick.pallet?.code || 'MANUAL',
+        qtyPicked: pick.qtyRequested || pick.qty || 0,
+      })
+      if (pickOrderId) await loadPickList(pickOrderId)
+      await loadMyPicks()
+    } catch (e) { console.error('Manual confirm error:', e) }
   }
 
   // ── Short pick reporting ──
@@ -482,10 +531,11 @@ export default function PickingPage() {
               <TableBody>
                 {paginatedMyPicks.map((r, idx) => {
                   const id = r.id || r._id
-                  const isConfirmed = (r.status || '') === 'CONFIRMADO' || (r.status || '') === 'COMPLETADA'
-                  const isShort = (r.status || '') === 'SHORT' || (r.status || '') === 'CANCELADA'
+                  const s = r.status || ''
+                  const isConfirmed = s === 'CONFIRMADO' || s === 'COMPLETADA' || s === 'PICKED'
+                  const isShort = s === 'SHORT' || s === 'CANCELADA'
                   return (
-                    <TableRow key={id} sx={ps.tableRow(idx)}>
+                    <TableRow key={id} sx={pickRowSx(idx, s)}>
                       <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace' }}>{r.orderNumber || '-'}</TableCell>
                       <TableCell sx={ps.cellText}>{r.sku || '-'}</TableCell>
                       <TableCell sx={ps.cellText}>{r.qty || 0}</TableCell>
@@ -539,6 +589,7 @@ export default function PickingPage() {
           <Paper elevation={1} sx={{ ...ps.card, p: 0, overflowX: 'auto' }}>
             <Table size="small" sx={{ minWidth: 700 }}>
               <TableHead><TableRow sx={ps.tableHeaderRow}>
+                <TableCell sx={{ width: 50, textAlign: 'center' }}>#</TableCell>
                 <TableCell>SKU</TableCell>
                 <TableCell>Qty</TableCell>
                 <TableCell>Ubicacion</TableCell>
@@ -550,15 +601,26 @@ export default function PickingPage() {
               <TableBody>
                 {paginatedPickList.map((r, idx) => {
                   const id = r.id || r._id
-                  const isConfirmed = (r.status || '') === 'CONFIRMADO' || (r.status || '') === 'COMPLETADA'
-                  const isShort = (r.status || '') === 'SHORT' || (r.status || '') === 'CANCELADA'
+                  const s = r.status || ''
+                  const isConfirmed = s === 'CONFIRMADO' || s === 'COMPLETADA' || s === 'PICKED'
+                  const isShort = s === 'SHORT' || s === 'CANCELADA'
+                  const seq = r.sequence || (idx + 1 + (pickListPage - 1) * orderPageSize)
+                  const isNextPick = !isConfirmed && !isShort && idx === paginatedPickList.findIndex(p => {
+                    const ps2 = p.status || ''; return ps2 !== 'CONFIRMADO' && ps2 !== 'COMPLETADA' && ps2 !== 'PICKED' && ps2 !== 'SHORT' && ps2 !== 'CANCELADA'
+                  })
                   return (
-                    <TableRow key={id} sx={ps.tableRow(idx)}>
+                    <TableRow key={id} sx={pickRowSx(idx, s)}>
+                      <TableCell sx={{ textAlign: 'center' }}>
+                        <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.3}>
+                          <Typography sx={{ fontWeight: 800, fontSize: 14, color: isNextPick ? (ps.isDark ? '#64B5F6' : '#1565C0') : 'text.secondary' }}>{seq}</Typography>
+                          {isNextPick && <ArrowForwardIcon sx={{ fontSize: 14, color: ps.isDark ? '#64B5F6' : '#1565C0' }} />}
+                        </Stack>
+                      </TableCell>
                       <TableCell sx={ps.cellText}>{r.sku || '-'}</TableCell>
-                      <TableCell sx={ps.cellText}>{r.qty || 0}</TableCell>
-                      <TableCell sx={ps.cellText}>{r.location || '-'}</TableCell>
-                      <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace' }}>{r.palletCode || '-'}</TableCell>
-                      <TableCell sx={ps.cellTextSecondary}>{r.assignedTo?.email || '-'}</TableCell>
+                      <TableCell sx={ps.cellText}>{r.qtyRequested || r.qty || 0}</TableCell>
+                      <TableCell sx={ps.cellText}>{r.location?.code || r.location || '-'}</TableCell>
+                      <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace' }}>{r.pallet?.code || r.palletCode || '-'}</TableCell>
+                      <TableCell sx={ps.cellTextSecondary}>{r.assignedTo?.fullName || r.assignedTo?.email || '-'}</TableCell>
                       <TableCell sx={ps.cellText}>
                         <Chip size="small" label={r.status || 'PENDIENTE'} sx={ps.metricChip(isConfirmed ? 'ok' : isShort ? 'bad' : 'warn')} />
                       </TableCell>
@@ -568,6 +630,11 @@ export default function PickingPage() {
                             <Tooltip title="Confirmar con escaneo QR">
                               <IconButton size="small" sx={ps.actionBtn('success')} onClick={() => openConfirmDialog(r)}><QrCodeScannerIcon fontSize="small" /></IconButton>
                             </Tooltip>
+                            {isAdmin && (
+                              <Tooltip title="Confirmar sin escaneo">
+                                <IconButton size="small" sx={{ ...ps.actionBtn('primary'), ml: 0.5 }} onClick={() => handleManualConfirm(r)}><VerifiedIcon fontSize="small" /></IconButton>
+                              </Tooltip>
+                            )}
                             <Tooltip title="Reportar Short Pick">
                               <IconButton size="small" sx={{ ...ps.actionBtn('warning'), ml: 0.5 }} onClick={() => openShortPickDialog(r)}>
                                 <WarningAmberIcon fontSize="small" />
@@ -579,13 +646,55 @@ export default function PickingPage() {
                     </TableRow>
                   )
                 })}
-                {!paginatedPickList.length && (<TableRow><TableCell colSpan={7}><Typography sx={ps.emptyText}>Sin items en lista de picking.</Typography></TableCell></TableRow>)}
+                {!paginatedPickList.length && (<TableRow><TableCell colSpan={8}><Typography sx={ps.emptyText}>Sin items en lista de picking.</Typography></TableCell></TableRow>)}
               </TableBody>
             </Table>
             <Pagination page={pickListPage} setPage={setPickListPage} total={pickListTotalPages} />
           </Paper>
         </Box>
       )}
+
+      {/* Completion Summary dialog */}
+      <Dialog open={showSummary} onClose={() => setShowSummary(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ ...ps.pageTitle, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <CheckCircleOutlineIcon sx={{ color: ps.isDark ? '#86EFAC' : '#2E7D32' }} />
+          Picking Completado
+        </DialogTitle>
+        <DialogContent dividers>
+          {completionSummary && (
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              <Box sx={{ textAlign: 'center', py: 1 }}>
+                <Typography sx={{ fontSize: 48, fontWeight: 900, color: ps.isDark ? '#86EFAC' : '#2E7D32', lineHeight: 1 }}>{completionSummary.accuracy}%</Typography>
+                <Typography sx={{ fontSize: 13, color: 'text.secondary', fontWeight: 600 }}>Precisión</Typography>
+              </Box>
+              <Stack direction="row" spacing={2} justifyContent="center">
+                <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, textAlign: 'center', flex: 1 }}>
+                  <Typography sx={{ fontSize: 20, fontWeight: 800, color: ps.isDark ? '#86EFAC' : '#2E7D32' }}>{completionSummary.picked}</Typography>
+                  <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>Completados</Typography>
+                </Paper>
+                <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, textAlign: 'center', flex: 1 }}>
+                  <Typography sx={{ fontSize: 20, fontWeight: 800, color: ps.isDark ? '#FCA5A5' : '#C62828' }}>{completionSummary.shorts}</Typography>
+                  <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>Short Picks</Typography>
+                </Paper>
+              </Stack>
+              <Stack direction="row" spacing={2} justifyContent="center">
+                <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, textAlign: 'center', flex: 1 }}>
+                  <Typography sx={{ fontSize: 20, fontWeight: 800 }}>{completionSummary.totalQtyPicked}</Typography>
+                  <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>Pzas Pickeadas</Typography>
+                </Paper>
+                <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, textAlign: 'center', flex: 1 }}>
+                  <Typography sx={{ fontSize: 20, fontWeight: 800 }}>{completionSummary.totalQtyReq}</Typography>
+                  <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>Pzas Solicitadas</Typography>
+                </Paper>
+              </Stack>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowSummary(false)}>Cerrar</Button>
+          <Button variant="contained" onClick={() => { setShowSummary(false); setTab(0) }}>Volver a Órdenes</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* QR Confirm dialog with success animation */}
       <Dialog open={openConfirm} onClose={() => { if (!confirming) setOpenConfirm(false) }} maxWidth="xs" fullWidth>

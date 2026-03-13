@@ -9,6 +9,7 @@ import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
+import MenuItem from '@mui/material/MenuItem'
 import Table from '@mui/material/Table'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
@@ -24,13 +25,38 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
 import Alert from '@mui/material/Alert'
 import CircularProgress from '@mui/material/CircularProgress'
+import Grid from '@mui/material/Grid'
 
 import QrCode2Icon from '@mui/icons-material/QrCode2'
 import PrintIcon from '@mui/icons-material/Print'
 import SelectAllIcon from '@mui/icons-material/SelectAll'
 import DeselectIcon from '@mui/icons-material/Deselect'
+import InventoryIcon from '@mui/icons-material/Inventory'
+import CheckBoxIcon from '@mui/icons-material/CheckBox'
+import LabelIcon from '@mui/icons-material/Label'
 
 import dayjs from 'dayjs'
+
+const STATUS_OPTIONS = [
+  { value: 'TODAS', label: 'Todas' },
+  { value: 'IN_STOCK', label: 'In Stock' },
+  { value: 'QUARANTINE', label: 'Cuarentena' },
+  { value: 'DAMAGED', label: 'Dañado' },
+]
+
+const AREA_OPTIONS = [
+  { value: 'TODAS', label: 'Todas las áreas' },
+  { value: 'A1', label: 'Area A1' },
+  { value: 'A2', label: 'Area A2' },
+  { value: 'A3', label: 'Area A3' },
+  { value: 'A4', label: 'Area A4' },
+]
+
+const LABEL_SIZES = [
+  { value: 'small', label: 'Pequeña (5cm)', imgWidth: 100, printWidth: '5cm' },
+  { value: 'medium', label: 'Mediana (7.5cm)', imgWidth: 150, printWidth: '7.5cm' },
+  { value: 'large', label: 'Grande (10cm)', imgWidth: 200, printWidth: '10cm' },
+]
 
 export default function QrPrintPage() {
   const { token, user } = useAuth()
@@ -39,6 +65,8 @@ export default function QrPrintPage() {
 
   const [rows, setRows] = useState([])
   const [q, setQ] = useState('')
+  const [statusFilter, setStatusFilter] = useState('TODAS')
+  const [areaFilter, setAreaFilter] = useState('TODAS')
   const [page, setPage] = useState(1)
   const pageSize = 15
   const [selectedIds, setSelectedIds] = useState([])
@@ -46,15 +74,24 @@ export default function QrPrintPage() {
   const [genResult, setGenResult] = useState(null)
   const [showPreview, setShowPreview] = useState(false)
   const [previewLabels, setPreviewLabels] = useState([])
+  const [labelSize, setLabelSize] = useState('medium')
 
-  const load = async () => {
+  const load = async (search) => {
     try {
-      const res = await client.get('/api/pallets')
+      const params = search ? { q: search } : {}
+      const res = await client.get('/api/pallets', { params })
       setRows(Array.isArray(res.data) ? res.data : [])
     } catch (e) { console.error('Error loading pallets:', e) }
   }
 
   useEffect(() => { load() }, [token])
+
+  /* Debounced server-side search */
+  useEffect(() => {
+    if (!q) { load(); return }
+    const timer = setTimeout(() => load(q), 400)
+    return () => clearTimeout(timer)
+  }, [q]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = useMemo(() => {
     let list = rows
@@ -66,14 +103,20 @@ export default function QrPrintPage() {
         (r.status || '').toLowerCase().includes(qq)
       )
     }
+    if (statusFilter !== 'TODAS') {
+      list = list.filter(r => (r.status || 'IN_STOCK') === statusFilter)
+    }
+    if (areaFilter !== 'TODAS') {
+      list = list.filter(r => r.location && r.location.area === areaFilter)
+    }
     return list
-  }, [rows, q])
+  }, [rows, q, statusFilter, areaFilter])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const paginated = useMemo(() => {
     const start = (page - 1) * pageSize
     return filtered.slice(start, start + pageSize)
-  }, [filtered, page, totalPages])
+  }, [filtered, page])
 
   useEffect(() => { if (page > totalPages) setPage(totalPages) }, [totalPages, page])
 
@@ -90,6 +133,15 @@ export default function QrPrintPage() {
   }
 
   const deselectAll = () => setSelectedIds([])
+
+  const selectPage = () => {
+    const pageIds = paginated.map(r => r.id || r._id)
+    setSelectedIds(prev => {
+      const newSet = new Set(prev)
+      pageIds.forEach(id => newSet.add(id))
+      return Array.from(newSet)
+    })
+  }
 
   const togglePageAll = () => {
     const pageIds = paginated.map(r => r.id || r._id)
@@ -120,13 +172,14 @@ export default function QrPrintPage() {
     } finally { setGenerating(false) }
   }
 
-  const handlePrint = () => {
-    const printWindow = window.open('', '_blank')
-    if (!printWindow) return
+  const currentLabelSize = LABEL_SIZES.find(s => s.value === labelSize) || LABEL_SIZES[1]
+
+  const buildPrintHtml = (labels) => {
+    const imgW = currentLabelSize.printWidth
     let html = '<html><head><title>Etiquetas QR</title>'
-    html += '<style>body{font-family:Arial,sans-serif;} .label{display:inline-block;margin:10px;padding:15px;border:1px solid #ccc;text-align:center;page-break-inside:avoid;} .label img{width:150px;height:150px;} .code{font-family:monospace;font-size:14px;font-weight:bold;margin-top:8px;}</style>'
+    html += '<style>body{font-family:Arial,sans-serif;} .label{display:inline-block;margin:10px;padding:15px;border:1px solid #ccc;text-align:center;page-break-inside:avoid;} .label img{width:' + imgW + ';height:' + imgW + ';} .code{font-family:monospace;font-size:14px;font-weight:bold;margin-top:8px;}</style>'
     html += '</head><body>'
-    previewLabels.forEach(function(label) {
+    labels.forEach(function(label) {
       html += '<div class="label">'
       if (label.qrDataUrl) {
         html += '<img src="' + label.qrDataUrl + '" />'
@@ -141,10 +194,27 @@ export default function QrPrintPage() {
       html += '</div>'
     })
     html += '</body></html>'
-    printWindow.document.write(html)
+    return html
+  }
+
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+    printWindow.document.write(buildPrintHtml(previewLabels))
     printWindow.document.close()
     printWindow.onload = function() { printWindow.print() }
   }
+
+  const handlePrintSingle = (label) => {
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+    printWindow.document.write(buildPrintHtml([label]))
+    printWindow.document.close()
+    printWindow.onload = function() { printWindow.print() }
+  }
+
+  /* KPI calculations */
+  const labelsGenerated = genResult && !genResult.error && Array.isArray(genResult.labels) ? genResult.labels.length : 0
 
   return (
     <Box sx={ps.page}>
@@ -154,6 +224,9 @@ export default function QrPrintPage() {
           <Typography sx={ps.pageSubtitle}>Selecciona tarimas para generar e imprimir etiquetas QR</Typography>
         </Box>
         <Stack direction="row" spacing={1}>
+          <Tooltip title="Seleccionar pagina">
+            <IconButton onClick={selectPage} sx={ps.actionBtn('primary')}><CheckBoxIcon /></IconButton>
+          </Tooltip>
           <Tooltip title="Seleccionar todos">
             <IconButton onClick={selectAll} sx={ps.actionBtn('primary')}><SelectAllIcon /></IconButton>
           </Tooltip>
@@ -172,10 +245,54 @@ export default function QrPrintPage() {
         </Stack>
       </Stack>
 
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
-        <Chip label={'Total tarimas: ' + filtered.length} sx={ps.metricChip('info')} />
-        <Chip label={'Seleccionadas: ' + selectedIds.length} sx={ps.metricChip(selectedIds.length > 0 ? 'ok' : 'default')} />
-      </Stack>
+      {/* KPI Cards */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={4}>
+          <Paper elevation={0} sx={ps.kpiCard('blue')}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <InventoryIcon sx={{ color: ps.isDark ? '#64B5F6' : '#1565C0', fontSize: 28 }} />
+              <Box>
+                <Typography sx={{ fontSize: 22, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>
+                  {filtered.length}
+                </Typography>
+                <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', mt: 0.3 }}>
+                  Total Tarimas
+                </Typography>
+              </Box>
+            </Stack>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <Paper elevation={0} sx={ps.kpiCard(selectedIds.length > 0 ? 'amber' : 'blue')}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <CheckBoxIcon sx={{ color: ps.isDark ? '#FCD34D' : '#E65100', fontSize: 28 }} />
+              <Box>
+                <Typography sx={{ fontSize: 22, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>
+                  {selectedIds.length}
+                </Typography>
+                <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', mt: 0.3 }}>
+                  Seleccionadas
+                </Typography>
+              </Box>
+            </Stack>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <Paper elevation={0} sx={ps.kpiCard(labelsGenerated > 0 ? 'green' : 'blue')}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <LabelIcon sx={{ color: ps.isDark ? '#86EFAC' : '#2E7D32', fontSize: 28 }} />
+              <Box>
+                <Typography sx={{ fontSize: 22, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>
+                  {labelsGenerated}
+                </Typography>
+                <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', mt: 0.3 }}>
+                  Etiquetas Generadas
+                </Typography>
+              </Box>
+            </Stack>
+          </Paper>
+        </Grid>
+      </Grid>
 
       {genResult && genResult.error && (
         <Alert severity="error" sx={{ mb: 2 }}>{genResult.error}</Alert>
@@ -183,10 +300,28 @@ export default function QrPrintPage() {
 
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 2 }}>
         <TextField label="Buscar codigo, SKU o status" value={q} onChange={e => setQ(e.target.value)} sx={{ ...ps.inputSx, minWidth: 280 }} />
+        <TextField
+          select
+          label="Status"
+          value={statusFilter}
+          onChange={e => { setStatusFilter(e.target.value); setPage(1) }}
+          sx={{ ...ps.inputSx, minWidth: 160 }}
+        >
+          {STATUS_OPTIONS.map(o => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
+        </TextField>
+        <TextField
+          select
+          label="Area"
+          value={areaFilter}
+          onChange={e => { setAreaFilter(e.target.value); setPage(1) }}
+          sx={{ ...ps.inputSx, minWidth: 160 }}
+        >
+          {AREA_OPTIONS.map(o => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
+        </TextField>
       </Stack>
 
       <Paper elevation={1} sx={{ ...ps.card, p: 0, overflowX: 'auto' }}>
-        <Table size="small" sx={{ minWidth: 700 }}>
+        <Table size="small" sx={{ minWidth: 850 }}>
           <TableHead><TableRow sx={ps.tableHeaderRow}>
             <TableCell padding="checkbox">
               <Checkbox
@@ -197,6 +332,8 @@ export default function QrPrintPage() {
             </TableCell>
             <TableCell>Codigo</TableCell>
             <TableCell>SKU</TableCell>
+            <TableCell>Lote</TableCell>
+            <TableCell>Items</TableCell>
             <TableCell>Status</TableCell>
             <TableCell>Ubicacion</TableCell>
             <TableCell>Fecha</TableCell>
@@ -215,16 +352,24 @@ export default function QrPrintPage() {
                   </TableCell>
                   <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace', fontWeight: 700 }}>{r.code || id}</TableCell>
                   <TableCell sx={ps.cellText}>{r.sku || '-'}</TableCell>
+                  <TableCell sx={ps.cellTextSecondary}>{r.lot || r.lote || '-'}</TableCell>
+                  <TableCell sx={ps.cellText}>{r.itemCount != null ? r.itemCount : (r.items ? r.items.length : '-')}</TableCell>
                   <TableCell sx={ps.cellText}>
-                    <Chip size="small" label={r.status || 'IN_STOCK'} sx={ps.metricChip(r.status === 'IN_STOCK' ? 'ok' : r.status === 'OUT' ? 'bad' : 'default')} />
+                    <Chip size="small" label={r.status || 'IN_STOCK'} sx={ps.metricChip(
+                      r.status === 'IN_STOCK' ? 'ok'
+                        : r.status === 'QUARANTINE' ? 'warn'
+                        : r.status === 'DAMAGED' ? 'bad'
+                        : r.status === 'OUT' ? 'bad'
+                        : 'default'
+                    )} />
                   </TableCell>
-                  <TableCell sx={ps.cellText}>{loc}</TableCell>
+                  <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace', fontSize: 12 }}>{loc}</TableCell>
                   <TableCell sx={ps.cellTextSecondary}>{dayjs(r.createdAt).format('YYYY-MM-DD')}</TableCell>
                 </TableRow>
               )
             })}
             {!paginated.length && (
-              <TableRow><TableCell colSpan={6}><Typography sx={ps.emptyText}>Sin tarimas para mostrar.</Typography></TableCell></TableRow>
+              <TableRow><TableCell colSpan={8}><Typography sx={ps.emptyText}>Sin tarimas para mostrar.</Typography></TableCell></TableRow>
             )}
           </TableBody>
         </Table>
@@ -238,6 +383,23 @@ export default function QrPrintPage() {
       <Dialog open={showPreview} onClose={() => setShowPreview(false)} maxWidth="md" fullWidth>
         <DialogTitle sx={ps.pageTitle}>Vista Previa de Etiquetas</DialogTitle>
         <DialogContent dividers>
+          {/* Label size selector */}
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }} sx={{ mb: 2 }}>
+            <TextField
+              select
+              label="Tamano de etiqueta"
+              value={labelSize}
+              onChange={e => setLabelSize(e.target.value)}
+              sx={{ ...ps.inputSx, minWidth: 200 }}
+              size="small"
+            >
+              {LABEL_SIZES.map(s => <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>)}
+            </TextField>
+            <Typography variant="caption" sx={ps.cellTextSecondary}>
+              {previewLabels.length + ' etiqueta(s) generada(s)'}
+            </Typography>
+          </Stack>
+
           {previewLabels.length === 0 && (
             <Typography sx={ps.emptyText}>No se generaron etiquetas.</Typography>
           )}
@@ -245,20 +407,28 @@ export default function QrPrintPage() {
             {previewLabels.map((label, i) => (
               <Paper key={i} variant="outlined" sx={{ p: 2, borderRadius: 2, textAlign: 'center', minWidth: 180 }}>
                 {(label.qrDataUrl || label.qrUrl) && (
-                  <Box component="img" src={label.qrDataUrl || label.qrUrl} sx={{ width: 140, height: 140, mb: 1 }} />
+                  <Box component="img" src={label.qrDataUrl || label.qrUrl} sx={{ width: currentLabelSize.imgWidth, height: currentLabelSize.imgWidth, mb: 1 }} />
                 )}
                 <Typography sx={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 14 }}>{label.code || label.palletCode || ''}</Typography>
                 {label.sku && <Typography variant="caption" display="block" sx={ps.cellTextSecondary}>{label.sku}</Typography>}
                 {label.lot && <Typography variant="caption" display="block" sx={ps.cellTextSecondary}>Lote: {label.lot}</Typography>}
                 {label.location && <Typography variant="caption" display="block" sx={{ ...ps.cellTextSecondary, fontWeight: 700 }}>Ubic: {label.location}</Typography>}
                 {label.totalQty != null && <Typography variant="caption" display="block" sx={ps.cellTextSecondary}>Cant: {label.totalQty}</Typography>}
+                <Button
+                  size="small"
+                  startIcon={<PrintIcon />}
+                  onClick={() => handlePrintSingle(label)}
+                  sx={{ mt: 1, fontSize: 11, textTransform: 'none' }}
+                >
+                  Imprimir Individual
+                </Button>
               </Paper>
             ))}
           </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowPreview(false)}>Cerrar</Button>
-          <Button variant="contained" startIcon={<PrintIcon />} onClick={handlePrint}>Imprimir</Button>
+          <Button variant="contained" startIcon={<PrintIcon />} onClick={handlePrint}>Imprimir Todas</Button>
         </DialogActions>
       </Dialog>
     </Box>

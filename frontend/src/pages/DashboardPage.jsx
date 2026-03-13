@@ -37,6 +37,12 @@ import LocalShippingIcon from '@mui/icons-material/LocalShipping'
 import BalanceIcon from '@mui/icons-material/Balance'
 import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck'
 import DownloadIcon from '@mui/icons-material/Download'
+import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive'
+import AddBoxIcon from '@mui/icons-material/AddBox'
+import FactCheckIcon from '@mui/icons-material/FactCheck'
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 
 import {
   XAxis,
@@ -97,6 +103,15 @@ function getRoleFromToken(token) {
 function safeNum(v) {
   const n = Number(v)
   return Number.isFinite(n) ? n : 0
+}
+
+function movementTypeChipSx(type) {
+  const t = String(type || '').toUpperCase()
+  if (t === 'IN' || t === 'ENTRADA') return { bgcolor: 'rgba(34,197,94,.15)', color: '#16A34A', border: '1px solid rgba(34,197,94,.30)', fontWeight: 700 }
+  if (t === 'OUT' || t === 'SALIDA') return { bgcolor: 'rgba(239,68,68,.15)', color: '#DC2626', border: '1px solid rgba(239,68,68,.30)', fontWeight: 700 }
+  if (t === 'TRANSFER' || t === 'TRANSFERENCIA') return { bgcolor: 'rgba(59,130,246,.15)', color: '#2563EB', border: '1px solid rgba(59,130,246,.30)', fontWeight: 700 }
+  if (t === 'ADJUST' || t === 'AJUSTE') return { bgcolor: 'rgba(245,158,11,.15)', color: '#D97706', border: '1px solid rgba(245,158,11,.30)', fontWeight: 700 }
+  return { bgcolor: 'rgba(148,163,184,.12)', color: 'text.secondary', border: '1px solid rgba(148,163,184,.25)', fontWeight: 700 }
 }
 
 function ElegantTooltip({ active, payload, label }) {
@@ -209,6 +224,11 @@ export default function DashboardPage() {
   const [importing, setImporting] = useState(false)
   const [importMsg, setImportMsg] = useState('')
 
+  const [activeAlerts, setActiveAlerts] = useState([])
+  const [alertsExpanded, setAlertsExpanded] = useState(false)
+  const [rackFull, setRackFull] = useState([])
+  const [lowStock, setLowStock] = useState([])
+
   const roleFromState = String(user?.role || '').toUpperCase()
   const roleFromToken = getRoleFromToken(token)
   const isAdmin = Boolean(
@@ -231,12 +251,16 @@ export default function DashboardPage() {
         apiFetch('/api/movements?limit=10'),
         apiFetch('/api/inventory/top?limit=5'),
         apiFetch('/api/orders'),
+        apiFetch('/api/alerts?status=ACTIVE'),
+        apiFetch('/api/reports/alerts'),
       ])
 
       const s = results[0].status === 'fulfilled' ? results[0].value : null
       const mov = results[1].status === 'fulfilled' ? results[1].value : null
       const inv = results[2].status === 'fulfilled' ? results[2].value : null
       const ord = results[3].status === 'fulfilled' ? results[3].value : null
+      const alertsRes = results[4].status === 'fulfilled' ? results[4].value : null
+      const reportsRes = results[5].status === 'fulfilled' ? results[5].value : null
 
       if (s) {
         setStats(s)
@@ -256,6 +280,14 @@ export default function DashboardPage() {
 
       const ordList = (ord?.data || ord || [])
       setOrders((ordList || []).slice(0, 6))
+
+      const alertsList2 = Array.isArray(alertsRes?.data) ? alertsRes.data : Array.isArray(alertsRes) ? alertsRes : []
+      setActiveAlerts(alertsList2)
+
+      if (reportsRes) {
+        setRackFull(Array.isArray(reportsRes.rackFull) ? reportsRes.rackFull : [])
+        setLowStock(Array.isArray(reportsRes.lowStock) ? reportsRes.lowStock : [])
+      }
 
       const fails = results
         .map((r, idx) => ({ r, idx }))
@@ -690,6 +722,170 @@ export default function DashboardPage() {
         </Grid>
       </Grid>
 
+      {/* ── Alertas Activas + Stock Bajo ── */}
+      <Grid container spacing={2} sx={{ mb: 2.5 }}>
+        <Grid item xs={12} sm={6} md={4}>
+          <Paper
+            elevation={0}
+            sx={{
+              ...ps.card,
+              p: 2,
+              border: '1px solid',
+              borderColor: activeAlerts.length > 0 ? 'rgba(239,68,68,.25)' : 'rgba(34,197,94,.20)',
+              cursor: 'pointer',
+            }}
+            onClick={() => setAlertsExpanded((prev) => !prev)}
+          >
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <NotificationsActiveIcon
+                sx={{
+                  color: activeAlerts.length > 0 ? 'error.main' : 'success.main',
+                  fontSize: 28,
+                }}
+              />
+              <Box sx={{ flex: 1 }}>
+                <Typography sx={{ fontWeight: 800, fontSize: 13, color: 'text.secondary' }}>
+                  Alertas Activas
+                </Typography>
+                <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1, color: 'text.primary' }}>
+                  {activeAlerts.length}
+                </Typography>
+              </Box>
+              {activeAlerts.length > 0 && (
+                alertsExpanded
+                  ? <ExpandLessIcon sx={{ color: 'text.secondary' }} />
+                  : <ExpandMoreIcon sx={{ color: 'text.secondary' }} />
+              )}
+            </Stack>
+
+            {alertsExpanded && activeAlerts.length > 0 && (
+              <Stack spacing={0.8} sx={{ mt: 1.5 }}>
+                {activeAlerts.slice(0, 5).map((a, idx) => (
+                  <Paper
+                    key={a._id || a.id || idx}
+                    variant="outlined"
+                    sx={{ p: 1, borderRadius: 2, bgcolor: 'rgba(239,68,68,.04)' }}
+                  >
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <ErrorOutlineIcon sx={{ color: 'error.main', fontSize: 16 }} />
+                      <Typography sx={{ fontSize: 12, fontWeight: 700, flex: 1, color: 'text.primary' }}>
+                        {a.message || a.title || a.type || 'Alerta'}
+                      </Typography>
+                      {a.type && (
+                        <Chip size="small" label={a.type} sx={ps.metricChip('bad')} />
+                      )}
+                    </Stack>
+                  </Paper>
+                ))}
+                {activeAlerts.length > 5 && (
+                  <Typography
+                    variant="caption"
+                    sx={{ color: 'text.secondary', textAlign: 'center', cursor: 'pointer', fontWeight: 700 }}
+                    onClick={(e) => { e.stopPropagation(); nav('/alertas') }}
+                  >
+                    Ver todas ({activeAlerts.length})
+                  </Typography>
+                )}
+              </Stack>
+            )}
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={4}>
+          <Paper elevation={0} sx={{ ...ps.card, p: 2, border: '1px solid', borderColor: lowStock.length > 0 ? 'rgba(245,158,11,.25)' : 'rgba(148,163,184,.15)' }}>
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: lowStock.length > 0 ? 1.5 : 0 }}>
+              <Inventory2Icon sx={{ color: lowStock.length > 0 ? 'warning.main' : 'text.secondary', fontSize: 28 }} />
+              <Box sx={{ flex: 1 }}>
+                <Typography sx={{ fontWeight: 800, fontSize: 13, color: 'text.secondary' }}>
+                  Stock Bajo
+                </Typography>
+                <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1, color: 'text.primary' }}>
+                  {lowStock.length}
+                </Typography>
+              </Box>
+              {lowStock.length > 0 && (
+                <Chip size="small" label="Requiere atencion" sx={ps.metricChip('warn')} />
+              )}
+            </Stack>
+
+            {lowStock.length > 0 && (
+              <Stack spacing={0.8}>
+                {lowStock.slice(0, 3).map((item, idx) => (
+                  <Paper
+                    key={item.sku || item._id || idx}
+                    variant="outlined"
+                    sx={{ p: 1, borderRadius: 2, bgcolor: 'rgba(245,158,11,.04)', cursor: 'pointer' }}
+                    onClick={() => nav('/inventario')}
+                  >
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 13, color: 'text.primary' }}>
+                        {item.sku || item.name || 'SKU'}
+                      </Typography>
+                      <Chip
+                        size="small"
+                        label={`Qty: ${item.qty ?? item.quantity ?? item.currentStock ?? 0}`}
+                        sx={ps.metricChip('warn')}
+                      />
+                    </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+            )}
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} md={4}>
+          <Paper elevation={0} sx={{ ...ps.card, p: 2, border: '1px solid', borderColor: rackFull.length > 0 ? 'rgba(239,68,68,.25)' : 'rgba(148,163,184,.15)' }}>
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: rackFull.length > 0 ? 1.5 : 0 }}>
+              <WarehouseIcon sx={{ color: rackFull.length > 0 ? 'error.main' : 'text.secondary', fontSize: 28 }} />
+              <Box sx={{ flex: 1 }}>
+                <Typography sx={{ fontWeight: 800, fontSize: 13, color: 'text.secondary' }}>
+                  Areas Criticas
+                </Typography>
+                <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1, color: 'text.primary' }}>
+                  {rackFull.length}
+                </Typography>
+                <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
+                  Areas con &gt;90% ocupacion
+                </Typography>
+              </Box>
+            </Stack>
+
+            {rackFull.length > 0 && (
+              <Stack spacing={0.8}>
+                {rackFull.slice(0, 4).map((area, idx) => {
+                  const pct = safeNum(area.occupancyPct ?? area.percentage ?? area.pct ?? 0)
+                  return (
+                    <Paper
+                      key={area.area || area.name || area._id || idx}
+                      variant="outlined"
+                      sx={{ p: 1, borderRadius: 2, bgcolor: 'rgba(239,68,68,.04)', cursor: 'pointer' }}
+                      onClick={() => nav('/racks')}
+                    >
+                      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+                        <Typography sx={{ fontWeight: 700, fontSize: 13, color: 'text.primary' }}>
+                          {area.area || area.name || 'Area'}
+                        </Typography>
+                        <Chip size="small" label={`${pct}%`} sx={ps.metricChip('bad')} />
+                      </Stack>
+                      <Box sx={ps.progressBar}>
+                        <Box sx={ps.progressFill(pct, 'rgba(239,68,68,.65)')} />
+                      </Box>
+                    </Paper>
+                  )
+                })}
+              </Stack>
+            )}
+
+            {rackFull.length === 0 && (
+              <Typography sx={{ fontSize: 13, color: 'text.secondary', mt: 0.5 }}>
+                Todas las areas dentro de limites normales.
+              </Typography>
+            )}
+          </Paper>
+        </Grid>
+      </Grid>
+
       <Grid container spacing={2} sx={{ mb: 2.5 }}>
         <Grid item xs={12} md={4}>
           <KpiCard
@@ -926,8 +1122,10 @@ export default function DashboardPage() {
                 {latest.slice(0, 8).map(m => {
                   const typ = (m.type || 'MOV').toUpperCase()
                   const icon =
-                    typ === 'ENTRADA' ? <CheckCircleIcon sx={{ fontSize: 16 }} /> :
-                    typ === 'SALIDA' ? <SwapHorizIcon sx={{ fontSize: 16 }} /> :
+                    (typ === 'IN' || typ === 'ENTRADA') ? <CheckCircleIcon sx={{ fontSize: 16 }} /> :
+                    (typ === 'OUT' || typ === 'SALIDA') ? <LocalShippingIcon sx={{ fontSize: 16 }} /> :
+                    (typ === 'TRANSFER' || typ === 'TRANSFERENCIA') ? <SwapHorizIcon sx={{ fontSize: 16 }} /> :
+                    (typ === 'ADJUST' || typ === 'AJUSTE') ? <BalanceIcon sx={{ fontSize: 16 }} /> :
                     <Inventory2Icon sx={{ fontSize: 16 }} />
 
                   return (
@@ -951,7 +1149,7 @@ export default function DashboardPage() {
                           size="small"
                           icon={icon}
                           label={typ}
-                          sx={ps.statusChip(typ === 'ENTRADA' ? 'COMPLETADA' : 'PENDIENTE')}
+                          sx={movementTypeChipSx(typ)}
                         />
                         <Typography variant="body2" sx={{ fontWeight: 700, flex: 1, color: 'text.primary' }}>
                           {m.note || 'Movimiento'}
@@ -1087,6 +1285,46 @@ export default function DashboardPage() {
           </Paper>
         </Grid>
       </Grid>
+
+      {/* ── Atajos Operativos ── */}
+      <Paper elevation={0} sx={{ ...ps.card, mt: 2.5 }}>
+        <Box sx={ps.cardHeader}>
+          <Typography sx={ps.cardHeaderTitle}>Atajos Operativos</Typography>
+          <Box sx={{ flex: 1 }} />
+          <Typography variant="caption" sx={ps.cardHeaderSubtitle}>Acceso directo a operaciones clave</Typography>
+        </Box>
+
+        <Box sx={{ p: 2.5 }}>
+          <Grid container spacing={2}>
+            {[
+              { label: 'Nuevo Recibo', icon: <LocalShippingIcon />, to: '/recepcion', color: 'success' },
+              { label: 'Nueva Orden', icon: <AddBoxIcon />, to: '/ordenes', color: 'primary' },
+              { label: 'Ejecutar Conteo', icon: <FactCheckIcon />, to: '/conteos', color: 'warning' },
+              { label: 'Ver Alertas', icon: <NotificationsActiveIcon />, to: '/alertas', color: 'error' },
+            ].map((action) => (
+              <Grid key={action.label} item xs={12} sm={6} md={3}>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  startIcon={action.icon}
+                  onClick={() => nav(action.to)}
+                  sx={{
+                    ...ps.actionBtn(action.color),
+                    py: 2,
+                    borderRadius: 2.5,
+                    fontSize: 14,
+                    fontWeight: 800,
+                    textTransform: 'none',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {action.label}
+                </Button>
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+      </Paper>
     </Box>
   )
 }

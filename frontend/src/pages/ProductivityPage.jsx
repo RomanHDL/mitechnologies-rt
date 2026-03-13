@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useAuth } from '../state/auth'
 import { api } from '../lib/api'
 import { usePageStyles } from '../ui/pageStyles'
@@ -34,12 +34,34 @@ import BarChartIcon from '@mui/icons-material/BarChart'
 import AvTimerIcon from '@mui/icons-material/AvTimer'
 
 import {
-  BarChart, Bar, XAxis, YAxis,
+  BarChart, Bar, XAxis, YAxis, Cell,
   Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
 
 import * as XLSX from 'xlsx'
 import dayjs from 'dayjs'
+
+/* ── Medal accent colors for top 3 ── */
+const MEDAL_COLORS = {
+  0: { border: 'rgba(255,215,0,.60)', bg: 'rgba(255,215,0,.08)', icon: '#FFD700', label: 'Oro' },
+  1: { border: 'rgba(192,192,192,.55)', bg: 'rgba(192,192,192,.08)', icon: '#C0C0C0', label: 'Plata' },
+  2: { border: 'rgba(205,127,50,.50)', bg: 'rgba(205,127,50,.08)', icon: '#CD7F32', label: 'Bronce' },
+}
+
+/* ── Movement type colors ── */
+const TYPE_COLORS = {
+  IN: { fill: '#43A047', label: 'Entradas' },
+  OUT: { fill: '#E53935', label: 'Salidas' },
+  TRANSFER: { fill: '#1E88E5', label: 'Transferencias' },
+  ADJUST: { fill: '#FB8C00', label: 'Ajustes' },
+}
+
+/* ── Period preset options ── */
+const PERIOD_OPTIONS = [
+  { key: 7, label: '7 dias' },
+  { key: 14, label: '14 dias' },
+  { key: 30, label: '30 dias' },
+]
 
 export default function ProductivityPage() {
   const { token, user } = useAuth()
@@ -55,6 +77,11 @@ export default function ProductivityPage() {
   const pageSize = 15
   const [loading, setLoading] = useState(false)
   const [shiftFilter, setShiftFilter] = useState('Todos')
+  const [periodDays, setPeriodDays] = useState(7)
+
+  /* ── New state for productivity API + task stats ── */
+  const [prodData, setProdData] = useState(null)
+  const [taskStats, setTaskStats] = useState(null)
 
   const load = async () => {
     setLoading(true)
@@ -62,17 +89,31 @@ export default function ProductivityPage() {
       var params = {}
       if (dateFrom) params.from = dateFrom
       if (dateTo) params.to = dateTo
+
+      /* Original endpoints */
       var res1 = await client.get('/api/productivity/operators', { params: params })
       setOperators(Array.isArray(res1.data) ? res1.data : [])
       var res2 = await client.get('/api/productivity/summary', { params: params })
       setSummary(res2.data || null)
+
+      /* New: productivity report endpoint (days param) */
+      try {
+        var prodRes = await client.get('/api/reports/productivity', { params: { days: periodDays } })
+        setProdData(prodRes.data || null)
+      } catch (_) { setProdData(null) }
+
+      /* New: task stats endpoint */
+      try {
+        var taskRes = await client.get('/api/tasks/stats', { params: { from: dateFrom, to: dateTo } })
+        setTaskStats(taskRes.data || null)
+      } catch (_) { setTaskStats(null) }
     } catch (e) { console.error('Error loading productivity:', e) }
     finally { setLoading(false) }
   }
 
   useEffect(() => { load() }, [token])
 
-  /* ── Period quick filters ── */
+  /* ── Period quick filters (original) ── */
   const setPeriod = (key) => {
     const today = dayjs()
     if (key === 'today') {
@@ -95,6 +136,14 @@ export default function ProductivityPage() {
     return null
   }, [dateFrom, dateTo])
 
+  /* ── Period days selector handler ── */
+  const handlePeriodDaysChange = useCallback((days) => {
+    setPeriodDays(days)
+    const today = dayjs()
+    setDateFrom(today.subtract(days, 'day').format('YYYY-MM-DD'))
+    setDateTo(today.format('YYYY-MM-DD'))
+  }, [])
+
   /* ── Filtering (search + shift) ── */
   const filtered = useMemo(() => {
     let list = operators
@@ -111,89 +160,155 @@ export default function ProductivityPage() {
     return list
   }, [operators, q, shiftFilter])
 
-  /* ── KPI computations ── */
-  const kpis = useMemo(() => {
-    const totalOps = filtered.reduce((s, r) => s + (r.movementCount || 0) + (r.taskCount || 0), 0)
-    const avg = filtered.length ? Math.round(totalOps / filtered.length) : 0
-    const topOp = filtered.reduce((best, r) => {
-      const total = (r.movementCount || 0) + (r.taskCount || 0)
-      return total > (best.total || 0) ? { name: r.name || r.email || '-', total } : best
-    }, { name: '-', total: 0 })
-    const totalTasks = filtered.reduce((s, r) => s + (r.taskCount || 0), 0)
-    return { totalOps, avg, topOp, totalTasks }
-  }, [filtered])
+  /* ── Merge task stats per user onto operators ── */
+  const enrichedFiltered = useMemo(() => {
+    if (!taskStats || !taskStats.byUser) return filtered
+    return filtered.map(r => {
+      const userId = r.userId || r._id || r.id
+      const userTasks = taskStats.byUser[userId]
+      if (!userTasks) return r
+      return { ...r, taskStatsTotal: userTasks.total || 0, taskStatsByType: userTasks.byType || {} }
+    })
+  }, [filtered, taskStats])
 
-  /* ── Top 10 for bar chart ── */
+  /* ── Build sorted ranking list ── */
+  const rankedOperators = useMemo(() => {
+    /* Combine operator data with prodData rows if available */
+    let list = enrichedFiltered.map(r => {
+      const userId = r.userId || r._id || r.id
+      let byType = { IN: 0, OUT: 0, TRANSFER: 0, ADJUST: 0 }
+
+      /* Try to pull byType from prodData */
+      if (prodData && prodData.rows) {
+        const prodRow = prodData.rows.find(pr => pr.user === userId || pr.user === r.email)
+        if (prodRow && prodRow.byType) {
+          byType = {
+            IN: (prodRow.byType.IN || 0),
+            OUT: (prodRow.byType.OUT || 0),
+            TRANSFER: (prodRow.byType.TRANSFER || 0),
+            ADJUST: (prodRow.byType.ADJUST || 0),
+          }
+        }
+      }
+
+      const totalMovements = (r.movementCount || 0)
+      const totalTasks = r.taskStatsTotal || (r.taskCount || 0)
+
+      return {
+        ...r,
+        totalMovements,
+        totalTasks,
+        totalCombined: totalMovements + totalTasks,
+        byType,
+      }
+    })
+
+    list.sort((a, b) => b.totalCombined - a.totalCombined)
+    return list
+  }, [enrichedFiltered, prodData])
+
+  /* ── KPI computations (improved) ── */
+  const kpis = useMemo(() => {
+    const totalMov = rankedOperators.reduce((s, r) => s + r.totalMovements, 0)
+    const activeOps = rankedOperators.filter(r => r.totalCombined > 0).length
+    const avg = activeOps ? Math.round(totalMov / activeOps) : 0
+    const topOp = rankedOperators.length > 0 && rankedOperators[0].totalCombined > 0
+      ? { name: rankedOperators[0].name || rankedOperators[0].email || '-', total: rankedOperators[0].totalCombined }
+      : { name: '-', total: 0 }
+    const totalTasks = rankedOperators.reduce((s, r) => s + r.totalTasks, 0)
+    return { totalMov, activeOps, avg, topOp, totalTasks }
+  }, [rankedOperators])
+
+  /* ── Top 10 for bar chart (existing) ── */
   const chartData = useMemo(() => {
-    return [...filtered]
+    return rankedOperators
       .map(r => ({
         name: (r.name || r.email || 'Sin nombre').split(' ')[0],
         fullName: r.name || r.email || 'Sin nombre',
-        movimientos: r.movementCount || 0,
-        tareas: r.taskCount || 0,
-        total: (r.movementCount || 0) + (r.taskCount || 0),
+        movimientos: r.totalMovements,
+        tareas: r.totalTasks,
+        total: r.totalCombined,
       }))
-      .sort((a, b) => b.total - a.total)
       .slice(0, 10)
-  }, [filtered])
+  }, [rankedOperators])
+
+  /* ── Movement type distribution data ── */
+  const typeDistributionData = useMemo(() => {
+    const totals = { IN: 0, OUT: 0, TRANSFER: 0, ADJUST: 0 }
+    rankedOperators.forEach(r => {
+      totals.IN += r.byType.IN
+      totals.OUT += r.byType.OUT
+      totals.TRANSFER += r.byType.TRANSFER
+      totals.ADJUST += r.byType.ADJUST
+    })
+    return Object.entries(totals)
+      .filter(([, v]) => v > 0)
+      .map(([key, value]) => ({
+        name: TYPE_COLORS[key]?.label || key,
+        value,
+        fill: TYPE_COLORS[key]?.fill || '#999',
+        type: key,
+      }))
+  }, [rankedOperators])
 
   /* ── Max total for relative progress bars ── */
   const maxTotal = useMemo(() => {
-    if (!filtered.length) return 1
-    return Math.max(1, ...filtered.map(r => (r.movementCount || 0) + (r.taskCount || 0)))
-  }, [filtered])
+    if (!rankedOperators.length) return 1
+    return Math.max(1, ...rankedOperators.map(r => r.totalCombined))
+  }, [rankedOperators])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const totalPages = Math.max(1, Math.ceil(rankedOperators.length / pageSize))
   const paginated = useMemo(() => {
     var start = (page - 1) * pageSize
-    return filtered.slice(start, start + pageSize)
-  }, [filtered, page, totalPages])
+    return rankedOperators.slice(start, start + pageSize)
+  }, [rankedOperators, page, totalPages])
 
   useEffect(() => { if (page > totalPages) setPage(totalPages) }, [totalPages, page])
 
+  /* ── Excel export (improved with ranking + byType) ── */
   const exportExcel = () => {
-    var sheets = []
-
-    // Operators sheet
-    var opData = filtered.map(r => ({
+    /* Ranking sheet */
+    var rankData = rankedOperators.map((r, idx) => ({
+      Ranking: idx + 1,
       Operador: r.name || r.email || '',
       Email: r.email || '',
-      Movimientos: r.movementCount || 0,
+      'Total Movimientos': r.totalMovements,
+      Entradas: r.byType.IN,
+      Salidas: r.byType.OUT,
+      Transferencias: r.byType.TRANSFER,
+      Ajustes: r.byType.ADJUST,
+      'Tareas Completadas': r.totalTasks,
+      'Total Combinado': r.totalCombined,
       Picks: r.pickCount || 0,
-      Tareas: r.taskCount || 0,
-      TiempoPromedio: r.avgTimeMinutes != null ? (r.avgTimeMinutes + ' min') : '-',
+      'Tiempo Promedio': r.avgTimeMinutes != null ? (r.avgTimeMinutes + ' min') : '-',
     }))
-    var ws1 = XLSX.utils.json_to_sheet(opData)
+    var ws1 = XLSX.utils.json_to_sheet(rankData)
 
-    // Summary sheet
+    /* Summary sheet */
     var sumData = []
+    sumData.push({ Metrica: 'Periodo', Valor: dateFrom + ' a ' + dateTo })
+    sumData.push({ Metrica: 'Total Movimientos (Periodo)', Valor: kpis.totalMov })
+    sumData.push({ Metrica: 'Operadores Activos', Valor: kpis.activeOps })
+    sumData.push({ Metrica: 'Promedio por Operador', Valor: kpis.avg })
+    sumData.push({ Metrica: 'Mejor Operador', Valor: kpis.topOp.name + ' (' + kpis.topOp.total + ')' })
+    sumData.push({ Metrica: 'Total Tareas Completadas', Valor: kpis.totalTasks })
     if (summary) {
-      sumData.push({
-        Metrica: 'Total Movimientos',
-        Valor: summary.totalMovements || 0,
-      })
-      sumData.push({
-        Metrica: 'Total Picks',
-        Valor: summary.totalPicks || 0,
-      })
-      sumData.push({
-        Metrica: 'Total Tareas Completadas',
-        Valor: summary.totalTasksCompleted || 0,
-      })
-      sumData.push({
-        Metrica: 'Tiempo Promedio (min)',
-        Valor: summary.avgTimeMinutes || 0,
-      })
-      sumData.push({
-        Metrica: 'Operadores Activos',
-        Valor: summary.activeOperators || 0,
-      })
+      sumData.push({ Metrica: 'Total Picks', Valor: summary.totalPicks || 0 })
+      sumData.push({ Metrica: 'Tiempo Promedio (min)', Valor: summary.avgTimeMinutes || 0 })
     }
     var ws2 = XLSX.utils.json_to_sheet(sumData)
 
+    /* Type distribution sheet */
+    var typeData = typeDistributionData.map(d => ({
+      Tipo: d.name,
+      Cantidad: d.value,
+    }))
+    var ws3 = XLSX.utils.json_to_sheet(typeData.length > 0 ? typeData : [{ Tipo: '-', Cantidad: 0 }])
+
     var wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws1, 'Operadores')
+    XLSX.utils.book_append_sheet(wb, ws1, 'Ranking Operadores')
     XLSX.utils.book_append_sheet(wb, ws2, 'Resumen')
+    XLSX.utils.book_append_sheet(wb, ws3, 'Por Tipo')
     XLSX.writeFile(wb, 'productividad_' + dateFrom + '_' + dateTo + '.xlsx')
   }
 
@@ -214,7 +329,22 @@ export default function ProductivityPage() {
         </Stack>
       </Stack>
 
-      {/* ── Period quick filters ── */}
+      {/* ── Period days selector (NEW - improvement #2) ── */}
+      <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
+        {PERIOD_OPTIONS.map(p => (
+          <Chip
+            key={p.key}
+            label={p.label}
+            clickable
+            onClick={() => handlePeriodDaysChange(p.key)}
+            variant={periodDays === p.key ? 'filled' : 'outlined'}
+            color={periodDays === p.key ? 'primary' : 'default'}
+            sx={{ fontWeight: 700, fontSize: 13 }}
+          />
+        ))}
+      </Stack>
+
+      {/* ── Period quick filters (existing) ── */}
       <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
         {[
           { key: 'today', label: 'Hoy' },
@@ -269,7 +399,7 @@ export default function ProductivityPage() {
         <TextField label="Buscar operador" value={q} onChange={e => setQ(e.target.value)} sx={{ ...ps.inputSx, minWidth: 220 }} />
       </Stack>
 
-      {/* ── KPI Summary Cards ── */}
+      {/* ── KPI Summary Cards (improved - #1) ── */}
       <Box
         sx={{
           display: 'grid',
@@ -283,11 +413,14 @@ export default function ProductivityPage() {
             <Stack direction="row" alignItems="center" spacing={1}>
               <BarChartIcon sx={{ color: ps.isDark ? '#64B5F6' : '#1565C0', fontSize: 22 }} />
               <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                Total Operaciones
+                Total Movimientos
               </Typography>
             </Stack>
             <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary' }}>
-              {kpis.totalOps.toLocaleString()}
+              {kpis.totalMov.toLocaleString()}
+            </Typography>
+            <Typography sx={{ fontSize: 11, color: 'text.secondary', fontWeight: 600 }}>
+              {dateFrom + ' - ' + dateTo}
             </Typography>
           </Stack>
         </Paper>
@@ -295,13 +428,30 @@ export default function ProductivityPage() {
         <Paper elevation={0} sx={ps.kpiCard('green')}>
           <Stack spacing={0.5}>
             <Stack direction="row" alignItems="center" spacing={1}>
-              <AvTimerIcon sx={{ color: ps.isDark ? '#86EFAC' : '#2E7D32', fontSize: 22 }} />
+              <PersonIcon sx={{ color: ps.isDark ? '#86EFAC' : '#2E7D32', fontSize: 22 }} />
+              <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Operadores Activos
+              </Typography>
+            </Stack>
+            <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary' }}>
+              {kpis.activeOps}
+            </Typography>
+          </Stack>
+        </Paper>
+
+        <Paper elevation={0} sx={ps.kpiCard('blue')}>
+          <Stack spacing={0.5}>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <AvTimerIcon sx={{ color: ps.isDark ? '#64B5F6' : '#1565C0', fontSize: 22 }} />
               <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                 Promedio por Operador
               </Typography>
             </Stack>
             <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary' }}>
               {kpis.avg.toLocaleString()}
+            </Typography>
+            <Typography sx={{ fontSize: 11, color: 'text.secondary', fontWeight: 600 }}>
+              movimientos / operador
             </Typography>
           </Stack>
         </Paper>
@@ -311,7 +461,7 @@ export default function ProductivityPage() {
             <Stack direction="row" alignItems="center" spacing={1}>
               <EmojiEventsIcon sx={{ color: ps.isDark ? '#FCD34D' : '#E65100', fontSize: 22 }} />
               <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                Operador Mas Productivo
+                Mejor Operador
               </Typography>
             </Stack>
             <Typography sx={{ fontSize: 20, fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>
@@ -322,20 +472,38 @@ export default function ProductivityPage() {
             </Typography>
           </Stack>
         </Paper>
+      </Box>
 
-        <Paper elevation={0} sx={ps.kpiCard('blue')}>
+      {/* ── Task completion KPI (NEW - #4) ── */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2, mb: 3 }}>
+        <Paper elevation={0} sx={ps.kpiCard('green')}>
           <Stack spacing={0.5}>
             <Stack direction="row" alignItems="center" spacing={1}>
-              <AssignmentTurnedInIcon sx={{ color: ps.isDark ? '#64B5F6' : '#1565C0', fontSize: 22 }} />
+              <AssignmentTurnedInIcon sx={{ color: ps.isDark ? '#86EFAC' : '#2E7D32', fontSize: 22 }} />
               <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                 Total Tareas Completadas
               </Typography>
             </Stack>
             <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary' }}>
-              {kpis.totalTasks.toLocaleString()}
+              {(taskStats ? taskStats.total : kpis.totalTasks).toLocaleString()}
             </Typography>
           </Stack>
         </Paper>
+        {taskStats && taskStats.total > 0 && (
+          <Paper elevation={0} sx={ps.kpiCard('blue')}>
+            <Stack spacing={0.5}>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <TrendingUpIcon sx={{ color: ps.isDark ? '#64B5F6' : '#1565C0', fontSize: 22 }} />
+                <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  Promedio Tareas / Operador
+                </Typography>
+              </Stack>
+              <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary' }}>
+                {kpis.activeOps > 0 ? Math.round(taskStats.total / kpis.activeOps) : 0}
+              </Typography>
+            </Stack>
+          </Paper>
+        )}
       </Box>
 
       {/* ── Summary chips (existing) ── */}
@@ -349,7 +517,57 @@ export default function ProductivityPage() {
         </Stack>
       )}
 
-      {/* ── Bar chart: Top 10 operators ── */}
+      {/* ── Movimientos por Tipo breakdown chart (NEW - #5) ── */}
+      {typeDistributionData.length > 0 && (
+        <Paper elevation={1} sx={{ ...ps.card, mb: 3 }}>
+          <Box sx={ps.cardHeader}>
+            <BarChartIcon sx={{ color: ps.isDark ? '#64B5F6' : '#1565C0', fontSize: 20 }} />
+            <Typography sx={ps.cardHeaderTitle}>Movimientos por Tipo</Typography>
+          </Box>
+          <Box sx={{ px: 2, pt: 2, pb: 1 }}>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={typeDistributionData} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={ps.isDark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.08)'} />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 12, fontWeight: 600, fill: ps.isDark ? '#B0BEC5' : '#546E7A' }}
+                  axisLine={{ stroke: ps.isDark ? 'rgba(255,255,255,.12)' : 'rgba(0,0,0,.12)' }}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: ps.isDark ? '#B0BEC5' : '#546E7A' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <RechartsTooltip
+                  contentStyle={{
+                    backgroundColor: ps.isDark ? '#112240' : '#fff',
+                    border: ps.isDark ? '1px solid rgba(255,255,255,.12)' : '1px solid rgba(0,0,0,.12)',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}
+                />
+                <Bar dataKey="value" name="Cantidad" radius={[4, 4, 0, 0]}>
+                  {typeDistributionData.map((entry, index) => (
+                    <Cell key={index} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            <Stack direction="row" spacing={3} justifyContent="center" sx={{ pb: 1, flexWrap: 'wrap' }}>
+              {Object.entries(TYPE_COLORS).map(([key, val]) => (
+                <Stack key={key} direction="row" spacing={0.5} alignItems="center">
+                  <Box sx={{ width: 12, height: 12, borderRadius: 1, bgcolor: val.fill }} />
+                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: 'text.secondary' }}>{val.label}</Typography>
+                </Stack>
+              ))}
+            </Stack>
+          </Box>
+        </Paper>
+      )}
+
+      {/* ── Bar chart: Top 10 operators (existing) ── */}
       {chartData.length > 0 && (
         <Paper elevation={1} sx={{ ...ps.card, mb: 3 }}>
           <Box sx={ps.cardHeader}>
@@ -429,7 +647,187 @@ export default function ProductivityPage() {
         </Paper>
       )}
 
-      {/* ── Operator cards grid ── */}
+      {/* ── Operator Ranking Table (NEW - #3, #4, #6, #8) ── */}
+      <Paper elevation={1} sx={{ ...ps.card, p: 0, overflowX: 'auto', mb: 3 }}>
+        <Box sx={ps.cardHeader}>
+          <EmojiEventsIcon sx={{ color: ps.isDark ? '#FCD34D' : '#E65100', fontSize: 20 }} />
+          <Typography sx={ps.cardHeaderTitle}>Ranking de Operadores</Typography>
+          <Typography sx={ps.cardHeaderSubtitle}>{'Periodo: ' + dateFrom + ' a ' + dateTo}</Typography>
+        </Box>
+        <TableContainer>
+          <Table size="small">
+            <TableHead>
+              <TableRow sx={ps.tableHeaderRow}>
+                <TableCell sx={{ width: 50 }}></TableCell>
+                <TableCell sx={{ width: 60 }}>Rank</TableCell>
+                <TableCell>Nombre</TableCell>
+                <TableCell align="right">Total Movimientos</TableCell>
+                <TableCell align="right">Entradas</TableCell>
+                <TableCell align="right">Salidas</TableCell>
+                <TableCell align="right">Transferencias</TableCell>
+                <TableCell align="right">Ajustes</TableCell>
+                <TableCell align="right">Tareas</TableCell>
+                <TableCell align="right">Total</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rankedOperators.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={10}>
+                    <Typography sx={ps.emptyText}>Sin datos de productividad.</Typography>
+                  </TableCell>
+                </TableRow>
+              )}
+              {rankedOperators.map((r, idx) => {
+                const medalIdx = getMedalIndex(r)
+                const medal = medalIdx >= 0 ? MEDAL_COLORS[medalIdx] : null
+                const operatorId = r.userId || r._id || r.id || r.email
+                const isExpanded = expandedOperator === operatorId
+
+                return (
+                  <React.Fragment key={operatorId || idx}>
+                    <TableRow
+                      sx={{
+                        ...ps.tableRow(idx),
+                        cursor: 'pointer',
+                        ...(medal ? {
+                          borderLeft: '3px solid ' + medal.border,
+                          bgcolor: medal.bg,
+                        } : {}),
+                      }}
+                      onClick={() => handleExpandOperator(operatorId)}
+                    >
+                      <TableCell sx={{ width: 50 }}>
+                        <IconButton size="small">
+                          {isExpanded ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
+                        </IconButton>
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                          {medal && (
+                            <EmojiEventsIcon sx={{ color: medal.icon, fontSize: 18 }} />
+                          )}
+                          <Typography sx={{ fontWeight: 800, fontSize: 14, color: 'text.primary' }}>
+                            {idx + 1}
+                          </Typography>
+                        </Stack>
+                      </TableCell>
+                      <TableCell>
+                        <Typography sx={{ fontWeight: 700, fontSize: 13, color: 'text.primary' }}>
+                          {r.name || r.email || '-'}
+                        </Typography>
+                        <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>
+                          {r.email || ''}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right" sx={ps.cellText}>{r.totalMovements}</TableCell>
+                      <TableCell align="right">
+                        <Typography sx={{ fontSize: 13, fontWeight: 600, color: TYPE_COLORS.IN.fill }}>{r.byType.IN}</Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography sx={{ fontSize: 13, fontWeight: 600, color: TYPE_COLORS.OUT.fill }}>{r.byType.OUT}</Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography sx={{ fontSize: 13, fontWeight: 600, color: TYPE_COLORS.TRANSFER.fill }}>{r.byType.TRANSFER}</Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography sx={{ fontSize: 13, fontWeight: 600, color: TYPE_COLORS.ADJUST.fill }}>{r.byType.ADJUST}</Typography>
+                      </TableCell>
+                      <TableCell align="right" sx={ps.cellText}>{r.totalTasks}</TableCell>
+                      <TableCell align="right">
+                        <Typography sx={{ fontWeight: 800, fontSize: 14, color: 'text.primary' }}>
+                          {r.totalCombined}
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+
+                    {/* ── Expanded operator detail row (NEW - #6) ── */}
+                    <TableRow>
+                      <TableCell colSpan={10} sx={{ py: 0, borderBottom: isExpanded ? undefined : 'none' }}>
+                        <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                          <Box sx={{ py: 2, px: 2 }}>
+                            {detailLoading && <LinearProgress sx={{ mb: 1 }} />}
+                            <Typography sx={{ fontWeight: 700, fontSize: 14, mb: 1.5, color: 'text.primary' }}>
+                              {'Detalle diario - ' + (r.name || r.email || '-')}
+                            </Typography>
+                            {operatorDetail && operatorDetail.byUser ? (
+                              <Box>
+                                {/* Show byType breakdown for this operator */}
+                                {(() => {
+                                  const userId = r.userId || r._id || r.id
+                                  const userData = operatorDetail.byUser[userId]
+                                  if (!userData) return (
+                                    <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
+                                      Sin datos detallados para este operador.
+                                    </Typography>
+                                  )
+                                  const bt = userData.byType || {}
+                                  return (
+                                    <Box>
+                                      <Stack direction="row" spacing={2} sx={{ mb: 1.5, flexWrap: 'wrap' }}>
+                                        <Chip label={'Total tareas: ' + (userData.total || 0)} sx={ps.metricChip('info')} size="small" />
+                                        {Object.entries(bt).map(([type, count]) => (
+                                          <Chip
+                                            key={type}
+                                            label={type + ': ' + count}
+                                            size="small"
+                                            sx={{
+                                              fontWeight: 700,
+                                              borderRadius: '8px',
+                                              bgcolor: TYPE_COLORS[type] ? TYPE_COLORS[type].fill + '22' : 'rgba(0,0,0,.05)',
+                                              color: TYPE_COLORS[type] ? TYPE_COLORS[type].fill : 'text.primary',
+                                              border: '1px solid ' + (TYPE_COLORS[type] ? TYPE_COLORS[type].fill + '44' : 'rgba(0,0,0,.12)'),
+                                            }}
+                                          />
+                                        ))}
+                                      </Stack>
+                                      {/* Type distribution bar for this operator */}
+                                      <Box sx={{ display: 'flex', height: 24, borderRadius: 2, overflow: 'hidden', mb: 1 }}>
+                                        {Object.entries(bt).filter(([, v]) => v > 0).map(([type, count]) => {
+                                          const total = Object.values(bt).reduce((s, v) => s + v, 0)
+                                          const pct = total > 0 ? (count / total) * 100 : 0
+                                          return (
+                                            <Tooltip key={type} title={(TYPE_COLORS[type]?.label || type) + ': ' + count + ' (' + Math.round(pct) + '%)'}>
+                                              <Box sx={{
+                                                width: pct + '%',
+                                                bgcolor: TYPE_COLORS[type]?.fill || '#999',
+                                                transition: 'width .3s ease',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                              }}>
+                                                {pct > 12 && (
+                                                  <Typography sx={{ fontSize: 10, fontWeight: 700, color: '#fff' }}>
+                                                    {Math.round(pct) + '%'}
+                                                  </Typography>
+                                                )}
+                                              </Box>
+                                            </Tooltip>
+                                          )
+                                        })}
+                                      </Box>
+                                    </Box>
+                                  )
+                                })()}
+                              </Box>
+                            ) : !detailLoading ? (
+                              <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
+                                Sin datos detallados disponibles.
+                              </Typography>
+                            ) : null}
+                          </Box>
+                        </Collapse>
+                      </TableCell>
+                    </TableRow>
+                  </React.Fragment>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Paper>
+
+      {/* ── Operator cards grid (existing) ── */}
       <Paper elevation={1} sx={{ ...ps.card, p: 0, overflow: 'hidden' }}>
         <Box sx={ps.cardHeader}>
           <Typography sx={ps.cardHeaderTitle}>Productividad por Operador</Typography>
@@ -449,9 +847,11 @@ export default function ProductivityPage() {
           }}
         >
           {paginated.map(function(r, idx) {
-            const total = (r.movementCount || 0) + (r.taskCount || 0)
+            const total = r.totalCombined
             const pct = maxTotal > 0 ? Math.round((total / maxTotal) * 100) : 0
-            const isTop = total === maxTotal && total > 0
+            const globalIdx = rankedOperators.indexOf(r)
+            const medalIdx = getMedalIndex(r)
+            const medal = medalIdx >= 0 ? MEDAL_COLORS[medalIdx] : null
 
             return (
               <Paper
@@ -460,10 +860,12 @@ export default function ProductivityPage() {
                 sx={{
                   p: 2,
                   borderRadius: 2.5,
-                  border: isTop
-                    ? (ps.isDark ? '1.5px solid rgba(245,158,11,.40)' : '1.5px solid rgba(245,158,11,.50)')
+                  border: medal
+                    ? ('1.5px solid ' + medal.border)
                     : (ps.isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(13,59,102,.08)'),
-                  bgcolor: ps.isDark ? 'rgba(17,34,64,.50)' : 'rgba(255,255,255,.80)',
+                  bgcolor: medal
+                    ? medal.bg
+                    : (ps.isDark ? 'rgba(17,34,64,.50)' : 'rgba(255,255,255,.80)'),
                   transition: 'transform .15s ease, box-shadow .15s ease',
                   '&:hover': {
                     transform: 'translateY(-2px)',
@@ -480,11 +882,21 @@ export default function ProductivityPage() {
                       sx={{
                         width: 36, height: 36, borderRadius: '50%',
                         display: 'grid', placeItems: 'center',
-                        bgcolor: ps.isDark ? 'rgba(66,165,245,.15)' : 'rgba(21,101,192,.08)',
-                        color: ps.isDark ? '#64B5F6' : '#1565C0',
+                        bgcolor: medal
+                          ? medal.border
+                          : (ps.isDark ? 'rgba(66,165,245,.15)' : 'rgba(21,101,192,.08)'),
+                        color: medal
+                          ? medal.icon
+                          : (ps.isDark ? '#64B5F6' : '#1565C0'),
                       }}
                     >
-                      <PersonIcon sx={{ fontSize: 20 }} />
+                      {medal ? (
+                        <Typography sx={{ fontWeight: 900, fontSize: 14, color: medal.icon }}>
+                          {'#' + (globalIdx + 1)}
+                        </Typography>
+                      ) : (
+                        <PersonIcon sx={{ fontSize: 20 }} />
+                      )}
                     </Box>
                     <Box>
                       <Typography sx={{ fontWeight: 700, fontSize: 14, color: 'text.primary', lineHeight: 1.2 }}>
@@ -495,9 +907,9 @@ export default function ProductivityPage() {
                       </Typography>
                     </Box>
                   </Stack>
-                  {isTop && (
-                    <Tooltip title="Operador mas productivo">
-                      <EmojiEventsIcon sx={{ color: '#F59E0B', fontSize: 20 }} />
+                  {medal && (
+                    <Tooltip title={medal.label}>
+                      <EmojiEventsIcon sx={{ color: medal.icon, fontSize: 20 }} />
                     </Tooltip>
                   )}
                 </Stack>
@@ -505,11 +917,11 @@ export default function ProductivityPage() {
                 {/* Metrics row */}
                 <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
                   <Box sx={{ flex: 1, textAlign: 'center', py: 0.75, borderRadius: 1.5, bgcolor: ps.isDark ? 'rgba(66,165,245,.08)' : 'rgba(21,101,192,.04)' }}>
-                    <Typography sx={{ fontSize: 18, fontWeight: 800, color: 'text.primary' }}>{r.movementCount || 0}</Typography>
+                    <Typography sx={{ fontSize: 18, fontWeight: 800, color: 'text.primary' }}>{r.totalMovements}</Typography>
                     <Typography sx={{ fontSize: 10, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase' }}>Movimientos</Typography>
                   </Box>
                   <Box sx={{ flex: 1, textAlign: 'center', py: 0.75, borderRadius: 1.5, bgcolor: ps.isDark ? 'rgba(34,197,94,.08)' : 'rgba(46,125,50,.04)' }}>
-                    <Typography sx={{ fontSize: 18, fontWeight: 800, color: 'text.primary' }}>{r.taskCount || 0}</Typography>
+                    <Typography sx={{ fontSize: 18, fontWeight: 800, color: 'text.primary' }}>{r.totalTasks}</Typography>
                     <Typography sx={{ fontSize: 10, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase' }}>Tareas</Typography>
                   </Box>
                   <Box sx={{ flex: 1, textAlign: 'center', py: 0.75, borderRadius: 1.5, bgcolor: ps.isDark ? 'rgba(245,158,11,.08)' : 'rgba(245,158,11,.04)' }}>
@@ -517,6 +929,28 @@ export default function ProductivityPage() {
                     <Typography sx={{ fontSize: 10, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase' }}>Picks</Typography>
                   </Box>
                 </Stack>
+
+                {/* Movement type mini-bar (NEW - #5 per card) */}
+                {(r.byType.IN + r.byType.OUT + r.byType.TRANSFER + r.byType.ADJUST) > 0 && (
+                  <Box sx={{ mb: 1.5 }}>
+                    <Typography sx={{ fontSize: 10, fontWeight: 600, color: 'text.secondary', mb: 0.5 }}>Distribucion por tipo</Typography>
+                    <Box sx={{ display: 'flex', height: 8, borderRadius: 999, overflow: 'hidden' }}>
+                      {Object.entries(r.byType).filter(([, v]) => v > 0).map(([type, count]) => {
+                        const typeTotal = r.byType.IN + r.byType.OUT + r.byType.TRANSFER + r.byType.ADJUST
+                        const typePct = typeTotal > 0 ? (count / typeTotal) * 100 : 0
+                        return (
+                          <Tooltip key={type} title={(TYPE_COLORS[type]?.label || type) + ': ' + count}>
+                            <Box sx={{
+                              width: typePct + '%',
+                              bgcolor: TYPE_COLORS[type]?.fill || '#999',
+                              transition: 'width .3s ease',
+                            }} />
+                          </Tooltip>
+                        )
+                      })}
+                    </Box>
+                  </Box>
+                )}
 
                 {/* Avg time chip */}
                 <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>

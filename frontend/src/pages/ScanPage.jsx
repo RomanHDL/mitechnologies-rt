@@ -1,9 +1,10 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/auth'
 import { api } from '../lib/api'
 import { Html5Qrcode } from 'html5-qrcode'
 import { usePageStyles } from '../ui/pageStyles'
+import dayjs from 'dayjs'
 
 import Box from '@mui/material/Box'
 import Paper from '@mui/material/Paper'
@@ -27,6 +28,16 @@ import TableHead from '@mui/material/TableHead'
 import TableBody from '@mui/material/TableBody'
 import TableRow from '@mui/material/TableRow'
 import TableCell from '@mui/material/TableCell'
+import MenuItem from '@mui/material/MenuItem'
+import Select from '@mui/material/Select'
+import FormControl from '@mui/material/FormControl'
+import InputLabel from '@mui/material/InputLabel'
+
+const STATUS_OPTIONS = [
+  { value: 'IN_STOCK', label: 'En Stock' },
+  { value: 'QUARANTINE', label: 'Cuarentena' },
+  { value: 'DAMAGED', label: 'Dañado' },
+]
 
 export default function ScanPage() {
   const { token } = useAuth()
@@ -43,11 +54,41 @@ export default function ScanPage() {
   /* ── Recent scans history (in-memory, last 10) ── */
   const [recentScans, setRecentScans] = useState([])
 
+  /* ── Today's scan counter (session) ── */
+  const [scanCount, setScanCount] = useState(0)
+
   /* ── Movement history modal ── */
   const [historyOpen, setHistoryOpen] = useState(false)
   const [historyData, setHistoryData] = useState([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyError, setHistoryError] = useState('')
+
+  /* ── Transfer dialog ── */
+  const [transferOpen, setTransferOpen] = useState(false)
+  const [transferLoading, setTransferLoading] = useState(false)
+  const [transferError, setTransferError] = useState('')
+  const [transferSuccess, setTransferSuccess] = useState('')
+  const [transferLocationId, setTransferLocationId] = useState('')
+  const [transferNote, setTransferNote] = useState('')
+  const [locations, setLocations] = useState([])
+  const [locationsLoading, setLocationsLoading] = useState(false)
+
+  /* ── Status change dialog ── */
+  const [statusOpen, setStatusOpen] = useState(false)
+  const [statusLoading, setStatusLoading] = useState(false)
+  const [statusError, setStatusError] = useState('')
+  const [statusSuccess, setStatusSuccess] = useState('')
+  const [newStatus, setNewStatus] = useState('')
+  const [statusNote, setStatusNote] = useState('')
+
+  /* ── Outbound dialog ── */
+  const [outOpen, setOutOpen] = useState(false)
+  const [outLoading, setOutLoading] = useState(false)
+  const [outError, setOutError] = useState('')
+  const [outSuccess, setOutSuccess] = useState('')
+  const [outDestType, setOutDestType] = useState('')
+  const [outDestRef, setOutDestRef] = useState('')
+  const [outNote, setOutNote] = useState('')
 
   const qrRef = useRef(null)
   const scannerRef = useRef(null)
@@ -55,13 +96,20 @@ export default function ScanPage() {
   const addToRecent = useCallback((palletData) => {
     setRecentScans((prev) => {
       const filtered = prev.filter((s) => s.code !== palletData.code)
-      const next = [{ code: palletData.code, status: palletData.status, _id: palletData._id }, ...filtered]
+      const next = [{
+        code: palletData.code,
+        status: palletData.status,
+        _id: palletData._id,
+        location: palletData.location
+          ? `${palletData.location.area}-${palletData.location.level}${palletData.location.position}`
+          : null,
+      }, ...filtered]
       return next.slice(0, 10)
     })
+    setScanCount((c) => c + 1)
   }, [])
 
   const fetchSuggest = useCallback(async (sku) => {
-    // placeholder for suggested-action logic (referenced in original)
     try {
       setSuggest(null)
       setSuggestErr('')
@@ -82,6 +130,29 @@ export default function ScanPage() {
     } catch (e) {
       setError(e?.response?.data?.message || 'No encontrado')
     }
+  }
+
+  /* ── Re-fetch pallet after an action ── */
+  const refreshPallet = async () => {
+    if (!result?.code) return
+    try {
+      const res = await client.get('/api/pallets/by-code', { params: { code: result.code } })
+      setResult(res.data)
+      // Update recent scans entry too
+      setRecentScans((prev) =>
+        prev.map((s) =>
+          s.code === res.data.code
+            ? {
+                ...s,
+                status: res.data.status,
+                location: res.data.location
+                  ? `${res.data.location.area}-${res.data.location.level}${res.data.location.position}`
+                  : null,
+              }
+            : s
+        )
+      )
+    } catch {}
   }
 
   const startScan = async () => {
@@ -113,11 +184,113 @@ export default function ScanPage() {
     } catch {}
   }
 
-  /* ── Quick-action handlers ── */
-  const handleTransfer = () => {
-    navigate('/movimientos')
+  /* ── Fetch locations for transfer dialog ── */
+  const fetchLocations = async () => {
+    setLocationsLoading(true)
+    try {
+      const res = await client.get('/api/locations')
+      const locs = Array.isArray(res.data) ? res.data : (res.data?.data || [])
+      setLocations(locs)
+    } catch {
+      setLocations([])
+    } finally {
+      setLocationsLoading(false)
+    }
   }
 
+  /* ── Quick-action handlers ── */
+
+  // Transfer
+  const handleOpenTransfer = () => {
+    setTransferOpen(true)
+    setTransferError('')
+    setTransferSuccess('')
+    setTransferLocationId('')
+    setTransferNote('')
+    fetchLocations()
+  }
+
+  const handleTransferSubmit = async () => {
+    if (!result?._id || !transferLocationId) return
+    setTransferLoading(true)
+    setTransferError('')
+    setTransferSuccess('')
+    try {
+      await client.patch(`/api/pallets/${result._id}/transfer`, {
+        toLocationId: transferLocationId,
+        note: transferNote,
+      })
+      setTransferSuccess('Transferencia realizada correctamente')
+      await refreshPallet()
+      setTimeout(() => setTransferOpen(false), 1200)
+    } catch (e) {
+      setTransferError(e?.response?.data?.message || 'Error al transferir')
+    } finally {
+      setTransferLoading(false)
+    }
+  }
+
+  // Status change
+  const handleOpenStatus = () => {
+    setStatusOpen(true)
+    setStatusError('')
+    setStatusSuccess('')
+    setNewStatus(result?.status || '')
+    setStatusNote('')
+  }
+
+  const handleStatusSubmit = async () => {
+    if (!result?._id || !newStatus) return
+    setStatusLoading(true)
+    setStatusError('')
+    setStatusSuccess('')
+    try {
+      await client.patch(`/api/pallets/${result._id}/status`, {
+        status: newStatus,
+        note: statusNote,
+      })
+      setStatusSuccess('Estatus actualizado correctamente')
+      await refreshPallet()
+      setTimeout(() => setStatusOpen(false), 1200)
+    } catch (e) {
+      setStatusError(e?.response?.data?.message || 'Error al cambiar estatus')
+    } finally {
+      setStatusLoading(false)
+    }
+  }
+
+  // Outbound
+  const handleOpenOut = () => {
+    setOutOpen(true)
+    setOutError('')
+    setOutSuccess('')
+    setOutDestType('')
+    setOutDestRef('')
+    setOutNote('')
+  }
+
+  const handleOutSubmit = async () => {
+    if (!result?._id || !outDestType) return
+    setOutLoading(true)
+    setOutError('')
+    setOutSuccess('')
+    try {
+      await client.post(`/api/pallets/${result._id}/out`, {
+        destinationType: outDestType,
+        destinationRef: outDestRef,
+        note: outNote,
+      })
+      setOutSuccess('Salida registrada correctamente')
+      await refreshPallet()
+      setTimeout(() => setOutOpen(false), 1200)
+    } catch (e) {
+      setOutError(e?.response?.data?.message || 'Error al registrar salida')
+    } finally {
+      setOutLoading(false)
+    }
+  }
+
+  // History
   const handleViewHistory = async () => {
     if (!result?._id) return
     setHistoryOpen(true)
@@ -151,9 +324,19 @@ export default function ScanPage() {
 
   const itemCount = (result?.items || []).reduce((sum, it) => sum + (it.qty || 0), 0)
 
+  /* ── Last movement date from result ── */
+  const lastMovementDate = result?.lastMovement || result?.updatedAt || result?.createdAt || null
+
   return (
     <Box>
-      <Typography variant="h6" sx={{ fontWeight: 900, mb:2, color: 'text.primary' }}>Escanear Tarima</Typography>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
+        <Typography variant="h6" sx={{ fontWeight: 900, color: 'text.primary' }}>Escanear Tarima</Typography>
+        <Chip
+          label={`${scanCount} escaneo${scanCount !== 1 ? 's' : ''} hoy`}
+          size="small"
+          sx={ps.metricChip('info')}
+        />
+      </Stack>
 
       <Paper elevation={0} sx={ps.card}>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.2fr 0.8fr' } }}>
@@ -192,21 +375,48 @@ export default function ScanPage() {
                 <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, mb: 0.5, display: 'block' }}>
                   Escaneos recientes
                 </Typography>
-                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
+                <Stack spacing={0.5}>
                   {recentScans.map((s) => (
-                    <Chip
+                    <Paper
                       key={s.code}
-                      label={s.code}
-                      size="small"
-                      onClick={() => { setCode(s.code); lookup(s.code) }}
+                      variant="outlined"
                       sx={{
-                        fontFamily: 'monospace',
-                        fontWeight: 700,
-                        fontSize: 11,
+                        p: 1,
+                        borderRadius: 2,
                         cursor: 'pointer',
-                        ...ps.statusChip(s.status || 'PENDIENTE'),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 1,
+                        '&:hover': {
+                          bgcolor: ps.isDark ? 'rgba(66,165,245,.06)' : 'rgba(21,101,192,.04)',
+                        },
                       }}
-                    />
+                      onClick={() => { setCode(s.code); lookup(s.code) }}
+                    >
+                      <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 12, color: 'text.primary' }}>
+                        {s.code}
+                      </Typography>
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        {s.location && (
+                          <Chip
+                            label={s.location}
+                            size="small"
+                            sx={{ fontSize: 10, fontFamily: 'monospace', fontWeight: 600, ...ps.metricChip('default'), height: 22 }}
+                          />
+                        )}
+                        <Chip
+                          label={s.status || 'SIN ESTATUS'}
+                          size="small"
+                          sx={{
+                            fontWeight: 700,
+                            fontSize: 10,
+                            height: 22,
+                            ...ps.statusChip(s.status || 'PENDIENTE'),
+                          }}
+                        />
+                      </Stack>
+                    </Paper>
                   ))}
                 </Stack>
               </Box>
@@ -235,6 +445,12 @@ export default function ScanPage() {
                       }}
                     />
                   </Stack>
+
+                  {/* ── Detail rows: lot, last movement ── */}
+                  {result.lot && <Row label="Lote" value={result.lot} mono />}
+                  {lastMovementDate && (
+                    <Row label="Último movimiento" value={dayjs(lastMovementDate).format('DD/MM/YYYY HH:mm')} />
+                  )}
 
                   {/* ── Location prominent display ── */}
                   {locationStr && (
@@ -271,14 +487,54 @@ export default function ScanPage() {
 
                   <Divider sx={{ my:1 }} />
 
+                  {/* ── Items mini table ── */}
+                  <Typography variant="subtitle2" sx={{ fontWeight: 900, color: 'text.primary' }}>Items</Typography>
+                  {(result.items || []).length > 0 ? (
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow sx={ps.tableHeaderRow}>
+                          <TableCell>SKU</TableCell>
+                          <TableCell align="right">Cantidad</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {(result.items || []).map((it, idx) => (
+                          <TableRow key={idx} sx={ps.tableRow(idx)}>
+                            <TableCell sx={{ fontFamily: 'monospace', fontWeight: 700, ...ps.cellText }}>
+                              {it.sku}
+                              {it.description && (
+                                <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+                                  {it.description}
+                                </Typography>
+                              )}
+                            </TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 900, ...ps.cellText }}>
+                              {it.qty}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>Sin items registrados.</Typography>
+                  )}
+
+                  <Divider sx={{ my:1 }} />
+
                   {/* ── Quick actions ── */}
                   <Typography variant="subtitle2" sx={{ fontWeight: 900, color: 'text.primary' }}>Acciones rápidas</Typography>
                   <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-                    <Button size="small" sx={ps.actionBtn('primary')} onClick={handleTransfer}>
+                    <Button size="small" sx={ps.actionBtn('primary')} onClick={handleOpenTransfer}>
                       Transferir
                     </Button>
+                    <Button size="small" sx={ps.actionBtn('warning')} onClick={handleOpenStatus}>
+                      Cambiar Status
+                    </Button>
+                    <Button size="small" sx={ps.actionBtn('error')} onClick={handleOpenOut}>
+                      Salida
+                    </Button>
                     <Button size="small" sx={ps.actionBtn('primary')} onClick={handleViewHistory}>
-                      Ver Historial
+                      Historial
                     </Button>
                     <Button size="small" sx={ps.actionBtn('success')} onClick={handlePrintLabel}>
                       Imprimir Etiqueta
@@ -289,21 +545,6 @@ export default function ScanPage() {
                       </Button>
                     )}
                   </Stack>
-
-                  <Divider sx={{ my:1 }} />
-
-                  {/* ── Items list ── */}
-                  <Typography variant="subtitle2" sx={{ fontWeight: 900, color: 'text.primary' }}>Items</Typography>
-                  {(result.items || []).map((it, idx) => (
-                    <Paper key={idx} variant="outlined" sx={{ p:1.2, borderRadius:2 }}>
-                      <Stack direction="row" justifyContent="space-between" sx={{ flexWrap: 'wrap' }}>
-                        <Typography sx={{ fontFamily:'monospace', fontWeight: 900, color: 'text.primary' }}>{it.sku}</Typography>
-                        <Typography sx={{ fontWeight: 900, color: 'text.primary' }}>{it.qty}</Typography>
-                      </Stack>
-                      {it.description ? <Typography variant="caption" sx={{ color: 'text.secondary' }}>{it.description}</Typography> : null}
-                      {it.serials?.length ? <Typography variant="caption" sx={{ color: 'text.secondary' }}>Seriales: {it.serials.join(', ')}</Typography> : null}
-                    </Paper>
-                  ))}
                 </Stack>
               </Paper>
             )}
@@ -340,6 +581,181 @@ export default function ScanPage() {
           </Box>
         </Box>
       </Paper>
+
+      {/* ── Transfer dialog ── */}
+      <Dialog
+        open={transferOpen}
+        onClose={() => setTransferOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 900 }}>
+          Transferir Tarima
+          {result?.code && (
+            <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
+              {result.code}
+            </Typography>
+          )}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            {transferError && <Alert severity="error">{transferError}</Alert>}
+            {transferSuccess && <Alert severity="success">{transferSuccess}</Alert>}
+            <FormControl fullWidth sx={ps.inputSx}>
+              <InputLabel>Ubicación destino</InputLabel>
+              <Select
+                value={transferLocationId}
+                onChange={(e) => setTransferLocationId(e.target.value)}
+                label="Ubicación destino"
+                disabled={locationsLoading}
+              >
+                {locationsLoading && <MenuItem value="" disabled>Cargando ubicaciones...</MenuItem>}
+                {locations.map((loc) => (
+                  <MenuItem key={loc._id} value={loc._id}>
+                    {loc.area}-{loc.level}{loc.position}
+                    {loc.status === 'DISPONIBLE' ? ' (Disponible)' : loc.status === 'OCUPADA' ? ' (Ocupada)' : ''}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <TextField
+              label="Nota (opcional)"
+              value={transferNote}
+              onChange={(e) => setTransferNote(e.target.value)}
+              multiline
+              rows={2}
+              sx={ps.inputSx}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTransferOpen(false)} disabled={transferLoading}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={handleTransferSubmit}
+            disabled={transferLoading || !transferLocationId}
+          >
+            {transferLoading ? <CircularProgress size={20} /> : 'Transferir'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Status change dialog ── */}
+      <Dialog
+        open={statusOpen}
+        onClose={() => setStatusOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 900 }}>
+          Cambiar Estatus
+          {result?.code && (
+            <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
+              {result.code}
+            </Typography>
+          )}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            {statusError && <Alert severity="error">{statusError}</Alert>}
+            {statusSuccess && <Alert severity="success">{statusSuccess}</Alert>}
+            <FormControl fullWidth sx={ps.inputSx}>
+              <InputLabel>Nuevo estatus</InputLabel>
+              <Select
+                value={newStatus}
+                onChange={(e) => setNewStatus(e.target.value)}
+                label="Nuevo estatus"
+              >
+                {STATUS_OPTIONS.map((opt) => (
+                  <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <TextField
+              label="Nota (opcional)"
+              value={statusNote}
+              onChange={(e) => setStatusNote(e.target.value)}
+              multiline
+              rows={2}
+              sx={ps.inputSx}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setStatusOpen(false)} disabled={statusLoading}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={handleStatusSubmit}
+            disabled={statusLoading || !newStatus}
+          >
+            {statusLoading ? <CircularProgress size={20} /> : 'Guardar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Outbound dialog ── */}
+      <Dialog
+        open={outOpen}
+        onClose={() => setOutOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 900 }}>
+          Registrar Salida
+          {result?.code && (
+            <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
+              {result.code}
+            </Typography>
+          )}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            {outError && <Alert severity="error">{outError}</Alert>}
+            {outSuccess && <Alert severity="success">{outSuccess}</Alert>}
+            <FormControl fullWidth sx={ps.inputSx}>
+              <InputLabel>Tipo de destino</InputLabel>
+              <Select
+                value={outDestType}
+                onChange={(e) => setOutDestType(e.target.value)}
+                label="Tipo de destino"
+              >
+                <MenuItem value="CLIENTE">Cliente</MenuItem>
+                <MenuItem value="PLANTA">Planta</MenuItem>
+                <MenuItem value="DEVOLUCION">Devolución</MenuItem>
+                <MenuItem value="OTRO">Otro</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              label="Referencia destino"
+              value={outDestRef}
+              onChange={(e) => setOutDestRef(e.target.value)}
+              placeholder="Ej: nombre del cliente, número de orden..."
+              sx={ps.inputSx}
+            />
+            <TextField
+              label="Nota (opcional)"
+              value={outNote}
+              onChange={(e) => setOutNote(e.target.value)}
+              multiline
+              rows={2}
+              sx={ps.inputSx}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOutOpen(false)} disabled={outLoading}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={handleOutSubmit}
+            disabled={outLoading || !outDestType}
+          >
+            {outLoading ? <CircularProgress size={20} /> : 'Registrar Salida'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* ── Movement history dialog ── */}
       <Dialog
@@ -385,7 +801,7 @@ export default function ScanPage() {
                     <TableCell sx={ps.cellText}>{mov.origin || mov.from || '—'}</TableCell>
                     <TableCell sx={ps.cellText}>{mov.destination || mov.to || '—'}</TableCell>
                     <TableCell sx={ps.cellTextSecondary}>
-                      {mov.createdAt ? new Date(mov.createdAt).toLocaleString('es-MX') : '—'}
+                      {mov.createdAt ? dayjs(mov.createdAt).format('DD/MM/YYYY HH:mm') : '—'}
                     </TableCell>
                     <TableCell>
                       <Chip

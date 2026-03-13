@@ -43,64 +43,100 @@ import LoopIcon from '@mui/icons-material/Loop'
 
 import dayjs from 'dayjs'
 
+/* ── Backend-aligned type options ── */
 const TYPE_OPTIONS = [
-  { value: '', label: 'Todos' },
-  { value: 'PICK', label: 'Picking' },
+  { value: '', label: 'Todas' },
   { value: 'PUTAWAY', label: 'Acomodo' },
-  { value: 'MOVE', label: 'Movimiento' },
+  { value: 'PICK', label: 'Picking' },
+  { value: 'TRANSFER', label: 'Transferencia' },
   { value: 'COUNT', label: 'Conteo' },
-  { value: 'RESTOCK', label: 'Reabastecimiento' },
-  { value: 'OTHER', label: 'Otro' },
+  { value: 'INSPECT', label: 'Inspeccion' },
+  { value: 'CUSTOM', label: 'Personalizada' },
 ]
+
+const TYPE_LABELS = {
+  PUTAWAY: 'Acomodo',
+  PICK: 'Picking',
+  TRANSFER: 'Transferencia',
+  COUNT: 'Conteo',
+  INSPECT: 'Inspeccion',
+  CUSTOM: 'Personalizada',
+}
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
-  { value: 'PENDIENTE', label: 'Pendiente' },
-  { value: 'ASIGNADA', label: 'Asignada' },
-  { value: 'EN PROCESO', label: 'En Proceso' },
-  { value: 'COMPLETADA', label: 'Completada' },
-  { value: 'CANCELADA', label: 'Cancelada' },
+  { value: 'PENDING', label: 'Pendiente' },
+  { value: 'ASSIGNED', label: 'Asignada' },
+  { value: 'IN_PROGRESS', label: 'En Progreso' },
+  { value: 'COMPLETED', label: 'Completada' },
+  { value: 'CANCELLED', label: 'Cancelada' },
 ]
+
+const STATUS_LABELS = {
+  PENDING: 'Pendiente',
+  ASSIGNED: 'Asignada',
+  IN_PROGRESS: 'En Progreso',
+  COMPLETED: 'Completada',
+  CANCELLED: 'Cancelada',
+}
 
 const PRIORITY_OPTIONS = [
   { value: '', label: 'Todas' },
-  { value: 'URGENTE', label: 'Urgente' },
-  { value: 'ALTA', label: 'Alta' },
+  { value: 'URGENT', label: 'Urgente' },
+  { value: 'HIGH', label: 'Alta' },
   { value: 'NORMAL', label: 'Normal' },
-  { value: 'MEDIA', label: 'Media' },
-  { value: 'BAJA', label: 'Baja' },
+  { value: 'LOW', label: 'Baja' },
 ]
 
-/* ── Priority color coding ── */
-function priorityTone(p) {
-  if (p === 'URGENTE') return 'bad'
-  if (p === 'ALTA') return 'warn'
-  if (p === 'NORMAL') return 'info'
-  if (p === 'MEDIA') return 'warn'
-  return 'default'
+const PRIORITY_LABELS = {
+  URGENT: 'Urgente',
+  HIGH: 'Alta',
+  NORMAL: 'Normal',
+  LOW: 'Baja',
 }
 
+/* ── Priority color coding ── */
 function priorityChipSx(p, isDark) {
   const d = isDark
   const map = {
-    URGENTE: { bg: d ? 'rgba(239,68,68,.18)' : '#FFEBEE', color: d ? '#FCA5A5' : '#C62828', border: d ? 'rgba(239,68,68,.30)' : 'rgba(198,40,40,.30)' },
-    ALTA:    { bg: d ? 'rgba(245,158,11,.18)' : '#FFF3E0', color: d ? '#FCD34D' : '#E65100', border: d ? 'rgba(245,158,11,.30)' : 'rgba(245,158,11,.35)' },
-    NORMAL:  { bg: d ? 'rgba(66,165,245,.15)' : '#E3F2FD', color: d ? '#64B5F6' : '#1565C0', border: d ? 'rgba(66,165,245,.25)' : 'rgba(21,101,192,.25)' },
-    MEDIA:   { bg: d ? 'rgba(245,158,11,.12)' : '#FFF8E1', color: d ? '#FCD34D' : '#E65100', border: d ? 'rgba(245,158,11,.20)' : 'rgba(245,158,11,.25)' },
-    BAJA:    { bg: d ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.04)', color: d ? '#B0BEC5' : '#607D8B', border: d ? 'rgba(255,255,255,.10)' : 'rgba(0,0,0,.12)' },
+    URGENT: { bg: d ? 'rgba(239,68,68,.18)' : '#FFEBEE', color: d ? '#FCA5A5' : '#C62828', border: d ? 'rgba(239,68,68,.30)' : 'rgba(198,40,40,.30)' },
+    HIGH:   { bg: d ? 'rgba(245,158,11,.18)' : '#FFF3E0', color: d ? '#FCD34D' : '#E65100', border: d ? 'rgba(245,158,11,.30)' : 'rgba(245,158,11,.35)' },
+    NORMAL: { bg: d ? 'rgba(66,165,245,.15)' : '#E3F2FD', color: d ? '#64B5F6' : '#1565C0', border: d ? 'rgba(66,165,245,.25)' : 'rgba(21,101,192,.25)' },
+    LOW:    { bg: d ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.04)', color: d ? '#B0BEC5' : '#607D8B', border: d ? 'rgba(255,255,255,.10)' : 'rgba(0,0,0,.12)' },
   }
-  const s = map[p] || map.BAJA
-  return { bgcolor: s.bg, color: s.color, border: `1px solid ${s.border}`, fontWeight: 700 }
+  const s = map[p] || map.NORMAL
+  const base = { bgcolor: s.bg, color: s.color, border: `1px solid ${s.border}`, fontWeight: 700 }
+  if (p === 'URGENT') {
+    base.animation = 'urgentPulse 1.5s ease-in-out infinite'
+    base['@keyframes urgentPulse'] = {
+      '0%, 100%': { opacity: 1 },
+      '50%': { opacity: 0.65 },
+    }
+  }
+  return base
 }
 
-/* ── Aging helper for pending tasks ── */
+/* ── Status chip mapping for backend values ── */
+function statusChipKey(st) {
+  const map = {
+    PENDING: 'PENDIENTE',
+    ASSIGNED: 'PENDIENTE',
+    IN_PROGRESS: 'EN PROCESO',
+    COMPLETED: 'COMPLETADA',
+    CANCELLED: 'CANCELADA',
+  }
+  return map[st] || 'PENDIENTE'
+}
+
+/* ── Aging helper ── */
 function agingLabel(createdAt) {
   const now = dayjs()
   const created = dayjs(createdAt)
+  const diffMin = now.diff(created, 'minute')
   const diffHours = now.diff(created, 'hour')
   const diffDays = now.diff(created, 'day')
 
-  if (diffHours < 1) return 'hace menos de 1 hora'
+  if (diffMin < 60) return `hace ${Math.max(1, diffMin)}m`
   if (diffHours < 24) return `hace ${diffHours}h`
   if (diffDays === 1) return 'hace 1 dia'
   return `hace ${diffDays} dias`
@@ -109,17 +145,35 @@ function agingLabel(createdAt) {
 function agingColor(createdAt, isDark) {
   const now = dayjs()
   const created = dayjs(createdAt)
-  const diffDays = now.diff(created, 'day', true)
+  const diffHours = now.diff(created, 'hour', true)
 
-  if (diffDays < 1) return isDark ? '#86EFAC' : '#2E7D32'   // green
-  if (diffDays <= 3) return isDark ? '#FCD34D' : '#E65100'   // yellow/amber
-  return isDark ? '#FCA5A5' : '#C62828'                       // red
+  if (diffHours < 1) return isDark ? '#86EFAC' : '#2E7D32'       // green
+  if (diffHours < 4) return isDark ? '#FCD34D' : '#E65100'       // yellow
+  if (diffHours < 24) return isDark ? '#FDBA74' : '#E65100'      // orange
+  return isDark ? '#FCA5A5' : '#C62828'                           // red
+}
+
+/* ── Type chip color ── */
+function typeChipSx(type, isDark) {
+  const d = isDark
+  const map = {
+    PUTAWAY:   { bg: d ? 'rgba(34,197,94,.12)' : '#E8F5E9', color: d ? '#86EFAC' : '#2E7D32', border: d ? 'rgba(34,197,94,.20)' : 'rgba(46,125,50,.20)' },
+    PICK:      { bg: d ? 'rgba(66,165,245,.12)' : '#E3F2FD', color: d ? '#64B5F6' : '#1565C0', border: d ? 'rgba(66,165,245,.20)' : 'rgba(21,101,192,.20)' },
+    TRANSFER:  { bg: d ? 'rgba(171,71,188,.12)' : '#F3E5F5', color: d ? '#CE93D8' : '#7B1FA2', border: d ? 'rgba(171,71,188,.20)' : 'rgba(123,31,162,.20)' },
+    COUNT:     { bg: d ? 'rgba(245,158,11,.12)' : '#FFF8E1', color: d ? '#FCD34D' : '#E65100', border: d ? 'rgba(245,158,11,.20)' : 'rgba(245,158,11,.25)' },
+    INSPECT:   { bg: d ? 'rgba(239,68,68,.12)' : '#FFEBEE', color: d ? '#FCA5A5' : '#C62828', border: d ? 'rgba(239,68,68,.20)' : 'rgba(198,40,40,.20)' },
+    CUSTOM:    { bg: d ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.04)', color: d ? '#B0BEC5' : '#607D8B', border: d ? 'rgba(255,255,255,.10)' : 'rgba(0,0,0,.12)' },
+  }
+  const s = map[type] || map.CUSTOM
+  return { bgcolor: s.bg, color: s.color, border: `1px solid ${s.border}`, fontWeight: 700 }
 }
 
 export default function TasksPage() {
   const { token, user } = useAuth()
   const ps = usePageStyles()
   const client = useMemo(() => api(token), [token])
+
+  const isAdminOrSupervisor = user?.role === 'ADMIN' || user?.role === 'SUPERVISOR'
 
   const [rows, setRows] = useState([])
   const [q, setQ] = useState('')
@@ -130,18 +184,30 @@ export default function TasksPage() {
   const [page, setPage] = useState(1)
   const pageSize = 12
 
+  /* ── Create dialog state ── */
   const [openCreate, setOpenCreate] = useState(false)
   const [taskType, setTaskType] = useState('PICK')
-  const [taskPriority, setTaskPriority] = useState('MEDIA')
+  const [taskPriority, setTaskPriority] = useState('NORMAL')
+  const [taskTitle, setTaskTitle] = useState('')
   const [taskDescription, setTaskDescription] = useState('')
-  const [taskLocation, setTaskLocation] = useState('')
+  const [taskAssigneeId, setTaskAssigneeId] = useState('')
+  const [taskPalletId, setTaskPalletId] = useState('')
+  const [taskLocationId, setTaskLocationId] = useState('')
+  const [taskTargetLocationId, setTaskTargetLocationId] = useState('')
   const [createErr, setCreateErr] = useState('')
 
+  /* ── Assign dialog state ── */
   const [openAssign, setOpenAssign] = useState(false)
   const [assignTask, setAssignTask] = useState(null)
-  const [assignEmail, setAssignEmail] = useState('')
+  const [assignUserId, setAssignUserId] = useState('')
   const [assignErr, setAssignErr] = useState('')
 
+  /* ── Complete dialog state ── */
+  const [openComplete, setOpenComplete] = useState(false)
+  const [completeTaskObj, setCompleteTaskObj] = useState(null)
+  const [completeNotes, setCompleteNotes] = useState('')
+
+  /* ── Detail dialog state ── */
   const [selected, setSelected] = useState(null)
   const [showDetail, setShowDetail] = useState(false)
 
@@ -158,53 +224,46 @@ export default function TasksPage() {
     }
   }, [client])
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
-      const res = await client.get('/api/tasks')
-      setRows(Array.isArray(res.data) ? res.data : [])
+      const params = {}
+      if (myTasksOnly) params.mine = 1
+      if (statusFilter) params.status = statusFilter
+      if (typeFilter) params.type = typeFilter
+      const res = await client.get('/api/tasks', { params })
+      const data = res.data?.data || res.data
+      setRows(Array.isArray(data) ? data : [])
     } catch (e) { console.error('Error loading tasks:', e) }
-  }
+  }, [client, myTasksOnly, statusFilter, typeFilter])
 
-  useEffect(() => { load(); loadUsers() }, [token])
+  useEffect(() => { load(); loadUsers() }, [load, loadUsers])
 
-  /* ── Filtering ── */
+  /* ── Client-side filtering (priority + text search) ── */
   const filtered = useMemo(() => {
     let list = rows
-    if (myTasksOnly && user?.email) {
-      list = list.filter(r => (r.assignedTo?.email || '').toLowerCase() === user.email.toLowerCase())
-    }
     if (q) {
       const qq = q.toLowerCase()
       list = list.filter(r =>
+        (r.title || '').toLowerCase().includes(qq) ||
         (r.description || '').toLowerCase().includes(qq) ||
         (r.type || '').toLowerCase().includes(qq) ||
         (r.assignedTo?.email || '').toLowerCase().includes(qq) ||
-        (r.location || '').toLowerCase().includes(qq)
+        (r.assignedTo?.fullName || '').toLowerCase().includes(qq) ||
+        (r.pallet?.code || '').toLowerCase().includes(qq) ||
+        (r.location?.code || '').toLowerCase().includes(qq)
       )
     }
-    if (typeFilter) list = list.filter(r => (r.type || '') === typeFilter)
-    if (statusFilter) list = list.filter(r => (r.status || '') === statusFilter)
     if (priorityFilter) list = list.filter(r => (r.priority || '') === priorityFilter)
     return list
-  }, [rows, q, typeFilter, statusFilter, priorityFilter, myTasksOnly, user])
+  }, [rows, q, priorityFilter])
 
+  /* ── KPI summary from full data ── */
   const resumen = useMemo(() => ({
     total: filtered.length,
-    pendientes: filtered.filter(r => (r.status || '') === 'PENDIENTE').length,
-    asignadas: filtered.filter(r => (r.status || '') === 'ASIGNADA').length,
-    enProceso: filtered.filter(r => (r.status || '') === 'EN PROCESO').length,
-    completadas: filtered.filter(r => (r.status || '') === 'COMPLETADA').length,
+    pendientes: filtered.filter(r => r.status === 'PENDING' || r.status === 'ASSIGNED').length,
+    enProgreso: filtered.filter(r => r.status === 'IN_PROGRESS').length,
+    completadas: filtered.filter(r => r.status === 'COMPLETED').length,
   }), [filtered])
-
-  /* ── KPI: completadas hoy ── */
-  const completadasHoy = useMemo(() => {
-    const todayStr = dayjs().format('YYYY-MM-DD')
-    return rows.filter(r =>
-      (r.status || '') === 'COMPLETADA' &&
-      r.completedAt &&
-      dayjs(r.completedAt).format('YYYY-MM-DD') === todayStr
-    ).length
-  }, [rows])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const paginated = useMemo(() => {
@@ -214,60 +273,87 @@ export default function TasksPage() {
 
   useEffect(() => { if (page > totalPages) setPage(totalPages) }, [totalPages, page])
 
+  /* ── Create task ── */
   const handleCreate = async () => {
     setCreateErr('')
-    if (!taskDescription.trim()) { setCreateErr('Descripcion requerida'); return }
+    if (!taskTitle.trim()) { setCreateErr('Titulo requerido'); return }
     try {
-      await client.post('/api/tasks', {
+      const body = {
         type: taskType,
         priority: taskPriority,
+        title: taskTitle,
         description: taskDescription,
-        location: taskLocation,
-      })
+      }
+      if (taskAssigneeId) body.assignedToId = taskAssigneeId
+      if (taskPalletId) body.palletId = taskPalletId
+      if (taskLocationId) body.locationId = taskLocationId
+      if (taskTargetLocationId) body.targetLocationId = taskTargetLocationId
+      await client.post('/api/tasks', body)
       setOpenCreate(false)
-      setTaskDescription(''); setTaskLocation('')
+      setTaskTitle(''); setTaskDescription(''); setTaskAssigneeId('')
+      setTaskPalletId(''); setTaskLocationId(''); setTaskTargetLocationId('')
+      setTaskType('PICK'); setTaskPriority('NORMAL')
       await load()
     } catch (e) { setCreateErr(e?.response?.data?.message || 'Error al crear') }
   }
 
+  /* ── Assign task ── */
   const openAssignDialog = (task) => {
     setAssignTask(task)
-    setAssignEmail('')
+    setAssignUserId('')
     setAssignErr('')
     setOpenAssign(true)
   }
 
   const handleAssign = async () => {
     setAssignErr('')
-    if (!assignEmail.trim()) { setAssignErr('Email requerido'); return }
+    if (!assignUserId) { setAssignErr('Seleccione un operador'); return }
     if (!assignTask) return
     try {
-      await client.patch('/api/tasks/' + (assignTask.id || assignTask._id) + '/assign', { email: assignEmail })
+      await client.patch('/api/tasks/' + (assignTask.id || assignTask._id) + '/assign', { assignedToId: assignUserId })
       setOpenAssign(false)
       await load()
     } catch (e) { setAssignErr(e?.response?.data?.message || 'Error al asignar') }
   }
 
+  /* ── Start task ── */
   const startTask = async (id) => {
     try { await client.patch('/api/tasks/' + id + '/start'); await load() }
     catch (e) { console.error('Error:', e) }
   }
 
-  const completeTask = async (id) => {
-    try { await client.patch('/api/tasks/' + id + '/complete'); await load() }
-    catch (e) { console.error('Error:', e) }
+  /* ── Complete task (with notes dialog) ── */
+  const openCompleteDialog = (task) => {
+    setCompleteTaskObj(task)
+    setCompleteNotes('')
+    setOpenComplete(true)
   }
 
+  const handleComplete = async () => {
+    if (!completeTaskObj) return
+    const id = completeTaskObj.id || completeTaskObj._id
+    try {
+      await client.patch('/api/tasks/' + id + '/complete', { notes: completeNotes || undefined })
+      setOpenComplete(false)
+      await load()
+    } catch (e) { console.error('Error:', e) }
+  }
+
+  /* ── Cancel task ── */
   const cancelTask = async (id) => {
     try { await client.patch('/api/tasks/' + id + '/cancel'); await load() }
     catch (e) { console.error('Error:', e) }
   }
 
+  /* ── Detail dialog ── */
   const openDetail = (r) => { setSelected(r); setShowDetail(true) }
   const closeDetail = () => setShowDetail(false)
 
   return (
     <Box sx={ps.page}>
+      {/* ── Pulsing keyframes for URGENT badges ── */}
+      <style>{`@keyframes urgentPulse { 0%,100%{opacity:1} 50%{opacity:.6} }`}</style>
+
       {/* ── Page Header ── */}
       <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'flex-start', md: 'center' }} justifyContent="space-between" sx={{ mb: 2 }} spacing={1.5}>
         <Box>
@@ -293,7 +379,9 @@ export default function TasksPage() {
               } : {}),
             }}
           />
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenCreate(true)} sx={{ borderRadius: 2 }}>Crear Tarea</Button>
+          {isAdminOrSupervisor && (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenCreate(true)} sx={{ borderRadius: 2 }}>Crear Tarea</Button>
+          )}
         </Stack>
       </Stack>
 
@@ -304,7 +392,7 @@ export default function TasksPage() {
             <Stack spacing={0.5}>
               <Stack direction="row" alignItems="center" spacing={1}>
                 <AssignmentIcon sx={{ color: ps.isDark ? '#64B5F6' : '#1565C0', fontSize: 22 }} />
-                <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Total Tareas</Typography>
+                <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Total</Typography>
               </Stack>
               <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>{resumen.total}</Typography>
             </Stack>
@@ -326,9 +414,9 @@ export default function TasksPage() {
             <Stack spacing={0.5}>
               <Stack direction="row" alignItems="center" spacing={1}>
                 <LoopIcon sx={{ color: ps.isDark ? '#64B5F6' : '#1565C0', fontSize: 22 }} />
-                <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>En Proceso</Typography>
+                <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>En Progreso</Typography>
               </Stack>
-              <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>{resumen.enProceso}</Typography>
+              <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>{resumen.enProgreso}</Typography>
             </Stack>
           </Paper>
         </Grid>
@@ -337,72 +425,103 @@ export default function TasksPage() {
             <Stack spacing={0.5}>
               <Stack direction="row" alignItems="center" spacing={1}>
                 <CheckCircleOutlineIcon sx={{ color: ps.isDark ? '#86EFAC' : '#2E7D32', fontSize: 22 }} />
-                <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Completadas Hoy</Typography>
+                <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Completadas</Typography>
               </Stack>
-              <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>{completadasHoy}</Typography>
+              <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>{resumen.completadas}</Typography>
             </Stack>
           </Paper>
         </Grid>
       </Grid>
 
-      {/* ── Existing metric chips row ── */}
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2, flexWrap: 'wrap' }}>
-        <Chip label={'Total: ' + resumen.total} sx={ps.metricChip('info')} />
-        <Chip label={'Pendientes: ' + resumen.pendientes} sx={ps.metricChip('warn')} />
-        <Chip label={'Asignadas: ' + resumen.asignadas} sx={ps.metricChip('default')} />
-        <Chip label={'En Proceso: ' + resumen.enProceso} sx={ps.metricChip('info')} />
-        <Chip label={'Completadas: ' + resumen.completadas} sx={ps.metricChip('ok')} />
+      {/* ── Type filter chips ── */}
+      <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
+        {TYPE_OPTIONS.map(o => (
+          <Chip
+            key={o.value}
+            label={o.label}
+            clickable
+            size="small"
+            variant={typeFilter === o.value ? 'filled' : 'outlined'}
+            onClick={() => setTypeFilter(o.value)}
+            sx={{
+              fontWeight: 700,
+              ...(typeFilter === o.value ? {
+                bgcolor: ps.isDark ? 'rgba(66,165,245,.25)' : '#1565C0',
+                color: '#fff',
+                '&:hover': { bgcolor: ps.isDark ? 'rgba(66,165,245,.35)' : '#0D47A1' },
+              } : {}),
+            }}
+          />
+        ))}
       </Stack>
 
-      {/* ── Filters ── */}
+      {/* ── Priority filter chips ── */}
+      <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
+        {PRIORITY_OPTIONS.map(o => (
+          <Chip
+            key={o.value}
+            label={o.label}
+            clickable
+            size="small"
+            variant={priorityFilter === o.value ? 'filled' : 'outlined'}
+            onClick={() => setPriorityFilter(o.value)}
+            sx={{
+              fontWeight: 700,
+              ...(priorityFilter === o.value
+                ? (o.value
+                    ? priorityChipSx(o.value, ps.isDark)
+                    : { bgcolor: ps.isDark ? 'rgba(66,165,245,.25)' : '#1565C0', color: '#fff', '&:hover': { bgcolor: ps.isDark ? 'rgba(66,165,245,.35)' : '#0D47A1' } })
+                : {}),
+            }}
+          />
+        ))}
+      </Stack>
+
+      {/* ── Search + Status filter ── */}
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 2 }}>
-        <TextField label="Buscar descripcion, tipo o asignado" value={q} onChange={e => setQ(e.target.value)} sx={{ ...ps.inputSx, minWidth: 260 }} />
-        <TextField select label="Tipo" value={typeFilter} onChange={e => setTypeFilter(e.target.value)} sx={{ ...ps.inputSx, minWidth: 140 }}>
-          {TYPE_OPTIONS.map(o => (<MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>))}
-        </TextField>
+        <TextField label="Buscar titulo, descripcion o asignado" value={q} onChange={e => setQ(e.target.value)} sx={{ ...ps.inputSx, minWidth: 280 }} />
         <TextField select label="Status" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} sx={{ ...ps.inputSx, minWidth: 150 }}>
           {STATUS_OPTIONS.map(o => (<MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>))}
-        </TextField>
-        <TextField select label="Prioridad" value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)} sx={{ ...ps.inputSx, minWidth: 140 }}>
-          {PRIORITY_OPTIONS.map(o => (<MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>))}
         </TextField>
       </Stack>
 
       {/* ── Tasks Table ── */}
       <Paper elevation={1} sx={{ ...ps.card, p: 0, overflowX: 'auto' }}>
-        <Table size="small" sx={{ minWidth: 1050 }}>
+        <Table size="small" sx={{ minWidth: 1100 }}>
           <TableHead><TableRow sx={ps.tableHeaderRow}>
             <TableCell>Tipo</TableCell>
             <TableCell>Prioridad</TableCell>
-            <TableCell>Descripcion</TableCell>
-            <TableCell>Ubicacion</TableCell>
+            <TableCell>Titulo</TableCell>
             <TableCell>Asignado</TableCell>
             <TableCell>Status</TableCell>
-            <TableCell>Fecha</TableCell>
+            <TableCell>Creada</TableCell>
             <TableCell>Antiguedad</TableCell>
             <TableCell sx={{ textAlign: 'center' }}>Acciones</TableCell>
           </TableRow></TableHead>
           <TableBody>
             {paginated.map((r, idx) => {
               const id = r.id || r._id
-              const st = r.status || 'PENDIENTE'
-              const isDone = st === 'COMPLETADA' || st === 'CANCELADA'
-              const canStart = st === 'ASIGNADA'
-              const canComplete = st === 'EN PROCESO'
-              const canAssign = st === 'PENDIENTE'
-              const isPending = st === 'PENDIENTE' || st === 'ASIGNADA' || st === 'EN PROCESO'
+              const st = r.status || 'PENDING'
+              const isDone = st === 'COMPLETED' || st === 'CANCELLED'
+              const canAssign = st === 'PENDING'
+              const canStart = st === 'PENDING' || st === 'ASSIGNED'
+              const canComplete = st === 'IN_PROGRESS'
+              const isPending = st === 'PENDING' || st === 'ASSIGNED' || st === 'IN_PROGRESS'
               return (
                 <TableRow key={id} sx={ps.tableRow(idx)}>
-                  <TableCell sx={ps.cellText}><Chip size="small" label={r.type || 'OTHER'} sx={ps.metricChip('default')} /></TableCell>
                   <TableCell sx={ps.cellText}>
-                    <Chip size="small" label={r.priority || 'MEDIA'} sx={priorityChipSx(r.priority || 'MEDIA', ps.isDark)} />
+                    <Chip size="small" label={TYPE_LABELS[r.type] || r.type || '-'} sx={typeChipSx(r.type, ps.isDark)} />
                   </TableCell>
-                  <TableCell sx={{ ...ps.cellText, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <Tooltip title={r.description || '-'}><span>{r.description || '-'}</span></Tooltip>
+                  <TableCell sx={ps.cellText}>
+                    <Chip size="small" label={PRIORITY_LABELS[r.priority] || r.priority || 'Normal'} sx={priorityChipSx(r.priority || 'NORMAL', ps.isDark)} />
                   </TableCell>
-                  <TableCell sx={ps.cellText}>{r.location || '-'}</TableCell>
-                  <TableCell sx={ps.cellTextSecondary}>{r.assignedTo?.email || '-'}</TableCell>
-                  <TableCell sx={ps.cellText}><Chip size="small" label={st} sx={ps.statusChip(st)} /></TableCell>
+                  <TableCell sx={{ ...ps.cellText, maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Tooltip title={r.title || r.description || '-'}><span>{r.title || r.description || '-'}</span></Tooltip>
+                  </TableCell>
+                  <TableCell sx={ps.cellTextSecondary}>{r.assignedTo?.fullName || r.assignedTo?.email || '-'}</TableCell>
+                  <TableCell sx={ps.cellText}>
+                    <Chip size="small" label={STATUS_LABELS[st] || st} sx={ps.statusChip(statusChipKey(st))} />
+                  </TableCell>
                   <TableCell sx={ps.cellTextSecondary}>{dayjs(r.createdAt).format('YYYY-MM-DD HH:mm')}</TableCell>
                   <TableCell>
                     {isPending && r.createdAt ? (
@@ -422,13 +541,13 @@ export default function TasksPage() {
                     <Tooltip title="Ver detalle"><IconButton size="small" sx={ps.actionBtn('primary')} onClick={() => openDetail(r)}><InfoIcon fontSize="small" /></IconButton></Tooltip>
                     {canAssign && (<Tooltip title="Asignar"><IconButton size="small" sx={ps.actionBtn('warning')} onClick={() => openAssignDialog(r)}><PersonAddIcon fontSize="small" /></IconButton></Tooltip>)}
                     {canStart && (<Tooltip title="Iniciar"><IconButton size="small" sx={ps.actionBtn('primary')} onClick={() => startTask(id)}><PlayArrowIcon fontSize="small" /></IconButton></Tooltip>)}
-                    {canComplete && (<Tooltip title="Completar"><IconButton size="small" sx={ps.actionBtn('success')} onClick={() => completeTask(id)}><DoneIcon fontSize="small" /></IconButton></Tooltip>)}
+                    {canComplete && (<Tooltip title="Completar"><IconButton size="small" sx={ps.actionBtn('success')} onClick={() => openCompleteDialog(r)}><DoneIcon fontSize="small" /></IconButton></Tooltip>)}
                     {!isDone && (<Tooltip title="Cancelar"><IconButton size="small" sx={ps.actionBtn('error')} onClick={() => cancelTask(id)}><CancelIcon fontSize="small" /></IconButton></Tooltip>)}
                   </TableCell>
                 </TableRow>
               )
             })}
-            {!paginated.length && (<TableRow><TableCell colSpan={9}><Typography sx={ps.emptyText}>Sin tareas para mostrar.</Typography></TableCell></TableRow>)}
+            {!paginated.length && (<TableRow><TableCell colSpan={8}><Typography sx={ps.emptyText}>Sin tareas para mostrar.</Typography></TableCell></TableRow>)}
           </TableBody>
         </Table>
         <Stack direction="row" spacing={2} alignItems="center" justifyContent="center" sx={{ py: 2 }}>
@@ -444,30 +563,42 @@ export default function TasksPage() {
         <DialogContent dividers>
           {selected && (
             <Stack spacing={1.5} sx={{ pt: 1 }}>
-              <Typography variant="body2" sx={ps.cellText}><b>Tipo:</b> {selected.type || '-'}</Typography>
-              <Typography variant="body2" sx={ps.cellText}><b>Prioridad:</b> <Chip size="small" label={selected.priority || 'MEDIA'} sx={priorityChipSx(selected.priority || 'MEDIA', ps.isDark)} /></Typography>
-              <Typography variant="body2" sx={ps.cellText}><b>Status:</b> <Chip size="small" label={selected.status || 'PENDIENTE'} sx={ps.statusChip(selected.status || 'PENDIENTE')} /></Typography>
+              <Typography variant="body2" sx={ps.cellText}>
+                <b>Tipo:</b> <Chip size="small" label={TYPE_LABELS[selected.type] || selected.type || '-'} sx={typeChipSx(selected.type, ps.isDark)} />
+              </Typography>
+              <Typography variant="body2" sx={ps.cellText}>
+                <b>Prioridad:</b> <Chip size="small" label={PRIORITY_LABELS[selected.priority] || selected.priority || 'Normal'} sx={priorityChipSx(selected.priority || 'NORMAL', ps.isDark)} />
+              </Typography>
+              <Typography variant="body2" sx={ps.cellText}>
+                <b>Status:</b> <Chip size="small" label={STATUS_LABELS[selected.status] || selected.status || 'Pendiente'} sx={ps.statusChip(statusChipKey(selected.status || 'PENDING'))} />
+              </Typography>
+              <Divider />
+              <Typography variant="body2" sx={ps.cellText}><b>Titulo:</b> {selected.title || '-'}</Typography>
               <Typography variant="body2" sx={ps.cellText}><b>Descripcion:</b> {selected.description || '-'}</Typography>
-              <Typography variant="body2" sx={ps.cellText}><b>Ubicacion:</b> {selected.location || '-'}</Typography>
-              <Typography variant="body2" sx={ps.cellTextSecondary}><b>Asignado a:</b> {selected.assignedTo?.email || '-'}</Typography>
-              <Typography variant="body2" sx={ps.cellTextSecondary}><b>Creado por:</b> {selected.createdBy?.email || '-'}</Typography>
-              <Typography variant="body2" sx={ps.cellTextSecondary}><b>Fecha creacion:</b> {dayjs(selected.createdAt).format('YYYY-MM-DD HH:mm')}</Typography>
-              {selected.createdAt && (['PENDIENTE', 'ASIGNADA', 'EN PROCESO'].includes(selected.status)) && (
+              <Divider />
+              <Typography variant="body2" sx={ps.cellTextSecondary}><b>Asignado a:</b> {selected.assignedTo?.fullName || selected.assignedTo?.email || '-'}</Typography>
+              <Typography variant="body2" sx={ps.cellTextSecondary}><b>Pallet:</b> {selected.pallet?.code || selected.palletId || '-'}</Typography>
+              <Typography variant="body2" sx={ps.cellTextSecondary}><b>Ubicacion origen:</b> {selected.location?.code || selected.locationId || '-'}</Typography>
+              <Typography variant="body2" sx={ps.cellTextSecondary}><b>Ubicacion destino:</b> {selected.targetLocation?.code || selected.targetLocationId || '-'}</Typography>
+              <Divider />
+              <Typography variant="body2" sx={ps.cellTextSecondary}><b>Creada:</b> {dayjs(selected.createdAt).format('YYYY-MM-DD HH:mm:ss')}</Typography>
+              {selected.createdAt && (['PENDING', 'ASSIGNED', 'IN_PROGRESS'].includes(selected.status)) && (
                 <Typography variant="body2" sx={{ fontWeight: 700, color: agingColor(selected.createdAt, ps.isDark) }}>
                   <b>Antiguedad:</b> {agingLabel(selected.createdAt)}
                 </Typography>
               )}
-              {selected.startedAt && <Typography variant="body2" sx={ps.cellTextSecondary}><b>Iniciada:</b> {dayjs(selected.startedAt).format('YYYY-MM-DD HH:mm')}</Typography>}
-              {selected.completedAt && <Typography variant="body2" sx={ps.cellTextSecondary}><b>Completada:</b> {dayjs(selected.completedAt).format('YYYY-MM-DD HH:mm')}</Typography>}
+              {selected.startedAt && <Typography variant="body2" sx={ps.cellTextSecondary}><b>Iniciada:</b> {dayjs(selected.startedAt).format('YYYY-MM-DD HH:mm:ss')}</Typography>}
+              {selected.completedAt && <Typography variant="body2" sx={ps.cellTextSecondary}><b>Completada:</b> {dayjs(selected.completedAt).format('YYYY-MM-DD HH:mm:ss')}</Typography>}
+              {selected.notes && <Typography variant="body2" sx={ps.cellText}><b>Notas:</b> {selected.notes}</Typography>}
             </Stack>
           )}
         </DialogContent>
         <DialogActions><Button variant="contained" onClick={closeDetail}>Cerrar</Button></DialogActions>
       </Dialog>
 
-      {/* ── Create Dialog ── */}
+      {/* ── Create Dialog (ADMIN/SUPERVISOR only) ── */}
       <Dialog open={openCreate} onClose={() => setOpenCreate(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Crear Tarea</DialogTitle>
+        <DialogTitle sx={ps.pageTitle}>Crear Tarea</DialogTitle>
         <DialogContent>
           {createErr && <Alert severity="error" sx={{ mb: 2 }}>{createErr}</Alert>}
           <Stack spacing={2} sx={{ mt: 1 }}>
@@ -477,8 +608,21 @@ export default function TasksPage() {
             <TextField select label="Prioridad" value={taskPriority} onChange={e => setTaskPriority(e.target.value)} sx={ps.inputSx} fullWidth>
               {PRIORITY_OPTIONS.filter(o => o.value).map(o => (<MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>))}
             </TextField>
-            <TextField label="Descripcion" value={taskDescription} onChange={e => setTaskDescription(e.target.value)} sx={ps.inputSx} fullWidth multiline rows={3} />
-            <TextField label="Ubicacion (opcional)" value={taskLocation} onChange={e => setTaskLocation(e.target.value)} sx={ps.inputSx} fullWidth />
+            <TextField label="Titulo" value={taskTitle} onChange={e => setTaskTitle(e.target.value)} sx={ps.inputSx} fullWidth required />
+            <TextField label="Descripcion (opcional)" value={taskDescription} onChange={e => setTaskDescription(e.target.value)} sx={ps.inputSx} fullWidth multiline rows={3} />
+            {usersList.length > 0 && (
+              <TextField select label="Asignar a (opcional)" value={taskAssigneeId} onChange={e => setTaskAssigneeId(e.target.value)} sx={ps.inputSx} fullWidth>
+                <MenuItem value="">Sin asignar</MenuItem>
+                {usersList.map(u => (
+                  <MenuItem key={u.id || u._id} value={u.id || u._id}>
+                    {u.fullName || u.email}{u.role ? ` (${u.role})` : ''}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+            <TextField label="ID Pallet (opcional)" value={taskPalletId} onChange={e => setTaskPalletId(e.target.value)} sx={ps.inputSx} fullWidth />
+            <TextField label="ID Ubicacion origen (opcional)" value={taskLocationId} onChange={e => setTaskLocationId(e.target.value)} sx={ps.inputSx} fullWidth />
+            <TextField label="ID Ubicacion destino (opcional)" value={taskTargetLocationId} onChange={e => setTaskTargetLocationId(e.target.value)} sx={ps.inputSx} fullWidth />
           </Stack>
         </DialogContent>
         <DialogActions>
@@ -489,22 +633,22 @@ export default function TasksPage() {
 
       {/* ── Assign Dialog (with user dropdown) ── */}
       <Dialog open={openAssign} onClose={() => setOpenAssign(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Asignar Tarea</DialogTitle>
+        <DialogTitle sx={ps.pageTitle}>Asignar Tarea</DialogTitle>
         <DialogContent>
           {assignErr && <Alert severity="error" sx={{ mb: 2 }}>{assignErr}</Alert>}
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <Typography variant="body2" sx={ps.cellText}><b>Tarea:</b> {assignTask?.description || '-'}</Typography>
+            <Typography variant="body2" sx={ps.cellText}><b>Tarea:</b> {assignTask?.title || assignTask?.description || '-'}</Typography>
             {usersList.length > 0 ? (
               <TextField
                 select
                 label="Operador"
-                value={assignEmail}
-                onChange={e => setAssignEmail(e.target.value)}
+                value={assignUserId}
+                onChange={e => setAssignUserId(e.target.value)}
                 sx={ps.inputSx}
                 fullWidth
               >
                 {usersList.map(u => (
-                  <MenuItem key={u.id || u._id || u.email} value={u.email}>
+                  <MenuItem key={u.id || u._id} value={u.id || u._id}>
                     <Stack direction="row" spacing={1} alignItems="center">
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>{u.fullName || u.email}</Typography>
                       {u.fullName && (
@@ -518,13 +662,36 @@ export default function TasksPage() {
                 ))}
               </TextField>
             ) : (
-              <TextField label="Email del operador" value={assignEmail} onChange={e => setAssignEmail(e.target.value)} sx={ps.inputSx} fullWidth />
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>No hay usuarios disponibles.</Typography>
             )}
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenAssign(false)}>Cancelar</Button>
-          <Button variant="contained" onClick={handleAssign}>Asignar</Button>
+          <Button variant="contained" onClick={handleAssign} disabled={!assignUserId}>Asignar</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Complete Dialog (with notes) ── */}
+      <Dialog open={openComplete} onClose={() => setOpenComplete(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={ps.pageTitle}>Completar Tarea</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Typography variant="body2" sx={ps.cellText}><b>Tarea:</b> {completeTaskObj?.title || completeTaskObj?.description || '-'}</Typography>
+            <TextField
+              label="Notas de cierre (opcional)"
+              value={completeNotes}
+              onChange={e => setCompleteNotes(e.target.value)}
+              sx={ps.inputSx}
+              fullWidth
+              multiline
+              rows={3}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenComplete(false)}>Cancelar</Button>
+          <Button variant="contained" color="success" onClick={handleComplete}>Completar</Button>
         </DialogActions>
       </Dialog>
     </Box>

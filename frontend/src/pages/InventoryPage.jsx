@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/auth'
 import { api } from '../lib/api'
 import { usePageStyles } from '../ui/pageStyles'
+import * as XLSX from 'xlsx'
 
 import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
@@ -29,6 +30,10 @@ import Snackbar from '@mui/material/Snackbar'
 import Switch from '@mui/material/Switch'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import CircularProgress from '@mui/material/CircularProgress'
+import Grid from '@mui/material/Grid'
+import Select from '@mui/material/Select'
+import InputLabel from '@mui/material/InputLabel'
+import FormControl from '@mui/material/FormControl'
 
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -46,10 +51,13 @@ import CloseIcon from '@mui/icons-material/Close'
 import HistoryIcon from '@mui/icons-material/History'
 import RoomIcon from '@mui/icons-material/Room'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz'
+import InventoryIcon from '@mui/icons-material/Inventory'
+import TableChartIcon from '@mui/icons-material/TableChart'
+import AddIcon from '@mui/icons-material/Add'
+import RemoveIcon from '@mui/icons-material/Remove'
 
-/**
- * Helpers (solo frontend)
- */
+/* ─── Helpers ─── */
 function safeUpper(s) {
   return String(s || '').trim().toUpperCase()
 }
@@ -63,20 +71,13 @@ function normalizeRackCode(input) {
   return s
 }
 
-// Acepta:
-// - SKU (TV-55-4K)
-// - Rack F059 / 59
-// - Ubicación A1-F059-012 (o A1 F59 12)
-// - Lote (cualquier texto)
 function smartParse(input) {
   const raw = safeUpper(input)
   if (!raw) return null
 
-  // exacto A1-F059-012
   let m = raw.match(/^(A1|A2|A3|A4|B2|C3)-(F\d{3})-(\d{3})$/)
   if (m) return { type: 'LOCATION_CODE', value: raw }
 
-  // A1 F59 12
   const cleaned = raw.replace(/[_/\\]+/g, ' ').replace(/-+/g, ' ').trim()
   const parts = cleaned.split(/\s+/).filter(Boolean)
   if (parts.length >= 3 && /^(A1|A2|A3|A4|B2|C3)$/.test(parts[0])) {
@@ -88,11 +89,9 @@ function smartParse(input) {
     }
   }
 
-  // rack solo
   const rk2 = normalizeRackCode(raw)
   if (/^F\d{3}$/.test(rk2)) return { type: 'RACK', value: rk2 }
 
-  // si parece SKU/texto
   if (/^[A-Z0-9][A-Z0-9-_]{1,}$/.test(raw) && raw.length >= 3) return { type: 'SKU_OR_TEXT', value: raw }
 
   return { type: 'TEXT', value: raw }
@@ -128,6 +127,19 @@ function statusUI(status) {
     label: 'Disponible',
     chipSx: { bgcolor: '#dcfce7', color: '#166534' }
   }
+}
+
+/** Backend status label + color mapping */
+const BACKEND_STATUS_MAP = {
+  IN_STOCK:   { label: 'En Stock',     color: 'success' },
+  QUARANTINE: { label: 'Cuarentena',   color: 'warning' },
+  DAMAGED:    { label: 'Dañada',       color: 'error'   },
+  RETURNED:   { label: 'Devuelta',     color: 'info'    },
+  OUT:        { label: 'Salida',       color: 'default'  },
+}
+
+function backendStatusLabel(s) {
+  return BACKEND_STATUS_MAP[s]?.label || s || '—'
 }
 
 function getAreaFromLocationCode(locCode) {
@@ -183,60 +195,90 @@ function daysSince(dt) {
   return Math.floor((Date.now() - d) / (24 * 60 * 60 * 1000))
 }
 
+/** Build location display string from pallet */
+function locationDisplay(p) {
+  const loc = p?.location
+  if (!loc) return '—'
+  if (loc.code) return loc.code
+  const parts = [loc.area, loc.rack, loc.level, loc.position].filter(Boolean)
+  return parts.length ? parts.join('-') : '—'
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   InventoryPage – Enterprise Inventory Management
+   ═══════════════════════════════════════════════════════════════ */
 export default function InventoryPage() {
   const { token, user } = useAuth()
   const nav = useNavigate()
   const ps = usePageStyles()
 
-  // lo tuyo
+  // core data
   const [q, setQ] = useState('')
   const [rows, setRows] = useState([])
 
-  // extras pro (UI)
+  // UI state
   const [loading, setLoading] = useState(false)
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null)
 
-  // modo operador/admin (UI)
+  // operator mode
   const [operatorMode, setOperatorMode] = useState(() => localStorage.getItem('inv_operator_mode') === '1')
 
-  // vista
-  const [view, setView] = useState('TABLE') // TABLE | MAP
+  // view mode
+  const [view, setView] = useState('TABLE')
 
-  // filtros
-  const [statusFilter, setStatusFilter] = useState('') // DISPONIBLE | BAJO | AGOTADO
+  // filters
+  const [statusFilter, setStatusFilter] = useState('')       // frontend qty-based: DISPONIBLE | BAJO | AGOTADO
+  const [backendStatusFilter, setBackendStatusFilter] = useState('') // backend status: IN_STOCK | QUARANTINE | DAMAGED | RETURNED | OUT
   const [areaFilter, setAreaFilter] = useState('')
   const [rackFilter, setRackFilter] = useState('')
   const [lotFilter, setLotFilter] = useState('')
-  const [sortBy, setSortBy] = useState('RECENT') // RECENT | QTY_DESC | QTY_ASC | CODE
+  const [sortBy, setSortBy] = useState('RECENT')
+  const [showStaleOnly, setShowStaleOnly] = useState(false)
 
-  // detalle
+  // detail dialog
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState(null)
 
-  // feedback copy
+  // snackbar
   const [snack, setSnack] = useState('')
 
-  // NUEVO: historial movimientos (por pallet o por SKU)
+  // movements dialog
   const [movOpen, setMovOpen] = useState(false)
   const [movLoading, setMovLoading] = useState(false)
   const [movErr, setMovErr] = useState('')
   const [movRows, setMovRows] = useState([])
-  const [movMode, setMovMode] = useState('PALLET') // PALLET | SKU
+  const [movMode, setMovMode] = useState('PALLET')
   const [movSku, setMovSku] = useState('')
 
-  // NUEVO: alertas reales "sin movimiento"
+  // no-move (stale inventory)
   const [noMoveDays, setNoMoveDays] = useState(() => Number(localStorage.getItem('inv_nomove_days') || '30'))
   const [noMoveLoading, setNoMoveLoading] = useState(false)
   const [noMoveErr, setNoMoveErr] = useState('')
-  const [noMoveList, setNoMoveList] = useState([]) // [{palletId,palletCode,lastMovementAt,daysSince,inactive}]
+  const [noMoveList, setNoMoveList] = useState([])
   const [noMoveOpen, setNoMoveOpen] = useState(false)
+
+  // change status dialog
+  const [statusDlgOpen, setStatusDlgOpen] = useState(false)
+  const [statusDlgPallet, setStatusDlgPallet] = useState(null)
+  const [statusDlgValue, setStatusDlgValue] = useState('IN_STOCK')
+  const [statusDlgNote, setStatusDlgNote] = useState('')
+  const [statusDlgLoading, setStatusDlgLoading] = useState(false)
+
+  // adjust inventory dialog
+  const [adjustDlgOpen, setAdjustDlgOpen] = useState(false)
+  const [adjustDlgPallet, setAdjustDlgPallet] = useState(null)
+  const [adjustDlgItems, setAdjustDlgItems] = useState([])
+  const [adjustDlgLoading, setAdjustDlgLoading] = useState(false)
 
   const client = useMemo(() => api(token), [token])
 
+  const canAdmin = ['ADMIN', 'SUPERVISOR'].includes(user?.role)
+
+  /* ─── Data loading ─── */
   const load = async () => {
     setLoading(true)
     try {
-      const res = await client.get('/api/pallets', { params: { q } }) // tu query sigue igual
+      const res = await client.get('/api/pallets', { params: { q } })
       setRows(Array.isArray(res.data) ? res.data : [])
       setLastUpdatedAt(new Date())
     } finally {
@@ -245,16 +287,52 @@ export default function InventoryPage() {
   }
 
   useEffect(() => {
-    // mantiene tu comportamiento: recarga cuando q cambia
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, q])
 
-  // Resumen superior
+  /* ─── No-move ─── */
+  const loadNoMove = async (days = noMoveDays) => {
+    setNoMoveLoading(true)
+    setNoMoveErr('')
+    try {
+      const res = await client.get('/api/movements/no-move', { params: { days, limit: 500 } })
+      setNoMoveList(Array.isArray(res.data) ? res.data : [])
+    } catch (e) {
+      setNoMoveErr(e?.response?.data?.message || e?.message || 'Error cargando "sin movimiento"')
+      setNoMoveList([])
+    } finally {
+      setNoMoveLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadNoMove(noMoveDays)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
+
+  useEffect(() => {
+    localStorage.setItem('inv_nomove_days', String(noMoveDays || 30))
+  }, [noMoveDays])
+
+  useEffect(() => {
+    localStorage.setItem('inv_operator_mode', operatorMode ? '1' : '0')
+  }, [operatorMode])
+
+  /* ─── Stale pallet IDs set for fast lookup ─── */
+  const stalePalletIds = useMemo(() => {
+    const s = new Set()
+    for (const x of noMoveList) {
+      if (x.palletId) s.add(String(x.palletId))
+    }
+    return s
+  }, [noMoveList])
+
+  /* ─── Summary / KPIs ─── */
   const resumen = useMemo(() => {
     let total = rows.length
     let bajo = 0, agotado = 0, disponible = 0
-
+    let inStock = 0, quarantine = 0, damaged = 0, returned = 0, out = 0
     let palletsConUbicacion = 0
     let totalQty = 0
     const skuSet = new Set()
@@ -267,6 +345,15 @@ export default function InventoryPage() {
       else if (qty < 5) bajo++
       else disponible++
 
+      // count backend statuses
+      const bs = safeUpper(p.status)
+      if (bs === 'IN_STOCK') inStock++
+      else if (bs === 'QUARANTINE') quarantine++
+      else if (bs === 'DAMAGED') damaged++
+      else if (bs === 'RETURNED') returned++
+      else if (bs === 'OUT') out++
+      else inStock++ // default to in_stock if no status
+
       if (p?.location?.code) palletsConUbicacion++
 
       for (const it of (p.items || [])) {
@@ -275,39 +362,39 @@ export default function InventoryPage() {
     }
 
     return {
-      total,
-      bajo,
-      agotado,
-      disponible,
-      totalQty,
-      uniqueSkus: skuSet.size,
-      palletsConUbicacion
+      total, bajo, agotado, disponible,
+      inStock, quarantine, damaged, returned, out,
+      totalQty, uniqueSkus: skuSet.size, palletsConUbicacion
     }
   }, [rows])
 
-  // filas enriquecidas
+  /* ─── Enriched rows ─── */
   const enriched = useMemo(() => {
     return rows.map((p) => {
       const qty = sumQty(p.items)
       const status = statusFromQty(qty)
-      const locCode = p?.location?.code || ''
+      const locCode = locationDisplay(p)
       const area = getAreaFromLocationCode(locCode)
       const rack = getRackFromLocationCode(locCode)
       const slot = getSlotFromLocationCode(locCode)
       const lot = p?.lot || ''
       const itemsText = (p.items || []).map(it => `${it.sku}(${it.qty})`).join(', ')
       const mainSku = (p.items && p.items[0] && p.items[0].sku) ? String(p.items[0].sku) : ''
-      return { ...p, _qty: qty, _status: status, _locCode: locCode, _area: area, _rack: rack, _slot: slot, _lot: lot, _itemsText: itemsText, _mainSku: mainSku }
+      const backendStatus = safeUpper(p.status) || 'IN_STOCK'
+      return { ...p, _qty: qty, _status: status, _locCode: locCode, _area: area, _rack: rack, _slot: slot, _lot: lot, _itemsText: itemsText, _mainSku: mainSku, _backendStatus: backendStatus }
     })
   }, [rows])
 
+  /* ─── Filtered + sorted rows ─── */
   const filtered = useMemo(() => {
     let list = enriched
 
     if (statusFilter) list = list.filter(p => p._status === statusFilter)
+    if (backendStatusFilter) list = list.filter(p => p._backendStatus === backendStatusFilter)
     if (areaFilter) list = list.filter(p => p._area === areaFilter)
     if (rackFilter) list = list.filter(p => safeUpper(p._rack) === safeUpper(rackFilter))
     if (lotFilter) list = list.filter(p => safeUpper(p._lot).includes(safeUpper(lotFilter)))
+    if (showStaleOnly) list = list.filter(p => stalePalletIds.has(String(p._id)))
 
     if (sortBy === 'QTY_DESC') list = [...list].sort((a, b) => (b._qty || 0) - (a._qty || 0))
     if (sortBy === 'QTY_ASC') list = [...list].sort((a, b) => (a._qty || 0) - (b._qty || 0))
@@ -321,9 +408,9 @@ export default function InventoryPage() {
     }
 
     return list
-  }, [enriched, statusFilter, areaFilter, rackFilter, lotFilter, sortBy])
+  }, [enriched, statusFilter, backendStatusFilter, areaFilter, rackFilter, lotFilter, sortBy, showStaleOnly, stalePalletIds])
 
-  // Alertas UI (más plus: sin movimiento)
+  /* ─── Alerts ─── */
   const alerts = useMemo(() => {
     const res = []
     if (resumen.agotado > 0) res.push({ key: 'agotado', label: `Agotado: ${resumen.agotado}`, tone: 'error', action: () => setStatusFilter('AGOTADO') })
@@ -334,7 +421,7 @@ export default function InventoryPage() {
     return res.slice(0, 4)
   }, [resumen, noMoveList.length, noMoveDays])
 
-  // smart hint
+  /* ─── Smart search hint ─── */
   const smartHint = useMemo(() => {
     const p = smartParse(q)
     if (!p) return null
@@ -362,12 +449,38 @@ export default function InventoryPage() {
 
   const clearFilters = () => {
     setStatusFilter('')
+    setBackendStatusFilter('')
     setAreaFilter('')
     setRackFilter('')
     setLotFilter('')
     setSortBy('RECENT')
+    setShowStaleOnly(false)
   }
 
+  /* ─── Excel Export ─── */
+  const exportFilteredExcel = () => {
+    const header = ['Código', 'Ubicación', 'Estado (Backend)', 'Estado (Qty)', 'Cantidad', 'Items', 'Lote', 'Área', 'Rack', 'Última actualización']
+    const body = filtered.map(p => ([
+      p.code || '',
+      p._locCode || '—',
+      backendStatusLabel(p._backendStatus),
+      statusUI(p._status).label,
+      p._qty || 0,
+      p._itemsText || '',
+      p._lot || '—',
+      p._area || '—',
+      p._rack || '—',
+      formatDateTime(p.updatedAt || p.createdAt)
+    ]))
+    const ws = XLSX.utils.aoa_to_sheet([header, ...body])
+    // auto column widths
+    ws['!cols'] = header.map((_, i) => ({ wch: Math.max(header[i].length, 14) }))
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Inventario')
+    XLSX.writeFile(wb, `inventario_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+
+  /* ─── CSV Export (legacy) ─── */
   const exportFilteredCSV = () => {
     const header = ['Código', 'Ubicación', 'Estado', 'Cantidad', 'Items', 'Lote', 'Área', 'Rack']
     const body = filtered.map(p => ([
@@ -383,6 +496,7 @@ export default function InventoryPage() {
     downloadCSV(`inventario_${new Date().toISOString().slice(0, 10)}.csv`, [header, ...body])
   }
 
+  /* ─── Detail dialog ─── */
   const openDetail = (p) => {
     setSelected(p)
     setOpen(true)
@@ -397,7 +511,7 @@ export default function InventoryPage() {
     }
   }
 
-  // grid simple por rack
+  /* ─── Map model ─── */
   const mapModel = useMemo(() => {
     const racks = new Map()
     for (const p of filtered) {
@@ -413,38 +527,7 @@ export default function InventoryPage() {
     return list
   }, [filtered])
 
-  useEffect(() => {
-    localStorage.setItem('inv_operator_mode', operatorMode ? '1' : '0')
-  }, [operatorMode])
-
-  const canAdmin = ['ADMIN', 'SUPERVISOR'].includes(user?.role)
-
-  // NUEVO: cargar no-move real
-  const loadNoMove = async (days = noMoveDays) => {
-    setNoMoveLoading(true)
-    setNoMoveErr('')
-    try {
-      const res = await client.get('/api/movements/no-move', { params: { days, limit: 500 } })
-      setNoMoveList(Array.isArray(res.data) ? res.data : [])
-    } catch (e) {
-      setNoMoveErr(e?.response?.data?.message || e?.message || 'Error cargando "sin movimiento"')
-      setNoMoveList([])
-    } finally {
-      setNoMoveLoading(false)
-    }
-  }
-
-  // NUEVO: inicializa "no move" al entrar (modo seguro: si endpoint no existe, no rompe)
-  useEffect(() => {
-    loadNoMove(noMoveDays)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token])
-
-  useEffect(() => {
-    localStorage.setItem('inv_nomove_days', String(noMoveDays || 30))
-  }, [noMoveDays])
-
-  // NUEVO: abrir movimientos por pallet
+  /* ─── Movements for pallet ─── */
   const openMovementsForPallet = async (pallet) => {
     if (!pallet?._id) return
     setMovMode('PALLET')
@@ -454,7 +537,7 @@ export default function InventoryPage() {
     setMovErr('')
     setMovRows([])
     try {
-      const res = await client.get(`/api/pallets/${pallet._id}/movements`, { params: { limit: 200 } })
+      const res = await client.get(`/api/movements`, { params: { palletId: pallet._id, limit: 200 } })
       setMovRows(Array.isArray(res.data) ? res.data : [])
     } catch (e) {
       setMovErr(e?.response?.data?.message || e?.message || 'No se pudieron cargar movimientos')
@@ -463,7 +546,7 @@ export default function InventoryPage() {
     }
   }
 
-  // NUEVO: buscar movimientos por SKU
+  /* ─── Movements by SKU ─── */
   const searchMovementsBySku = async () => {
     const sku = safeUpper(movSku)
     if (!sku) return
@@ -482,16 +565,85 @@ export default function InventoryPage() {
     }
   }
 
-  // NUEVO: abrir en Racks (navegar)
+  /* ─── Navigate to racks ─── */
   const openInRacks = (locCode) => {
     const rack = getRackFromLocationCode(locCode)
     if (!rack) return
     nav('/racks', { state: { rackCode: rack, highlight: safeUpper(locCode) } })
   }
 
+  /* ─── Change Status ─── */
+  const openChangeStatus = (pallet) => {
+    setStatusDlgPallet(pallet)
+    setStatusDlgValue(pallet._backendStatus || pallet.status || 'IN_STOCK')
+    setStatusDlgNote('')
+    setStatusDlgOpen(true)
+  }
+
+  const submitChangeStatus = async () => {
+    if (!statusDlgPallet?._id) return
+    setStatusDlgLoading(true)
+    try {
+      await client.patch(`/api/pallets/${statusDlgPallet._id}/status`, {
+        status: statusDlgValue,
+        note: statusDlgNote || undefined
+      })
+      setSnack(`Status cambiado a ${backendStatusLabel(statusDlgValue)}`)
+      setStatusDlgOpen(false)
+      load() // reload data
+    } catch (e) {
+      setSnack(e?.response?.data?.message || e?.message || 'Error al cambiar status')
+    } finally {
+      setStatusDlgLoading(false)
+    }
+  }
+
+  /* ─── Adjust Inventory ─── */
+  const openAdjustInventory = (pallet) => {
+    setAdjustDlgPallet(pallet)
+    setAdjustDlgItems((pallet.items || []).map(it => ({ sku: it.sku || '', qty: it.qty || 0 })))
+    setAdjustDlgOpen(true)
+  }
+
+  const updateAdjustItem = (index, field, value) => {
+    setAdjustDlgItems(prev => {
+      const copy = [...prev]
+      copy[index] = { ...copy[index], [field]: field === 'qty' ? Number(value) || 0 : value }
+      return copy
+    })
+  }
+
+  const addAdjustItem = () => {
+    setAdjustDlgItems(prev => [...prev, { sku: '', qty: 0 }])
+  }
+
+  const removeAdjustItem = (index) => {
+    setAdjustDlgItems(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const submitAdjustInventory = async () => {
+    if (!adjustDlgPallet?._id) return
+    const validItems = adjustDlgItems.filter(it => it.sku && it.qty >= 0)
+    if (!validItems.length) { setSnack('Agrega al menos un item válido'); return }
+    setAdjustDlgLoading(true)
+    try {
+      await client.post(`/api/pallets/${adjustDlgPallet._id}/adjust`, validItems)
+      setSnack('Inventario ajustado correctamente')
+      setAdjustDlgOpen(false)
+      load()
+    } catch (e) {
+      setSnack(e?.response?.data?.message || e?.message || 'Error al ajustar inventario')
+    } finally {
+      setAdjustDlgLoading(false)
+    }
+  }
+
+  /* ═══════════════════════════════════════════
+     RENDER
+     ═══════════════════════════════════════════ */
   return (
     <Box>
-      {/* HEADER PRO */}
+      {/* ─── HEADER ─── */}
       <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 2, mb: 2 }}>
         <Box>
           <Typography variant="h6" sx={ps.pageTitle}>
@@ -515,6 +667,12 @@ export default function InventoryPage() {
             </IconButton>
           </Tooltip>
 
+          <Tooltip title="Exportar Excel (filtrado)">
+            <IconButton onClick={exportFilteredExcel} sx={ps.actionBtn('primary')}>
+              <TableChartIcon color="primary" />
+            </IconButton>
+          </Tooltip>
+
           <Tooltip title="Exportar CSV (filtrado)">
             <IconButton onClick={exportFilteredCSV} sx={ps.actionBtn('primary')}>
               <DownloadIcon color="primary" />
@@ -523,7 +681,47 @@ export default function InventoryPage() {
         </Stack>
       </Box>
 
-      {/* ALERTAS */}
+      {/* ─── 5 KPI CARDS ─── */}
+      <Box sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(5, 1fr)' },
+        gap: 2,
+        mb: 2
+      }}>
+        <Paper elevation={0} onClick={() => { setBackendStatusFilter(''); setStatusFilter('') }} sx={ps.kpiCard('blue')}>
+          <Typography variant="subtitle2" sx={ps.pageSubtitle}>Total Tarimas</Typography>
+          <Typography variant="h4" sx={{ fontWeight: 900, color: 'text.primary' }}>{resumen.total}</Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            SKUs únicos: <b>{resumen.uniqueSkus}</b>
+          </Typography>
+        </Paper>
+
+        <Paper elevation={0} onClick={() => { setBackendStatusFilter('IN_STOCK'); setStatusFilter('') }} sx={ps.kpiCard('green')}>
+          <Typography variant="subtitle2" sx={ps.pageSubtitle}>En Stock</Typography>
+          <Typography variant="h4" sx={{ fontWeight: 900, color: 'text.primary' }}>{resumen.inStock}</Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>Inventario activo</Typography>
+        </Paper>
+
+        <Paper elevation={0} onClick={() => { setBackendStatusFilter('QUARANTINE'); setStatusFilter('') }} sx={ps.kpiCard('amber')}>
+          <Typography variant="subtitle2" sx={ps.pageSubtitle}>En Cuarentena</Typography>
+          <Typography variant="h4" sx={{ fontWeight: 900, color: 'text.primary' }}>{resumen.quarantine}</Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>En revisión</Typography>
+        </Paper>
+
+        <Paper elevation={0} onClick={() => { setBackendStatusFilter('DAMAGED'); setStatusFilter('') }} sx={ps.kpiCard('red')}>
+          <Typography variant="subtitle2" sx={ps.pageSubtitle}>Dañadas</Typography>
+          <Typography variant="h4" sx={{ fontWeight: 900, color: 'text.primary' }}>{resumen.damaged}</Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>Requieren atención</Typography>
+        </Paper>
+
+        <Paper elevation={0} onClick={() => { setBackendStatusFilter(''); setStatusFilter('') }} sx={ps.kpiCard('blue')}>
+          <Typography variant="subtitle2" sx={ps.pageSubtitle}>Piezas Totales</Typography>
+          <Typography variant="h4" sx={{ fontWeight: 900, color: 'text.primary' }}>{resumen.totalQty.toLocaleString()}</Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>Suma de items</Typography>
+        </Paper>
+      </Box>
+
+      {/* ─── ALERTS ─── */}
       {!!alerts.length && (
         <Stack spacing={1} sx={{ mb: 2 }}>
           {alerts.map(a => (
@@ -543,7 +741,7 @@ export default function InventoryPage() {
         </Stack>
       )}
 
-      {/* BUSCADOR + FILTROS */}
+      {/* ─── SEARCH + FILTERS ─── */}
       <Paper elevation={0} sx={{ ...ps.card, p: 2, mb: 2 }}>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'stretch', md: 'center' }}>
           <TextField
@@ -571,15 +769,25 @@ export default function InventoryPage() {
           </Button>
         </Stack>
 
-        {/* hint */}
-        {smartHint && (
+        {/* hint + active filter chips */}
+        {(smartHint || statusFilter || backendStatusFilter || areaFilter || rackFilter || lotFilter || showStaleOnly) && (
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.25 }} flexWrap="wrap" useFlexGap>
-            <Chip size="small" label={`${smartHint.label}: ${smartHint.value}`} sx={{ ...ps.metricChip('info'), fontWeight: 900 }} />
+            {smartHint && <Chip size="small" label={`${smartHint.label}: ${smartHint.value}`} sx={{ ...ps.metricChip('info'), fontWeight: 900 }} />}
             {!!statusFilter && <Chip size="small" label={`Filtro estado: ${statusUI(statusFilter).label}`} sx={{ ...ps.metricChip('warn'), fontWeight: 900 }} />}
+            {!!backendStatusFilter && <Chip size="small" label={`Status: ${backendStatusLabel(backendStatusFilter)}`} sx={{ ...ps.metricChip('info'), fontWeight: 900 }} onDelete={() => setBackendStatusFilter('')} />}
             {!!areaFilter && <Chip size="small" label={`Área: ${areaFilter}`} sx={{ ...ps.metricChip('default'), fontWeight: 900 }} />}
             {!!rackFilter && <Chip size="small" label={`Rack: ${rackFilter}`} sx={{ ...ps.metricChip('default'), fontWeight: 900 }} />}
             {!!lotFilter && <Chip size="small" label={`Lote: ${lotFilter}`} sx={{ ...ps.metricChip('default'), fontWeight: 900 }} />}
-            {(statusFilter || areaFilter || rackFilter || lotFilter || sortBy !== 'RECENT') && (
+            {showStaleOnly && (
+              <Chip
+                size="small"
+                icon={<WarningAmberIcon />}
+                label={`Sin Movimiento (${noMoveDays}d)`}
+                sx={{ ...ps.metricChip('warn'), fontWeight: 900 }}
+                onDelete={() => setShowStaleOnly(false)}
+              />
+            )}
+            {(statusFilter || backendStatusFilter || areaFilter || rackFilter || lotFilter || sortBy !== 'RECENT' || showStaleOnly) && (
               <Button size="small" startIcon={<CloseIcon />} onClick={clearFilters}>
                 Limpiar filtros
               </Button>
@@ -593,7 +801,23 @@ export default function InventoryPage() {
           <TextField
             select
             size="small"
-            label="Estado"
+            label="Status (backend)"
+            value={backendStatusFilter}
+            onChange={(e) => setBackendStatusFilter(e.target.value)}
+            sx={{ minWidth: 180, ...ps.inputSx }}
+          >
+            <MenuItem value="">Todos</MenuItem>
+            <MenuItem value="IN_STOCK">En Stock</MenuItem>
+            <MenuItem value="QUARANTINE">Cuarentena</MenuItem>
+            <MenuItem value="DAMAGED">Dañada</MenuItem>
+            <MenuItem value="RETURNED">Devuelta</MenuItem>
+            <MenuItem value="OUT">Salida</MenuItem>
+          </TextField>
+
+          <TextField
+            select
+            size="small"
+            label="Estado (qty)"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             sx={{ minWidth: 180, ...ps.inputSx }}
@@ -658,9 +882,23 @@ export default function InventoryPage() {
           </Button>
         </Stack>
 
-        {/* barra rápida Movimientos por SKU + NoMove */}
+        {/* Sin Movimiento chip + SKU search bar */}
         <Divider sx={{ my: 2 }} />
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', md: 'center' }}>
+          <Chip
+            icon={<WarningAmberIcon />}
+            label={showStaleOnly
+              ? `Sin Movimiento: ${stalePalletIds.size} (activo)`
+              : `Sin Movimiento (${noMoveDays}d): ${noMoveList.length}`}
+            onClick={() => setShowStaleOnly(prev => !prev)}
+            sx={{
+              ...ps.metricChip(showStaleOnly ? 'bad' : 'warn'),
+              fontWeight: 900,
+              cursor: 'pointer',
+              px: 1,
+            }}
+          />
+
           <TextField
             size="small"
             label="Movimientos por SKU"
@@ -700,17 +938,7 @@ export default function InventoryPage() {
         )}
       </Paper>
 
-      {/* KPIs CLICKEABLES */}
-      <GridKpis
-        resumen={resumen}
-        ps={ps}
-        onAll={() => setStatusFilter('')}
-        onDisponible={() => setStatusFilter('DISPONIBLE')}
-        onBajo={() => setStatusFilter('BAJO')}
-        onAgotado={() => setStatusFilter('AGOTADO')}
-      />
-
-      {/* VISTA MAPA */}
+      {/* ─── MAP VIEW ─── */}
       {view === 'MAP' ? (
         <Paper elevation={0} sx={{ ...ps.card, p: 2, mb: 2 }}>
           <Box sx={ps.cardHeader}>
@@ -789,19 +1017,20 @@ export default function InventoryPage() {
         </Paper>
       ) : null}
 
-      {/* TABLA */}
+      {/* ─── TABLE VIEW ─── */}
       {view === 'TABLE' ? (
         <Paper elevation={1} sx={{ ...ps.card, p: 0, overflow: 'auto' }}>
-          <Table size="small" sx={{ minWidth: 1050 }}>
+          <Table size="small" sx={{ minWidth: 1150 }}>
             <TableHead>
               <TableRow sx={{ ...ps.tableHeaderRow, position: 'sticky', top: 0, zIndex: 1 }}>
                 <TableCell>Código</TableCell>
                 <TableCell>Ubicación</TableCell>
-                <TableCell>Estatus</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Estatus Qty</TableCell>
                 <TableCell>Cantidad</TableCell>
                 <TableCell>Items</TableCell>
                 <TableCell>Lote</TableCell>
-                <TableCell sx={{ textAlign: 'center' }}>Acción</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>Acciones</TableCell>
               </TableRow>
             </TableHead>
 
@@ -810,11 +1039,15 @@ export default function InventoryPage() {
                 const ui = statusUI(p._status)
                 const itemsText = p._itemsText || ''
                 const loc = p._locCode || '—'
+                const isStale = stalePalletIds.has(String(p._id))
 
                 return (
                   <TableRow
                     key={p._id}
-                    sx={ps.tableRow(idx)}
+                    sx={{
+                      ...ps.tableRow(idx),
+                      ...(isStale ? { borderLeft: '3px solid #f59e0b' } : {})
+                    }}
                   >
                     <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace', fontWeight: 900 }}>
                       <Stack direction="row" spacing={1} alignItems="center">
@@ -824,6 +1057,11 @@ export default function InventoryPage() {
                             <ContentCopyIcon fontSize="inherit" />
                           </IconButton>
                         </Tooltip>
+                        {isStale && (
+                          <Tooltip title={`Sin movimiento > ${noMoveDays} días`}>
+                            <WarningAmberIcon sx={{ color: '#f59e0b', fontSize: 16 }} />
+                          </Tooltip>
+                        )}
                       </Stack>
                       <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
                         Área: <b>{p._area || '—'}</b> · Rack: <b>{p._rack || '—'}</b>
@@ -857,6 +1095,16 @@ export default function InventoryPage() {
                     </TableCell>
 
                     <TableCell sx={ps.cellText}>
+                      <Chip
+                        size="small"
+                        label={backendStatusLabel(p._backendStatus)}
+                        color={BACKEND_STATUS_MAP[p._backendStatus]?.color || 'default'}
+                        variant="outlined"
+                        sx={{ fontWeight: 700 }}
+                      />
+                    </TableCell>
+
+                    <TableCell sx={ps.cellText}>
                       <Tooltip title={ui.label} arrow>{ui.icon}</Tooltip>
                       <Typography variant="caption" sx={{ ml: 1, color: 'text.primary', fontWeight: 900 }}>
                         {ui.label}
@@ -882,11 +1130,25 @@ export default function InventoryPage() {
                         </IconButton>
                       </Tooltip>
 
-                      <Tooltip title="Movimientos (tarima)">
+                      <Tooltip title="Ver Movimientos">
                         <IconButton size="small" sx={ps.actionBtn('primary')} onClick={() => openMovementsForPallet(p)}>
                           <HistoryIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
+
+                      <Tooltip title="Cambiar Status">
+                        <IconButton size="small" sx={ps.actionBtn('warning')} onClick={() => openChangeStatus(p)}>
+                          <SwapHorizIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+
+                      {canAdmin && (
+                        <Tooltip title="Ajustar Inventario">
+                          <IconButton size="small" sx={ps.actionBtn('success')} onClick={() => openAdjustInventory(p)}>
+                            <InventoryIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
 
                       <Tooltip title="Editar (UI)">
                         <span>
@@ -910,7 +1172,7 @@ export default function InventoryPage() {
 
               {!filtered.length && (
                 <TableRow>
-                  <TableCell colSpan={7} sx={ps.emptyText}>
+                  <TableCell colSpan={8} sx={ps.emptyText}>
                     No hay resultados con los filtros actuales.
                   </TableCell>
                 </TableRow>
@@ -920,7 +1182,7 @@ export default function InventoryPage() {
         </Paper>
       ) : null}
 
-      {/* MODAL DETALLE */}
+      {/* ═══ MODAL: DETALLE ═══ */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={ps.cardHeaderTitle}>
           Detalle de tarima
@@ -943,7 +1205,8 @@ export default function InventoryPage() {
 
               <Stack spacing={1}>
                 <InfoRow label="Ubicación" value={selected._locCode || '—'} onCopy={selected._locCode ? () => copyText(selected._locCode) : null} />
-                <InfoRow label="Estado" value={statusUI(selected._status).label} />
+                <InfoRow label="Status (backend)" value={backendStatusLabel(selected._backendStatus || selected.status)} />
+                <InfoRow label="Estado (qty)" value={statusUI(selected._status).label} />
                 <InfoRow label="Cantidad total" value={String(selected._qty || 0)} />
                 <InfoRow label="Lote" value={selected._lot || '—'} />
                 <InfoRow label="Área / Rack" value={`${selected._area || '—'} · ${selected._rack || '—'}`} />
@@ -951,34 +1214,191 @@ export default function InventoryPage() {
 
               <Divider sx={{ my: 2 }} />
 
+              {/* ─── Items mini table ─── */}
               <Typography sx={{ fontWeight: 900, mb: 1, color: 'text.primary' }}>Items</Typography>
-              <Paper variant="outlined" sx={{ p: 1.2, borderRadius: 2 }}>
-                {(selected.items || []).length ? (
-                  <Stack spacing={1}>
-                    {(selected.items || []).map((it, i) => (
-                      <Stack key={`${it.sku}-${i}`} direction="row" justifyContent="space-between" alignItems="center">
-                        <Typography sx={{ fontFamily: 'monospace', fontWeight: 900, color: 'text.primary' }}>{it.sku}</Typography>
-                        <Chip size="small" label={`Qty: ${it.qty || 0}`} />
-                      </Stack>
-                    ))}
-                  </Stack>
-                ) : (
+              {(selected.items || []).length ? (
+                <Paper variant="outlined" sx={{ ...ps.card, overflow: 'auto' }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={ps.tableHeaderRow}>
+                        <TableCell>SKU</TableCell>
+                        <TableCell sx={{ textAlign: 'right' }}>Cantidad</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {(selected.items || []).map((it, i) => (
+                        <TableRow key={`${it.sku}-${i}`} sx={ps.tableRow(i)}>
+                          <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace', fontWeight: 900 }}>{it.sku}</TableCell>
+                          <TableCell sx={{ ...ps.cellText, textAlign: 'right', fontWeight: 700 }}>{it.qty || 0}</TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow>
+                        <TableCell sx={{ ...ps.cellText, fontWeight: 900 }}>Total</TableCell>
+                        <TableCell sx={{ ...ps.cellText, textAlign: 'right', fontWeight: 900 }}>{selected._qty || 0}</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </Paper>
+              ) : (
+                <Paper variant="outlined" sx={{ p: 1.2, borderRadius: 2 }}>
                   <Typography variant="body2" sx={{ color: 'text.secondary' }}>Sin items</Typography>
-                )}
-              </Paper>
+                </Paper>
+              )}
 
               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 1.5 }}>
-                *Este detalle usa tu /api/pallets y el historial usa /api/pallets/:id/movements.
+                *Este detalle usa tu /api/pallets y el historial usa /api/movements?palletId=X.
               </Typography>
             </Box>
           )}
         </DialogContent>
         <DialogActions>
+          {selected && (
+            <>
+              <Button onClick={() => { setOpen(false); openChangeStatus(selected) }} startIcon={<SwapHorizIcon />}>
+                Cambiar Status
+              </Button>
+              {canAdmin && (
+                <Button onClick={() => { setOpen(false); openAdjustInventory(selected) }} startIcon={<InventoryIcon />}>
+                  Ajustar
+                </Button>
+              )}
+            </>
+          )}
           <Button onClick={() => setOpen(false)}>Cerrar</Button>
         </DialogActions>
       </Dialog>
 
-      {/* MODAL MOVIMIENTOS */}
+      {/* ═══ MODAL: CAMBIAR STATUS ═══ */}
+      <Dialog open={statusDlgOpen} onClose={() => setStatusDlgOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={ps.cardHeaderTitle}>
+          Cambiar Status
+        </DialogTitle>
+        <DialogContent>
+          {statusDlgPallet && (
+            <Box sx={{ pt: 1 }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+                Tarima: <b style={{ fontFamily: 'monospace' }}>{statusDlgPallet.code}</b>
+              </Typography>
+
+              <TextField
+                select
+                fullWidth
+                size="small"
+                label="Nuevo Status"
+                value={statusDlgValue}
+                onChange={(e) => setStatusDlgValue(e.target.value)}
+                sx={{ mb: 2, ...ps.inputSx }}
+              >
+                <MenuItem value="IN_STOCK">En Stock</MenuItem>
+                <MenuItem value="QUARANTINE">Cuarentena</MenuItem>
+                <MenuItem value="DAMAGED">Dañada</MenuItem>
+                <MenuItem value="RETURNED">Devuelta</MenuItem>
+                <MenuItem value="OUT">Salida</MenuItem>
+              </TextField>
+
+              <TextField
+                fullWidth
+                size="small"
+                label="Nota (opcional)"
+                value={statusDlgNote}
+                onChange={(e) => setStatusDlgNote(e.target.value)}
+                multiline
+                rows={2}
+                sx={ps.inputSx}
+              />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setStatusDlgOpen(false)} disabled={statusDlgLoading}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={submitChangeStatus}
+            disabled={statusDlgLoading}
+          >
+            {statusDlgLoading ? 'Guardando...' : 'Cambiar Status'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ═══ MODAL: AJUSTAR INVENTARIO ═══ */}
+      <Dialog open={adjustDlgOpen} onClose={() => setAdjustDlgOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={ps.cardHeaderTitle}>
+          Ajustar Inventario
+        </DialogTitle>
+        <DialogContent>
+          {adjustDlgPallet && (
+            <Box sx={{ pt: 1 }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+                Tarima: <b style={{ fontFamily: 'monospace' }}>{adjustDlgPallet.code}</b>
+              </Typography>
+
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={ps.tableHeaderRow}>
+                    <TableCell>SKU</TableCell>
+                    <TableCell sx={{ width: 120 }}>Cantidad</TableCell>
+                    <TableCell sx={{ width: 50, textAlign: 'center' }}></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {adjustDlgItems.map((it, i) => (
+                    <TableRow key={i}>
+                      <TableCell>
+                        <TextField
+                          size="small"
+                          fullWidth
+                          value={it.sku}
+                          onChange={(e) => updateAdjustItem(i, 'sku', e.target.value)}
+                          placeholder="SKU"
+                          sx={ps.inputSx}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <TextField
+                          size="small"
+                          fullWidth
+                          type="number"
+                          value={it.qty}
+                          onChange={(e) => updateAdjustItem(i, 'qty', e.target.value)}
+                          inputProps={{ min: 0 }}
+                          sx={ps.inputSx}
+                        />
+                      </TableCell>
+                      <TableCell sx={{ textAlign: 'center' }}>
+                        <IconButton size="small" sx={ps.actionBtn('error')} onClick={() => removeAdjustItem(i)}>
+                          <RemoveIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              <Button
+                size="small"
+                startIcon={<AddIcon />}
+                onClick={addAdjustItem}
+                sx={{ mt: 1 }}
+              >
+                Agregar item
+              </Button>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAdjustDlgOpen(false)} disabled={adjustDlgLoading}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={submitAdjustInventory}
+            disabled={adjustDlgLoading}
+          >
+            {adjustDlgLoading ? 'Guardando...' : 'Guardar Ajuste'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ═══ MODAL: MOVIMIENTOS ═══ */}
       <Dialog open={movOpen} onClose={() => setMovOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle sx={ps.cardHeaderTitle}>
           Movimientos {movMode === 'SKU' ? `· SKU ${safeUpper(movSku)}` : ''}
@@ -1094,7 +1514,7 @@ export default function InventoryPage() {
         </DialogActions>
       </Dialog>
 
-      {/* MODAL NO MOVE */}
+      {/* ═══ MODAL: NO MOVE ═══ */}
       <Dialog open={noMoveOpen} onClose={() => setNoMoveOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle sx={ps.cardHeaderTitle}>
           Sin movimiento · {noMoveDays} días
@@ -1136,17 +1556,15 @@ export default function InventoryPage() {
                               variant="outlined"
                               startIcon={<HistoryIcon />}
                               onClick={() => {
-                                // buscamos ese pallet en rows para abrir movimientos, si existe
                                 const found = enriched.find(p => String(p._id) === String(x.palletId))
                                 if (found) openMovementsForPallet(found)
                                 else {
-                                  // fallback: buscarlos por palletCode desde /api/movements
                                   setMovSku('')
                                   setMovMode('PALLET')
                                   setMovOpen(true)
                                   setMovLoading(true)
                                   setMovErr('')
-                                  client.get('/api/movements', { params: { palletCode: x.palletCode, limit: 200 } })
+                                  client.get('/api/movements', { params: { palletId: x.palletId, limit: 200 } })
                                     .then(r => setMovRows(Array.isArray(r.data) ? r.data : []))
                                     .catch(e => setMovErr(e?.response?.data?.message || e?.message || 'No se pudieron cargar movimientos'))
                                     .finally(() => setMovLoading(false))
@@ -1176,7 +1594,7 @@ export default function InventoryPage() {
         </DialogActions>
       </Dialog>
 
-      {/* SNACK */}
+      {/* ─── SNACKBAR ─── */}
       <Snackbar
         open={!!snack}
         autoHideDuration={1500}
@@ -1187,65 +1605,9 @@ export default function InventoryPage() {
   )
 }
 
-/**
- * Subcomponentes (mismo archivo para pegar)
- */
-function GridKpis({ resumen, ps, onAll, onDisponible, onBajo, onAgotado }) {
-  return (
-    <Box sx={{ mb: 2 }}>
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-          gap: 2
-        }}
-      >
-        <Paper
-          elevation={0}
-          onClick={onAll}
-          sx={ps.kpiCard('blue')}
-        >
-          <Typography variant="subtitle2" sx={ps.pageSubtitle}>Total tarimas</Typography>
-          <Typography variant="h4" sx={{ fontWeight: 900, color: 'text.primary' }}>{resumen.total}</Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            SKUs únicos: <b>{resumen.uniqueSkus}</b> · Qty total: <b>{resumen.totalQty}</b>
-          </Typography>
-        </Paper>
-
-        <Paper
-          elevation={0}
-          onClick={onDisponible}
-          sx={ps.kpiCard('green')}
-        >
-          <Typography variant="subtitle2" sx={ps.pageSubtitle}>Disponible</Typography>
-          <Typography variant="h4" sx={{ fontWeight: 900, color: 'text.primary' }}>{resumen.disponible}</Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>Pallets con stock estable</Typography>
-        </Paper>
-
-        <Paper
-          elevation={0}
-          onClick={onBajo}
-          sx={ps.kpiCard('amber')}
-        >
-          <Typography variant="subtitle2" sx={ps.pageSubtitle}>Bajo</Typography>
-          <Typography variant="h4" sx={{ fontWeight: 900, color: 'text.primary' }}>{resumen.bajo}</Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>Requiere reposición</Typography>
-        </Paper>
-
-        <Paper
-          elevation={0}
-          onClick={onAgotado}
-          sx={ps.kpiCard('red')}
-        >
-          <Typography variant="subtitle2" sx={ps.pageSubtitle}>Agotado</Typography>
-          <Typography variant="h4" sx={{ fontWeight: 900, color: 'text.primary' }}>{resumen.agotado}</Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>Sin stock</Typography>
-        </Paper>
-      </Box>
-    </Box>
-  )
-}
-
+/* ═══════════════════════════════════════
+   Sub-components
+   ═══════════════════════════════════════ */
 function InfoRow({ label, value, onCopy }) {
   return (
     <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
