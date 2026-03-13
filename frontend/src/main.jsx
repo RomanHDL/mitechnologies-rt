@@ -30,29 +30,29 @@ class ErrorBoundary extends React.Component {
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif',
-          background: '#F4F7FC', padding: 24,
+          background: '#F8FAFC', padding: 24,
         }}>
-          <div style={{ textAlign: 'center', maxWidth: 420 }}>
+          <div style={{ textAlign: 'center', maxWidth: 400 }}>
             <div style={{
-              width: 56, height: 56, borderRadius: 12, background: '#C62828',
+              width: 48, height: 48, borderRadius: 10, background: '#DC2626',
               display: 'grid', placeItems: 'center', margin: '0 auto 16px',
-              color: 'white', fontWeight: 800, fontSize: 20,
+              color: 'white', fontWeight: 700, fontSize: 18,
             }}>!</div>
-            <h2 style={{ color: '#0A2540', fontWeight: 800, margin: '0 0 8px' }}>
+            <h2 style={{ color: '#0F172A', fontWeight: 700, margin: '0 0 8px', fontSize: 20 }}>
               Error inesperado
             </h2>
-            <p style={{ color: '#546E7A', fontSize: 14, margin: '0 0 20px' }}>
-              Ocurrió un problema al cargar la aplicación.
+            <p style={{ color: '#64748B', fontSize: 14, margin: '0 0 24px', lineHeight: 1.5 }}>
+              Ocurrio un problema al cargar la aplicacion. Intenta recargar la pagina.
             </p>
             <button
               onClick={() => window.location.reload()}
               style={{
-                background: '#1565C0', color: 'white', border: 'none',
-                borderRadius: 10, padding: '10px 28px', fontWeight: 700,
+                background: '#1D4ED8', color: 'white', border: 'none',
+                borderRadius: 8, padding: '10px 24px', fontWeight: 600,
                 fontSize: 14, cursor: 'pointer',
               }}
             >
-              Recargar página
+              Recargar pagina
             </button>
           </div>
         </div>

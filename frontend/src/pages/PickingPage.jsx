@@ -401,7 +401,7 @@ export default function PickingPage() {
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <PersonIcon sx={{ color: ps.isDark ? '#64B5F6' : '#1565C0', fontSize: 28 }} />
               <Box>
-                <Typography sx={{ fontSize: 22, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>
+                <Typography sx={{ fontSize: 22, fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>
                   {kpiData.total}
                 </Typography>
                 <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', mt: 0.3 }}>
@@ -416,7 +416,7 @@ export default function PickingPage() {
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <CheckCircleOutlineIcon sx={{ color: ps.isDark ? '#86EFAC' : '#2E7D32', fontSize: 28 }} />
               <Box>
-                <Typography sx={{ fontSize: 22, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>
+                <Typography sx={{ fontSize: 22, fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>
                   {kpiData.completados}
                 </Typography>
                 <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', mt: 0.3 }}>
@@ -431,7 +431,7 @@ export default function PickingPage() {
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <PendingActionsIcon sx={{ color: ps.isDark ? '#FCD34D' : '#E65100', fontSize: 28 }} />
               <Box>
-                <Typography sx={{ fontSize: 22, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>
+                <Typography sx={{ fontSize: 22, fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>
                   {kpiData.pendientes}
                 </Typography>
                 <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', mt: 0.3 }}>
@@ -446,7 +446,7 @@ export default function PickingPage() {
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <ReportProblemIcon sx={{ color: ps.isDark ? '#FCA5A5' : '#C62828', fontSize: 28 }} />
               <Box>
-                <Typography sx={{ fontSize: 22, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>
+                <Typography sx={{ fontSize: 22, fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>
                   {kpiData.shortPicks}
                 </Typography>
                 <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', mt: 0.3 }}>
@@ -640,7 +640,7 @@ export default function PickingPage() {
                               : isShort
                               ? (ps.isDark ? '#FCD34D' : '#E65100')
                               : (ps.isDark ? '#64B5F6' : '#1565C0'),
-                            fontWeight: 800,
+                            fontWeight: 600,
                             fontSize: 13,
                           }}>
                             {seqNumber}
@@ -834,7 +834,7 @@ export default function PickingPage() {
               </Alert>
               <Stack direction="row" spacing={2} justifyContent="center">
                 <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2, flex: 1 }}>
-                  <Typography sx={{ fontSize: 28, fontWeight: 800, color: ps.isDark ? '#86EFAC' : '#2E7D32' }}>
+                  <Typography sx={{ fontSize: 28, fontWeight: 600, color: ps.isDark ? '#86EFAC' : '#2E7D32' }}>
                     {completionSummary.picked}
                   </Typography>
                   <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary' }}>
@@ -842,7 +842,7 @@ export default function PickingPage() {
                   </Typography>
                 </Paper>
                 <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2, flex: 1 }}>
-                  <Typography sx={{ fontSize: 28, fontWeight: 800, color: ps.isDark ? '#FCD34D' : '#E65100' }}>
+                  <Typography sx={{ fontSize: 28, fontWeight: 600, color: ps.isDark ? '#FCD34D' : '#E65100' }}>
                     {completionSummary.shorts}
                   </Typography>
                   <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary' }}>
@@ -853,7 +853,7 @@ export default function PickingPage() {
               <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2 }}>
                 <Typography sx={{
                   fontSize: 36,
-                  fontWeight: 800,
+                  fontWeight: 600,
                   color: completionSummary.accuracy >= 90
                     ? (ps.isDark ? '#86EFAC' : '#2E7D32')
                     : (ps.isDark ? '#FCD34D' : '#E65100'),

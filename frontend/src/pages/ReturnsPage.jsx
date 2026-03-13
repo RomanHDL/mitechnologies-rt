@@ -514,7 +514,7 @@ export default function ReturnsPage() {
             <Stack spacing={0.5}>
               <Stack direction="row" alignItems="center" spacing={1}>
                 <AssignmentReturnIcon sx={{ color: '#1565C0', fontSize: 28 }} />
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>{resumen.total}</Typography>
+                <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary' }}>{resumen.total}</Typography>
               </Stack>
               <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Total devoluciones</Typography>
             </Stack>
@@ -525,7 +525,7 @@ export default function ReturnsPage() {
             <Stack spacing={0.5}>
               <Stack direction="row" alignItems="center" spacing={1}>
                 <HourglassEmptyIcon sx={{ color: '#E65100', fontSize: 28 }} />
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>{resumen.pendientes}</Typography>
+                <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary' }}>{resumen.pendientes}</Typography>
               </Stack>
               <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Pendientes</Typography>
             </Stack>
@@ -536,7 +536,7 @@ export default function ReturnsPage() {
             <Stack spacing={0.5}>
               <Stack direction="row" alignItems="center" spacing={1}>
                 <SearchIcon sx={{ color: '#1565C0', fontSize: 28 }} />
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>{resumen.enInspeccion}</Typography>
+                <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary' }}>{resumen.enInspeccion}</Typography>
               </Stack>
               <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>En Inspeccion</Typography>
             </Stack>
@@ -547,7 +547,7 @@ export default function ReturnsPage() {
             <Stack spacing={0.5}>
               <Stack direction="row" alignItems="center" spacing={1}>
                 <ThumbUpIcon sx={{ color: '#2E7D32', fontSize: 28 }} />
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>{resumen.completadas}</Typography>
+                <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary' }}>{resumen.completadas}</Typography>
               </Stack>
               <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Completadas</Typography>
             </Stack>
@@ -695,7 +695,7 @@ export default function ReturnsPage() {
             <Stack spacing={2} sx={{ pt: 1 }}>
               {/* ── Status Workflow Stepper ── */}
               <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>Flujo de estado</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>Flujo de estado</Typography>
                 <StatusStepper status={selected.status || 'PENDING'} />
               </Paper>
 
@@ -735,7 +735,7 @@ export default function ReturnsPage() {
                     <Stack spacing={1.5}>
                       <Stack direction="row" alignItems="center" spacing={1}>
                         <PlaylistAddCheckIcon sx={{ fontSize: 22 }} />
-                        <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Resultado de Inspeccion</Typography>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Resultado de Inspeccion</Typography>
                       </Stack>
                       {(selected.qcResult || selected.inspectionResult) && (
                         <QcResultBadge result={selected.qcResult || selected.inspectionResult} />
@@ -761,7 +761,7 @@ export default function ReturnsPage() {
               {(selected.inspectedBy || selected.inspectedAt) && (
                 <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
                   <Stack spacing={0.5}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Datos de Inspeccion</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Datos de Inspeccion</Typography>
                     {selected.inspectedBy && (
                       <Typography variant="body2" sx={ps.cellText}>
                         <b>Inspector:</b> {selected.inspectedBy?.email || selected.inspectedBy?.name || (typeof selected.inspectedBy === 'string' ? selected.inspectedBy : '-')}
@@ -779,7 +779,7 @@ export default function ReturnsPage() {
               <Divider />
 
               {/* ── Items table ── */}
-              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Items</Typography>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Items</Typography>
               <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
                 <Table size="small">
                   <TableHead>
@@ -812,7 +812,7 @@ export default function ReturnsPage() {
 
               {/* ── Trazabilidad / Timeline ── */}
               <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>Trazabilidad</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>Trazabilidad</Typography>
                 <TrazabilidadTimeline history={selected.history || selected.statusHistory || selected.audit || []} />
               </Paper>
 
@@ -841,7 +841,7 @@ export default function ReturnsPage() {
             <TextField label="Notas" value={rmaNotes} onChange={e => setRmaNotes(e.target.value)} sx={ps.inputSx} fullWidth multiline rows={2} />
             <Divider />
             <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Items de devolucion</Typography>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Items de devolucion</Typography>
               <Button size="small" startIcon={<AddIcon />} onClick={addRmaLine}>Agregar item</Button>
             </Stack>
             <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
@@ -911,7 +911,7 @@ export default function ReturnsPage() {
 
               {/* Items summary */}
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>Items a inspeccionar</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>Items a inspeccionar</Typography>
                 <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
                   <Table size="small">
                     <TableHead><TableRow sx={ps.tableHeaderRow}>
@@ -936,7 +936,7 @@ export default function ReturnsPage() {
 
               {/* QC Result radio buttons */}
               <FormControl component="fieldset">
-                <FormLabel component="legend" sx={{ fontWeight: 800, mb: 1 }}>Resultado QC</FormLabel>
+                <FormLabel component="legend" sx={{ fontWeight: 600, mb: 1 }}>Resultado QC</FormLabel>
                 <RadioGroup value={inspectQcResult} onChange={e => setInspectQcResult(e.target.value)}>
                   <FormControlLabel value="PASS" control={<Radio color="success" />} label={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

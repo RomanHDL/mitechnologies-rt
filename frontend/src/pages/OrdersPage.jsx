@@ -440,7 +440,7 @@ export default function OrdersPage() {
                   <Typography variant="caption" sx={{ ...ps.pageSubtitle, textTransform: 'uppercase', letterSpacing: 0.6 }}>
                     {kpi.label}
                   </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', mt: 0.5 }}>
+                  <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary', mt: 0.5 }}>
                     {kpi.value}
                   </Typography>
                 </Box>
@@ -679,7 +679,7 @@ export default function OrdersPage() {
 
               {/* Order lines table */}
               <Divider sx={{ my: 1 }} />
-              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Lineas de la orden</Typography>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Lineas de la orden</Typography>
 
               {(selected.lines || []).length > 0 ? (
                 <Table size="small">
@@ -816,7 +816,7 @@ export default function OrdersPage() {
             fullWidth
           />
 
-          <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 1 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
             Tarimas seleccionadas ({palletsSelected.length})
           </Typography>
 
@@ -825,7 +825,7 @@ export default function OrdersPage() {
               <Paper key={p.id} variant="outlined" sx={{ p: 1.2, borderRadius: 2 }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
                   <Box>
-                    <Typography sx={{ fontFamily: 'monospace', fontWeight: 900 }}>
+                    <Typography sx={{ fontFamily: 'monospace', fontWeight: 700 }}>
                       {p.code}
                     </Typography>
                     <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -890,10 +890,10 @@ export default function OrdersPage() {
                 {/* Progress summary */}
                 <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                       Progreso: {completed} / {total} tareas
                     </Typography>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                       {pct}%
                     </Typography>
                   </Stack>

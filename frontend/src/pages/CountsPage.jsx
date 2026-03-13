@@ -44,10 +44,10 @@ import dayjs from 'dayjs'
 function KpiCard({ title, value, subtitle, accent = 'blue', ps }) {
   return (
     <Paper elevation={0} sx={ps.kpiCard(accent)}>
-      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.secondary', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+      <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.secondary', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.6 }}>
         {title}
       </Typography>
-      <Typography variant="h4" sx={{ fontWeight: 900, color: 'text.primary', mt: 0.5 }}>
+      <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary', mt: 0.5 }}>
         {value}
       </Typography>
       {subtitle && (
@@ -541,8 +541,8 @@ export default function CountsPage() {
                 startIcon={<AddIcon />}
                 onClick={() => { setShowDetail(false); setOpenCreate(true) }}
                 sx={{
-                  borderRadius: 2.5,
-                  fontWeight: 900,
+                  borderRadius: 2,
+                  fontWeight: 700,
                   px: 2,
                   position: 'relative',
                   overflow: 'hidden',
@@ -1004,32 +1004,32 @@ export default function CountsPage() {
               {/* ── Variance Summary ── */}
               {varianceSummary && varianceSummary.total > 0 && (
                 <Paper elevation={0} sx={{ ...ps.card, p: 2, border: ps.isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(13,59,102,.08)' }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1.5, color: 'text.primary' }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5, color: 'text.primary' }}>
                     Resumen de varianzas
                   </Typography>
 
                   <Grid container spacing={2}>
                     <Grid item xs={6} sm={3}>
                       <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant="h5" sx={{ fontWeight: 900, color: 'text.primary' }}>{varianceSummary.total}</Typography>
+                        <Typography variant="h5" sx={{ fontWeight: 700, color: 'text.primary' }}>{varianceSummary.total}</Typography>
                         <Typography variant="caption" sx={{ color: 'text.secondary' }}>Total ubicaciones</Typography>
                       </Box>
                     </Grid>
                     <Grid item xs={6} sm={3}>
                       <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant="h5" sx={{ fontWeight: 900, color: ps.isDark ? '#86EFAC' : '#2E7D32' }}>{varianceSummary.matchCount}</Typography>
+                        <Typography variant="h5" sx={{ fontWeight: 700, color: ps.isDark ? '#86EFAC' : '#2E7D32' }}>{varianceSummary.matchCount}</Typography>
                         <Typography variant="caption" sx={{ color: 'text.secondary' }}>Coinciden</Typography>
                       </Box>
                     </Grid>
                     <Grid item xs={6} sm={3}>
                       <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant="h5" sx={{ fontWeight: 900, color: ps.isDark ? '#FCA5A5' : '#C62828' }}>{varianceSummary.discrepancyCount}</Typography>
+                        <Typography variant="h5" sx={{ fontWeight: 700, color: ps.isDark ? '#FCA5A5' : '#C62828' }}>{varianceSummary.discrepancyCount}</Typography>
                         <Typography variant="caption" sx={{ color: 'text.secondary' }}>Discrepancias</Typography>
                       </Box>
                     </Grid>
                     <Grid item xs={6} sm={3}>
                       <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant="h5" sx={{ fontWeight: 900, color: ps.isDark ? '#FCD34D' : '#E65100' }}>{varianceSummary.uncountedCount}</Typography>
+                        <Typography variant="h5" sx={{ fontWeight: 700, color: ps.isDark ? '#FCD34D' : '#E65100' }}>{varianceSummary.uncountedCount}</Typography>
                         <Typography variant="caption" sx={{ color: 'text.secondary' }}>Sin contar</Typography>
                       </Box>
                     </Grid>
@@ -1096,7 +1096,7 @@ export default function CountsPage() {
                       : 'linear-gradient(90deg, rgba(198,40,40,.06), rgba(198,40,40,.02))',
                   }}>
                     <WarningAmberIcon sx={{ fontSize: 18, color: ps.isDark ? '#FCA5A5' : '#C62828' }} />
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                       Diferencias — Solo ubicaciones con varianzas (mayor a menor)
                     </Typography>
                   </Box>
@@ -1140,7 +1140,7 @@ export default function CountsPage() {
                                   <Box
                                     component="span"
                                     sx={{
-                                      fontWeight: 800,
+                                      fontWeight: 600,
                                       color: varianceColor(d.diff, systemQty),
                                       bgcolor: varianceBg(d.diff, systemQty),
                                       px: 1.2, py: 0.3, borderRadius: 1,
@@ -1209,7 +1209,7 @@ export default function CountsPage() {
                           justifyContent: 'space-between'
                         }}>
                           <Stack direction="row" spacing={1} alignItems="center">
-                            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                               {locCode}
                             </Typography>
                             {hasCounted && !hasDiscrepancy && (
@@ -1297,7 +1297,7 @@ export default function CountsPage() {
                                         <Box
                                           component="span"
                                           sx={{
-                                            fontWeight: 800,
+                                            fontWeight: 600,
                                             color: varianceColor(diff, systemQty),
                                             bgcolor: varianceBg(diff, systemQty),
                                             px: 1.2,
@@ -1313,7 +1313,7 @@ export default function CountsPage() {
                                         <Box
                                           component="span"
                                           sx={{
-                                            fontWeight: 800,
+                                            fontWeight: 600,
                                             color: varianceColor(liveDiff, systemQty),
                                             bgcolor: varianceBg(liveDiff, systemQty),
                                             px: 1.2,
@@ -1386,7 +1386,7 @@ export default function CountsPage() {
               startIcon={busyId === `${safeId(captureDetail)}:REVIEW` ? <CircularProgress size={16} /> : <RateReviewIcon />}
               onClick={sendToReviewFromCapture}
               disabled={busyId === `${safeId(captureDetail)}:REVIEW`}
-              sx={{ borderRadius: 2, fontWeight: 900, px: 3 }}
+              sx={{ borderRadius: 2, fontWeight: 700, px: 3 }}
             >
               Enviar a revision
             </Button>
@@ -1398,7 +1398,7 @@ export default function CountsPage() {
               startIcon={busyId === `${safeId(captureDetail)}:APPROVED` ? <CircularProgress size={16} /> : <CheckCircleIcon />}
               onClick={approveFromCapture}
               disabled={busyId === `${safeId(captureDetail)}:APPROVED`}
-              sx={{ borderRadius: 2, fontWeight: 900, px: 3 }}
+              sx={{ borderRadius: 2, fontWeight: 700, px: 3 }}
             >
               Aprobar conteo
             </Button>

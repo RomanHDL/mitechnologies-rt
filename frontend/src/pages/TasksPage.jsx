@@ -394,7 +394,7 @@ export default function TasksPage() {
                 <AssignmentIcon sx={{ color: ps.isDark ? '#64B5F6' : '#1565C0', fontSize: 22 }} />
                 <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Total</Typography>
               </Stack>
-              <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>{resumen.total}</Typography>
+              <Typography sx={{ fontSize: 28, fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>{resumen.total}</Typography>
             </Stack>
           </Paper>
         </Grid>
@@ -405,7 +405,7 @@ export default function TasksPage() {
                 <PendingActionsIcon sx={{ color: ps.isDark ? '#FCD34D' : '#E65100', fontSize: 22 }} />
                 <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Pendientes</Typography>
               </Stack>
-              <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>{resumen.pendientes}</Typography>
+              <Typography sx={{ fontSize: 28, fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>{resumen.pendientes}</Typography>
             </Stack>
           </Paper>
         </Grid>
@@ -416,7 +416,7 @@ export default function TasksPage() {
                 <LoopIcon sx={{ color: ps.isDark ? '#64B5F6' : '#1565C0', fontSize: 22 }} />
                 <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>En Progreso</Typography>
               </Stack>
-              <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>{resumen.enProgreso}</Typography>
+              <Typography sx={{ fontSize: 28, fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>{resumen.enProgreso}</Typography>
             </Stack>
           </Paper>
         </Grid>
@@ -427,7 +427,7 @@ export default function TasksPage() {
                 <CheckCircleOutlineIcon sx={{ color: ps.isDark ? '#86EFAC' : '#2E7D32', fontSize: 22 }} />
                 <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Completadas</Typography>
               </Stack>
-              <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>{resumen.completadas}</Typography>
+              <Typography sx={{ fontSize: 28, fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>{resumen.completadas}</Typography>
             </Stack>
           </Paper>
         </Grid>

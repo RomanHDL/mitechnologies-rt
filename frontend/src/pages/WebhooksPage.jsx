@@ -288,7 +288,7 @@ export default function WebhooksPage() {
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <WebhookIcon sx={{ color: ps.isDark ? '#64B5F6' : '#1565C0', fontSize: 32 }} />
               <Box>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>{kpis.total}</Typography>
+                <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>{kpis.total}</Typography>
                 <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Total Webhooks</Typography>
               </Box>
             </Stack>
@@ -299,7 +299,7 @@ export default function WebhooksPage() {
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <CheckCircleIcon sx={{ color: ps.isDark ? '#86EFAC' : '#2E7D32', fontSize: 32 }} />
               <Box>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>{kpis.activos}</Typography>
+                <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>{kpis.activos}</Typography>
                 <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Activos</Typography>
               </Box>
             </Stack>
@@ -310,7 +310,7 @@ export default function WebhooksPage() {
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <CancelIcon sx={{ color: ps.isDark ? '#FCD34D' : '#E65100', fontSize: 32 }} />
               <Box>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>{kpis.inactivos}</Typography>
+                <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>{kpis.inactivos}</Typography>
                 <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Inactivos</Typography>
               </Box>
             </Stack>
@@ -321,7 +321,7 @@ export default function WebhooksPage() {
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <WarningAmberIcon sx={{ color: ps.isDark ? '#FCA5A5' : '#C62828', fontSize: 32 }} />
               <Box>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>{kpis.conErrores}</Typography>
+                <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>{kpis.conErrores}</Typography>
                 <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Con Errores</Typography>
               </Box>
             </Stack>
@@ -459,7 +459,7 @@ export default function WebhooksPage() {
                           <Grid container spacing={3}>
                             {/* Full event list (no truncation) */}
                             <Grid item xs={12} md={6}>
-                              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>Eventos suscritos</Typography>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>Eventos suscritos</Typography>
                               <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
                                 {(r.events || []).map(function (ev) {
                                   return <Chip key={ev} size="small" label={eventLabel(ev) + ' (' + ev + ')'} sx={ps.metricChip('info')} />
@@ -472,7 +472,7 @@ export default function WebhooksPage() {
 
                             {/* Last status, last error, createdBy */}
                             <Grid item xs={12} md={6}>
-                              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>Detalles de entrega</Typography>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>Detalles de entrega</Typography>
                               <Stack spacing={1}>
                                 <Stack direction="row" spacing={1} alignItems="center">
                                   <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.secondary', minWidth: 100 }}>Status:</Typography>
@@ -552,7 +552,7 @@ export default function WebhooksPage() {
               label="Activo"
             />
             <Divider />
-            <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Eventos a suscribir</Typography>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Eventos a suscribir</Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
               {EVENT_TYPES.map(function (evt) {
                 var isChecked = whEvents.includes(evt.value)

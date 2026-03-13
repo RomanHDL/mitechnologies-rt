@@ -75,9 +75,9 @@ export default function UsersPage() {
   const [modalErr, setModalErr] = useState('')
 
   const roleChipSx = (r) => {
-    if (r === 'ADMIN') return { bgcolor: 'primary.dark', color: 'white', fontWeight: 800 }
-    if (r === 'SUPERVISOR') return { bgcolor: 'primary.main', color: 'white', fontWeight: 800 }
-    return { bgcolor: ps.isDark ? 'rgba(255,255,255,.10)' : 'rgba(13,59,102,.08)', color: 'text.primary', fontWeight: 800 }
+    if (r === 'ADMIN') return { bgcolor: 'primary.dark', color: 'white', fontWeight: 600 }
+    if (r === 'SUPERVISOR') return { bgcolor: 'primary.main', color: 'white', fontWeight: 600 }
+    return { bgcolor: ps.isDark ? 'rgba(255,255,255,.10)' : 'rgba(13,59,102,.08)', color: 'text.primary', fontWeight: 600 }
   }
 
   const statusChipSx = (active) => active
@@ -276,7 +276,7 @@ export default function UsersPage() {
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <PeopleIcon sx={{ color: ps.isDark ? '#64B5F6' : '#1565C0', fontSize: 32 }} />
               <Box>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>{totals.total}</Typography>
+                <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>{totals.total}</Typography>
                 <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary' }}>Total Usuarios</Typography>
               </Box>
             </Stack>
@@ -287,7 +287,7 @@ export default function UsersPage() {
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <CheckCircleIcon sx={{ color: ps.isDark ? '#86EFAC' : '#2E7D32', fontSize: 32 }} />
               <Box>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>{totals.active}</Typography>
+                <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>{totals.active}</Typography>
                 <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary' }}>Activos</Typography>
               </Box>
             </Stack>
@@ -298,7 +298,7 @@ export default function UsersPage() {
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <CancelIcon sx={{ color: ps.isDark ? '#FCA5A5' : '#C62828', fontSize: 32 }} />
               <Box>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>{totals.inactive}</Typography>
+                <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>{totals.inactive}</Typography>
                 <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary' }}>Inactivos</Typography>
               </Box>
             </Stack>
@@ -309,7 +309,7 @@ export default function UsersPage() {
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <SecurityIcon sx={{ color: ps.isDark ? '#FCD34D' : '#E65100', fontSize: 32 }} />
               <Box>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>{totals.admins + totals.supervisors + totals.operators}</Typography>
+                <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>{totals.admins + totals.supervisors + totals.operators}</Typography>
                 <Typography sx={{ fontSize: 12, fontWeight: 700, color: 'text.secondary' }}>por Rol</Typography>
                 <Typography sx={{ fontSize: 11, color: 'text.secondary', mt: 0.25 }}>
                   {totals.admins} Admin / {totals.supervisors} Sup / {totals.operators} Op
@@ -409,7 +409,7 @@ export default function UsersPage() {
             <TableBody>
               {filteredUsers.map((u, idx) => (
                 <TableRow key={u.id} sx={ps.tableRow(idx)}>
-                  <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace', fontWeight: 800, fontSize: '0.95rem' }}>
+                  <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace', fontWeight: 600, fontSize: '0.95rem' }}>
                     <Stack direction="row" alignItems="center" spacing={0.5}>
                       <BadgeIcon sx={{ fontSize: 16, opacity: 0.5 }} />
                       <span>{u.employeeNumber}</span>

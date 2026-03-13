@@ -656,7 +656,7 @@ export default function InventoryPage() {
           <FormControlLabel
             sx={{ mr: 0.5, userSelect: 'none' }}
             control={<Switch checked={operatorMode} onChange={(e) => setOperatorMode(e.target.checked)} />}
-            label={<Typography sx={{ fontWeight: 900, fontSize: 13, color: 'text.primary' }}>Modo operador</Typography>}
+            label={<Typography sx={{ fontWeight: 700, fontSize: 13, color: 'text.primary' }}>Modo operador</Typography>}
           />
 
           <Tooltip title="Recargar">
@@ -688,7 +688,7 @@ export default function InventoryPage() {
       }}>
         <Paper elevation={0} onClick={() => { setBackendStatusFilter(''); setStatusFilter('') }} sx={ps.kpiCard('blue')}>
           <Typography variant="subtitle2" sx={ps.pageSubtitle}>Total Tarimas</Typography>
-          <Typography variant="h4" sx={{ fontWeight: 900, color: 'text.primary' }}>{resumen.total}</Typography>
+          <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>{resumen.total}</Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             SKUs únicos: <b>{resumen.uniqueSkus}</b>
           </Typography>
@@ -696,25 +696,25 @@ export default function InventoryPage() {
 
         <Paper elevation={0} onClick={() => { setBackendStatusFilter('IN_STOCK'); setStatusFilter('') }} sx={ps.kpiCard('green')}>
           <Typography variant="subtitle2" sx={ps.pageSubtitle}>En Stock</Typography>
-          <Typography variant="h4" sx={{ fontWeight: 900, color: 'text.primary' }}>{resumen.inStock}</Typography>
+          <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>{resumen.inStock}</Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>Inventario activo</Typography>
         </Paper>
 
         <Paper elevation={0} onClick={() => { setBackendStatusFilter('QUARANTINE'); setStatusFilter('') }} sx={ps.kpiCard('amber')}>
           <Typography variant="subtitle2" sx={ps.pageSubtitle}>En Cuarentena</Typography>
-          <Typography variant="h4" sx={{ fontWeight: 900, color: 'text.primary' }}>{resumen.quarantine}</Typography>
+          <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>{resumen.quarantine}</Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>En revisión</Typography>
         </Paper>
 
         <Paper elevation={0} onClick={() => { setBackendStatusFilter('DAMAGED'); setStatusFilter('') }} sx={ps.kpiCard('red')}>
           <Typography variant="subtitle2" sx={ps.pageSubtitle}>Dañadas</Typography>
-          <Typography variant="h4" sx={{ fontWeight: 900, color: 'text.primary' }}>{resumen.damaged}</Typography>
+          <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>{resumen.damaged}</Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>Requieren atención</Typography>
         </Paper>
 
         <Paper elevation={0} onClick={() => { setBackendStatusFilter(''); setStatusFilter('') }} sx={ps.kpiCard('blue')}>
           <Typography variant="subtitle2" sx={ps.pageSubtitle}>Piezas Totales</Typography>
-          <Typography variant="h4" sx={{ fontWeight: 900, color: 'text.primary' }}>{resumen.totalQty.toLocaleString()}</Typography>
+          <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>{resumen.totalQty.toLocaleString()}</Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>Suma de items</Typography>
         </Paper>
       </Box>
@@ -726,7 +726,7 @@ export default function InventoryPage() {
             <Alert
               key={a.key}
               severity={a.tone}
-              sx={{ borderRadius: 3 }}
+              sx={{ borderRadius: 2 }}
               action={
                 <Button size="small" color="inherit" onClick={a.action} startIcon={<FilterAltIcon />}>
                   Ver
@@ -770,18 +770,18 @@ export default function InventoryPage() {
         {/* hint + active filter chips */}
         {(smartHint || statusFilter || backendStatusFilter || areaFilter || rackFilter || lotFilter || showStaleOnly) && (
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.25 }} flexWrap="wrap" useFlexGap>
-            {smartHint && <Chip size="small" label={`${smartHint.label}: ${smartHint.value}`} sx={{ ...ps.metricChip('info'), fontWeight: 900 }} />}
-            {!!statusFilter && <Chip size="small" label={`Filtro estado: ${statusUI(statusFilter).label}`} sx={{ ...ps.metricChip('warn'), fontWeight: 900 }} />}
-            {!!backendStatusFilter && <Chip size="small" label={`Status: ${backendStatusLabel(backendStatusFilter)}`} sx={{ ...ps.metricChip('info'), fontWeight: 900 }} onDelete={() => setBackendStatusFilter('')} />}
-            {!!areaFilter && <Chip size="small" label={`Área: ${areaFilter}`} sx={{ ...ps.metricChip('default'), fontWeight: 900 }} />}
-            {!!rackFilter && <Chip size="small" label={`Rack: ${rackFilter}`} sx={{ ...ps.metricChip('default'), fontWeight: 900 }} />}
-            {!!lotFilter && <Chip size="small" label={`Lote: ${lotFilter}`} sx={{ ...ps.metricChip('default'), fontWeight: 900 }} />}
+            {smartHint && <Chip size="small" label={`${smartHint.label}: ${smartHint.value}`} sx={{ ...ps.metricChip('info'), fontWeight: 700 }} />}
+            {!!statusFilter && <Chip size="small" label={`Filtro estado: ${statusUI(statusFilter).label}`} sx={{ ...ps.metricChip('warn'), fontWeight: 700 }} />}
+            {!!backendStatusFilter && <Chip size="small" label={`Status: ${backendStatusLabel(backendStatusFilter)}`} sx={{ ...ps.metricChip('info'), fontWeight: 700 }} onDelete={() => setBackendStatusFilter('')} />}
+            {!!areaFilter && <Chip size="small" label={`Área: ${areaFilter}`} sx={{ ...ps.metricChip('default'), fontWeight: 700 }} />}
+            {!!rackFilter && <Chip size="small" label={`Rack: ${rackFilter}`} sx={{ ...ps.metricChip('default'), fontWeight: 700 }} />}
+            {!!lotFilter && <Chip size="small" label={`Lote: ${lotFilter}`} sx={{ ...ps.metricChip('default'), fontWeight: 700 }} />}
             {showStaleOnly && (
               <Chip
                 size="small"
                 icon={<WarningAmberIcon />}
                 label={`Sin Movimiento (${noMoveDays}d)`}
-                sx={{ ...ps.metricChip('warn'), fontWeight: 900 }}
+                sx={{ ...ps.metricChip('warn'), fontWeight: 700 }}
                 onDelete={() => setShowStaleOnly(false)}
               />
             )}
@@ -884,7 +884,7 @@ export default function InventoryPage() {
             onClick={() => setShowStaleOnly(prev => !prev)}
             sx={{
               ...ps.metricChip(showStaleOnly ? 'bad' : 'warn'),
-              fontWeight: 900,
+              fontWeight: 700,
               cursor: 'pointer',
               px: 1,
             }}
@@ -923,7 +923,7 @@ export default function InventoryPage() {
         </Stack>
 
         {noMoveErr && (
-          <Alert severity="warning" sx={{ mt: 1.5, borderRadius: 3 }}>
+          <Alert severity="warning" sx={{ mt: 1.5, borderRadius: 2 }}>
             No se pudo cargar "sin movimiento": {noMoveErr}
           </Alert>
         )}
@@ -953,7 +953,7 @@ export default function InventoryPage() {
             {mapModel.map(group => (
               <Paper key={group.rack} variant="outlined" sx={{ ...ps.card, p: 1.6 }}>
                 <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-                  <Typography sx={{ fontWeight: 900, fontFamily: 'monospace', color: 'text.primary' }}>
+                  <Typography sx={{ fontWeight: 700, fontFamily: 'monospace', color: 'text.primary' }}>
                     Rack: {group.rack}
                   </Typography>
                   <Chip size="small" label={`${group.count} tarimas`} sx={ps.metricChip('default')} />
@@ -981,7 +981,7 @@ export default function InventoryPage() {
                       >
                         <Stack direction="row" spacing={1} alignItems="center">
                           {ui.icon}
-                          <Typography sx={{ fontWeight: 900, fontFamily: 'monospace', flex: 1, color: 'text.primary' }}>
+                          <Typography sx={{ fontWeight: 700, fontFamily: 'monospace', flex: 1, color: 'text.primary' }}>
                             {p.code}
                           </Typography>
                         </Stack>
@@ -1040,7 +1040,7 @@ export default function InventoryPage() {
                       ...(isStale ? { borderLeft: '3px solid #f59e0b' } : {})
                     }}
                   >
-                    <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace', fontWeight: 900 }}>
+                    <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace', fontWeight: 700 }}>
                       <Stack direction="row" spacing={1} alignItems="center">
                         <span>{p.code}</span>
                         <Tooltip title="Copiar código">
@@ -1097,12 +1097,12 @@ export default function InventoryPage() {
 
                     <TableCell sx={ps.cellText}>
                       <Tooltip title={ui.label} arrow>{ui.icon}</Tooltip>
-                      <Typography variant="caption" sx={{ ml: 1, color: 'text.primary', fontWeight: 900 }}>
+                      <Typography variant="caption" sx={{ ml: 1, color: 'text.primary', fontWeight: 700 }}>
                         {ui.label}
                       </Typography>
                     </TableCell>
 
-                    <TableCell sx={{ ...ps.cellText, fontWeight: 900 }}>
+                    <TableCell sx={{ ...ps.cellText, fontWeight: 700 }}>
                       {p._qty}
                     </TableCell>
 
@@ -1182,7 +1182,7 @@ export default function InventoryPage() {
           {!selected ? null : (
             <Box>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                <Typography sx={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 18, color: 'text.primary' }}>
+                <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 18, color: 'text.primary' }}>
                   {selected.code}
                 </Typography>
                 <Button size="small" startIcon={<ContentCopyIcon />} onClick={() => copyText(selected.code)}>
@@ -1206,7 +1206,7 @@ export default function InventoryPage() {
               <Divider sx={{ my: 2 }} />
 
               {/* ─── Items mini table ─── */}
-              <Typography sx={{ fontWeight: 900, mb: 1, color: 'text.primary' }}>Items</Typography>
+              <Typography sx={{ fontWeight: 700, mb: 1, color: 'text.primary' }}>Items</Typography>
               {(selected.items || []).length ? (
                 <Paper variant="outlined" sx={{ ...ps.card, overflow: 'auto' }}>
                   <Table size="small">
@@ -1219,13 +1219,13 @@ export default function InventoryPage() {
                     <TableBody>
                       {(selected.items || []).map((it, i) => (
                         <TableRow key={`${it.sku}-${i}`} sx={ps.tableRow(i)}>
-                          <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace', fontWeight: 900 }}>{it.sku}</TableCell>
+                          <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace', fontWeight: 700 }}>{it.sku}</TableCell>
                           <TableCell sx={{ ...ps.cellText, textAlign: 'right', fontWeight: 700 }}>{it.qty || 0}</TableCell>
                         </TableRow>
                       ))}
                       <TableRow>
-                        <TableCell sx={{ ...ps.cellText, fontWeight: 900 }}>Total</TableCell>
-                        <TableCell sx={{ ...ps.cellText, textAlign: 'right', fontWeight: 900 }}>{selected._qty || 0}</TableCell>
+                        <TableCell sx={{ ...ps.cellText, fontWeight: 700 }}>Total</TableCell>
+                        <TableCell sx={{ ...ps.cellText, textAlign: 'right', fontWeight: 700 }}>{selected._qty || 0}</TableCell>
                       </TableRow>
                     </TableBody>
                   </Table>
@@ -1392,7 +1392,7 @@ export default function InventoryPage() {
         </DialogTitle>
         <DialogContent>
           {movErr && (
-            <Alert severity="warning" sx={{ mb: 2, borderRadius: 3 }}>
+            <Alert severity="warning" sx={{ mb: 2, borderRadius: 2 }}>
               {movErr}
             </Alert>
           )}
@@ -1400,7 +1400,7 @@ export default function InventoryPage() {
           {movLoading ? (
             <Stack direction="row" spacing={1.5} alignItems="center" sx={{ py: 2 }}>
               <CircularProgress size={18} />
-              <Typography sx={{ fontWeight: 800, color: 'text.secondary' }}>Cargando movimientos...</Typography>
+              <Typography sx={{ fontWeight: 600, color: 'text.secondary' }}>Cargando movimientos...</Typography>
             </Stack>
           ) : (
             <>
@@ -1429,9 +1429,9 @@ export default function InventoryPage() {
                           <TableRow key={m.id || `${m.type}-${m.createdAt}-${i}`} sx={ps.tableRow(i)}>
                             <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace' }}>{formatDateTime(m.createdAt)}</TableCell>
                             <TableCell sx={ps.cellText}>
-                              <Chip size="small" label={m.type || '—'} sx={{ ...ps.metricChip('info'), fontWeight: 900 }} />
+                              <Chip size="small" label={m.type || '—'} sx={{ ...ps.metricChip('info'), fontWeight: 700 }} />
                             </TableCell>
-                            <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace', fontWeight: 900 }}>
+                            <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace', fontWeight: 700 }}>
                               {m?.pallet?.code || '—'}
                               {m?.pallet?.code && (
                                 <Tooltip title="Copiar código tarima">
@@ -1510,7 +1510,7 @@ export default function InventoryPage() {
           {noMoveLoading ? (
             <Stack direction="row" spacing={1.5} alignItems="center" sx={{ py: 2 }}>
               <CircularProgress size={18} />
-              <Typography sx={{ fontWeight: 800, color: 'text.secondary' }}>Cargando...</Typography>
+              <Typography sx={{ fontWeight: 600, color: 'text.secondary' }}>Cargando...</Typography>
             </Stack>
           ) : (
             <>
@@ -1532,10 +1532,10 @@ export default function InventoryPage() {
                     <TableBody>
                       {noMoveList.slice(0, 200).map((x, idx) => (
                         <TableRow key={x.palletId} sx={ps.tableRow(idx)}>
-                          <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace', fontWeight: 900 }}>{x.palletCode}</TableCell>
+                          <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace', fontWeight: 700 }}>{x.palletCode}</TableCell>
                           <TableCell sx={ps.cellText}>{formatDateTime(x.lastMovementAt)}</TableCell>
                           <TableCell sx={ps.cellText}>
-                            <Chip size="small" label={`${x.daysSince ?? '—'} días`} sx={{ ...ps.metricChip('warn'), fontWeight: 900 }} />
+                            <Chip size="small" label={`${x.daysSince ?? '—'} días`} sx={{ ...ps.metricChip('warn'), fontWeight: 700 }} />
                           </TableCell>
                           <TableCell sx={{ textAlign: 'center' }}>
                             <Button
@@ -1598,9 +1598,9 @@ export default function InventoryPage() {
 function InfoRow({ label, value, onCopy }) {
   return (
     <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-      <Typography sx={{ color: 'text.secondary', fontWeight: 800 }}>{label}</Typography>
+      <Typography sx={{ color: 'text.secondary', fontWeight: 600 }}>{label}</Typography>
       <Stack direction="row" spacing={1} alignItems="center">
-        <Typography sx={{ fontWeight: 900, fontFamily: label === 'Ubicación' ? 'monospace' : 'inherit', color: 'text.primary' }}>{value}</Typography>
+        <Typography sx={{ fontWeight: 700, fontFamily: label === 'Ubicación' ? 'monospace' : 'inherit', color: 'text.primary' }}>{value}</Typography>
         {onCopy && (
           <Tooltip title="Copiar">
             <IconButton size="small" onClick={onCopy}>

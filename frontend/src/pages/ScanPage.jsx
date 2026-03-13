@@ -330,7 +330,7 @@ export default function ScanPage() {
   return (
     <Box>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
-        <Typography variant="h6" sx={{ fontWeight: 900, color: 'text.primary' }}>Escanear Tarima</Typography>
+        <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>Escanear Tarima</Typography>
         <Chip
           label={`${scanCount} escaneo${scanCount !== 1 ? 's' : ''} hoy`}
           size="small"
@@ -351,7 +351,7 @@ export default function ScanPage() {
             {tab === 0 && (
               <Stack spacing={2}>
                 {error && <Alert severity="error">{error}</Alert>}
-                <Paper variant="outlined" sx={{ p:2, borderRadius:3 }}>
+                <Paper variant="outlined" sx={{ p:2, borderRadius:2 }}>
                   <div id="qr-reader" ref={qrRef} style={{ width: '100%' }} />
                 </Paper>
                 <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap' }}>
@@ -424,15 +424,15 @@ export default function ScanPage() {
 
             <Divider sx={{ my:2 }} />
 
-            <Typography variant="subtitle1" sx={{ fontWeight: 900, mb:1, color: 'text.primary' }}>Resultado del escaneo</Typography>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb:1, color: 'text.primary' }}>Resultado del escaneo</Typography>
             {!result && !error && <Typography sx={{ color: 'text.secondary' }}>Escanea o ingresa un código para ver la tarima.</Typography>}
 
             {result && (
-              <Paper variant="outlined" sx={{ p:2, borderRadius:3 }}>
+              <Paper variant="outlined" sx={{ p:2, borderRadius:2 }}>
                 <Stack spacing={1.5}>
                   {/* ── Prominent header with code + status chip ── */}
                   <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ flexWrap: 'wrap', gap: 1 }}>
-                    <Typography sx={{ fontFamily: 'monospace', fontWeight: 900, fontSize: '1.1rem', color: 'text.primary' }}>
+                    <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '1.1rem', color: 'text.primary' }}>
                       {result.code}
                     </Typography>
                     <Chip
@@ -465,7 +465,7 @@ export default function ScanPage() {
                         : 'rgba(21,101,192,0.04)',
                     }}>
                       <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>Ubicación</Typography>
-                      <Typography sx={{ fontFamily: 'monospace', fontWeight: 900, fontSize: '1rem', color: 'text.primary' }}>
+                      <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '1rem', color: 'text.primary' }}>
                         {locationStr}
                       </Typography>
                     </Paper>
@@ -488,7 +488,7 @@ export default function ScanPage() {
                   <Divider sx={{ my:1 }} />
 
                   {/* ── Items mini table ── */}
-                  <Typography variant="subtitle2" sx={{ fontWeight: 900, color: 'text.primary' }}>Items</Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>Items</Typography>
                   {(result.items || []).length > 0 ? (
                     <Table size="small">
                       <TableHead>
@@ -508,7 +508,7 @@ export default function ScanPage() {
                                 </Typography>
                               )}
                             </TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 900, ...ps.cellText }}>
+                            <TableCell align="right" sx={{ fontWeight: 700, ...ps.cellText }}>
                               {it.qty}
                             </TableCell>
                           </TableRow>
@@ -522,7 +522,7 @@ export default function ScanPage() {
                   <Divider sx={{ my:1 }} />
 
                   {/* ── Quick actions ── */}
-                  <Typography variant="subtitle2" sx={{ fontWeight: 900, color: 'text.primary' }}>Acciones rápidas</Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>Acciones rápidas</Typography>
                   <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
                     <Button size="small" sx={ps.actionBtn('primary')} onClick={handleOpenTransfer}>
                       Transferir
@@ -568,12 +568,12 @@ export default function ScanPage() {
               md: 'none',
             },
           }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 900, mb:1, color: 'text.primary' }}>Tips rápidos</Typography>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb:1, color: 'text.primary' }}>Tips rápidos</Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', mb:2 }}>
               En celular, permite cámara. Para escáner físico, usa "Ingresar código" y pega el texto del QR.
             </Typography>
-            <Paper variant="outlined" sx={{ p:2, borderRadius:3 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 900, mb:1, color: 'text.primary' }}>Acción sugerida</Typography>
+            <Paper variant="outlined" sx={{ p:2, borderRadius:2 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb:1, color: 'text.primary' }}>Acción sugerida</Typography>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 Desde aquí se puede agregar "Confirmar movimiento" (entrada/salida/transferencia) con 1 click.
               </Typography>
@@ -588,9 +588,9 @@ export default function ScanPage() {
         onClose={() => setTransferOpen(false)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}
+        PaperProps={{ sx: { borderRadius: 2 } }}
       >
-        <DialogTitle sx={{ fontWeight: 900 }}>
+        <DialogTitle sx={{ fontWeight: 700 }}>
           Transferir Tarima
           {result?.code && (
             <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
@@ -647,9 +647,9 @@ export default function ScanPage() {
         onClose={() => setStatusOpen(false)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}
+        PaperProps={{ sx: { borderRadius: 2 } }}
       >
-        <DialogTitle sx={{ fontWeight: 900 }}>
+        <DialogTitle sx={{ fontWeight: 700 }}>
           Cambiar Estatus
           {result?.code && (
             <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
@@ -701,9 +701,9 @@ export default function ScanPage() {
         onClose={() => setOutOpen(false)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}
+        PaperProps={{ sx: { borderRadius: 2 } }}
       >
-        <DialogTitle sx={{ fontWeight: 900 }}>
+        <DialogTitle sx={{ fontWeight: 700 }}>
           Registrar Salida
           {result?.code && (
             <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
@@ -763,9 +763,9 @@ export default function ScanPage() {
         onClose={() => setHistoryOpen(false)}
         maxWidth="md"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}
+        PaperProps={{ sx: { borderRadius: 2 } }}
       >
-        <DialogTitle sx={{ fontWeight: 900 }}>
+        <DialogTitle sx={{ fontWeight: 700 }}>
           Historial de Movimientos
           {result?.code && (
             <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
@@ -828,7 +828,7 @@ function Row({ label, value, mono }) {
   return (
     <Stack direction="row" justifyContent="space-between" spacing={2}>
       <Typography variant="body2" sx={{ color: 'text.secondary' }}>{label}</Typography>
-      <Typography variant="body2" sx={{ fontWeight: 900, fontFamily: mono ? 'monospace' : 'inherit', color: 'text.primary' }}>{value}</Typography>
+      <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: mono ? 'monospace' : 'inherit', color: 'text.primary' }}>{value}</Typography>
     </Stack>
   )
 }

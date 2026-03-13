@@ -252,7 +252,7 @@ export default function QrPrintPage() {
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <InventoryIcon sx={{ color: ps.isDark ? '#64B5F6' : '#1565C0', fontSize: 28 }} />
               <Box>
-                <Typography sx={{ fontSize: 22, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>
+                <Typography sx={{ fontSize: 22, fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>
                   {filtered.length}
                 </Typography>
                 <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', mt: 0.3 }}>
@@ -267,7 +267,7 @@ export default function QrPrintPage() {
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <CheckBoxIcon sx={{ color: ps.isDark ? '#FCD34D' : '#E65100', fontSize: 28 }} />
               <Box>
-                <Typography sx={{ fontSize: 22, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>
+                <Typography sx={{ fontSize: 22, fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>
                   {selectedIds.length}
                 </Typography>
                 <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', mt: 0.3 }}>
@@ -282,7 +282,7 @@ export default function QrPrintPage() {
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <LabelIcon sx={{ color: ps.isDark ? '#86EFAC' : '#2E7D32', fontSize: 28 }} />
               <Box>
-                <Typography sx={{ fontSize: 22, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>
+                <Typography sx={{ fontSize: 22, fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>
                   {labelsGenerated}
                 </Typography>
                 <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', mt: 0.3 }}>
@@ -409,7 +409,7 @@ export default function QrPrintPage() {
                 {(label.qrDataUrl || label.qrUrl) && (
                   <Box component="img" src={label.qrDataUrl || label.qrUrl} sx={{ width: currentLabelSize.imgWidth, height: currentLabelSize.imgWidth, mb: 1 }} />
                 )}
-                <Typography sx={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 14 }}>{label.code || label.palletCode || ''}</Typography>
+                <Typography sx={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 14 }}>{label.code || label.palletCode || ''}</Typography>
                 {label.sku && <Typography variant="caption" display="block" sx={ps.cellTextSecondary}>{label.sku}</Typography>}
                 {label.lot && <Typography variant="caption" display="block" sx={ps.cellTextSecondary}>Lote: {label.lot}</Typography>}
                 {label.location && <Typography variant="caption" display="block" sx={{ ...ps.cellTextSecondary, fontWeight: 700 }}>Ubic: {label.location}</Typography>}

@@ -425,7 +425,7 @@ export default function ProductivityPage() {
                 Total Movimientos
               </Typography>
             </Stack>
-            <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary' }}>
+            <Typography sx={{ fontSize: 28, fontWeight: 600, color: 'text.primary' }}>
               {kpis.totalMov.toLocaleString()}
             </Typography>
             <Typography sx={{ fontSize: 11, color: 'text.secondary', fontWeight: 600 }}>
@@ -442,7 +442,7 @@ export default function ProductivityPage() {
                 Operadores Activos
               </Typography>
             </Stack>
-            <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary' }}>
+            <Typography sx={{ fontSize: 28, fontWeight: 600, color: 'text.primary' }}>
               {kpis.activeOps}
             </Typography>
           </Stack>
@@ -456,7 +456,7 @@ export default function ProductivityPage() {
                 Promedio por Operador
               </Typography>
             </Stack>
-            <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary' }}>
+            <Typography sx={{ fontSize: 28, fontWeight: 600, color: 'text.primary' }}>
               {kpis.avg.toLocaleString()}
             </Typography>
             <Typography sx={{ fontSize: 11, color: 'text.secondary', fontWeight: 600 }}>
@@ -473,7 +473,7 @@ export default function ProductivityPage() {
                 Mejor Operador
               </Typography>
             </Stack>
-            <Typography sx={{ fontSize: 20, fontWeight: 800, color: 'text.primary', lineHeight: 1.2 }}>
+            <Typography sx={{ fontSize: 20, fontWeight: 600, color: 'text.primary', lineHeight: 1.2 }}>
               {kpis.topOp.name}
             </Typography>
             <Typography sx={{ fontSize: 12, color: 'text.secondary', fontWeight: 600 }}>
@@ -493,7 +493,7 @@ export default function ProductivityPage() {
                 Total Tareas Completadas
               </Typography>
             </Stack>
-            <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary' }}>
+            <Typography sx={{ fontSize: 28, fontWeight: 600, color: 'text.primary' }}>
               {(taskStats ? taskStats.total : kpis.totalTasks).toLocaleString()}
             </Typography>
           </Stack>
@@ -507,7 +507,7 @@ export default function ProductivityPage() {
                   Promedio Tareas / Operador
                 </Typography>
               </Stack>
-              <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary' }}>
+              <Typography sx={{ fontSize: 28, fontWeight: 600, color: 'text.primary' }}>
                 {kpis.activeOps > 0 ? Math.round(taskStats.total / kpis.activeOps) : 0}
               </Typography>
             </Stack>
@@ -674,7 +674,7 @@ export default function ProductivityPage() {
                 elevation={0}
                 sx={{
                   p: 2.5,
-                  borderRadius: 3,
+                  borderRadius: 2,
                   border: '2px solid ' + medal.border,
                   bgcolor: medal.bg,
                   textAlign: 'center',
@@ -683,13 +683,13 @@ export default function ProductivityPage() {
                 }}
               >
                 <EmojiEventsIcon sx={{ fontSize: 36, color: medal.icon, mb: 0.5 }} />
-                <Typography sx={{ fontSize: 11, fontWeight: 800, color: medal.icon, textTransform: 'uppercase', letterSpacing: 1 }}>
+                <Typography sx={{ fontSize: 11, fontWeight: 600, color: medal.icon, textTransform: 'uppercase', letterSpacing: 1 }}>
                   {medal.label}
                 </Typography>
-                <Typography sx={{ fontSize: 16, fontWeight: 800, color: 'text.primary', mt: 0.5 }}>
+                <Typography sx={{ fontSize: 16, fontWeight: 600, color: 'text.primary', mt: 0.5 }}>
                   {r.name || r.email || '-'}
                 </Typography>
-                <Typography sx={{ fontSize: 26, fontWeight: 900, color: 'text.primary', mt: 0.5 }}>
+                <Typography sx={{ fontSize: 26, fontWeight: 700, color: 'text.primary', mt: 0.5 }}>
                   {r.totalCombined.toLocaleString()}
                 </Typography>
                 <Typography sx={{ fontSize: 11, color: 'text.secondary', fontWeight: 600, mb: 1 }}>acciones totales</Typography>
@@ -757,7 +757,7 @@ export default function ProductivityPage() {
                   <TableCell>
                     <Stack direction="row" alignItems="center" spacing={0.5}>
                       {medal && <EmojiEventsIcon sx={{ color: medal.icon, fontSize: 18 }} />}
-                      <Typography sx={{ fontWeight: 800, fontSize: 14, color: 'text.primary' }}>{idx + 1}</Typography>
+                      <Typography sx={{ fontWeight: 600, fontSize: 14, color: 'text.primary' }}>{idx + 1}</Typography>
                     </Stack>
                   </TableCell>
                   <TableCell>
@@ -769,7 +769,7 @@ export default function ProductivityPage() {
                     )}
                   </TableCell>
                   <TableCell align="right">
-                    <Typography sx={{ fontWeight: 800, fontSize: 14, color: 'text.primary' }}>{r.totalCombined.toLocaleString()}</Typography>
+                    <Typography sx={{ fontWeight: 600, fontSize: 14, color: 'text.primary' }}>{r.totalCombined.toLocaleString()}</Typography>
                   </TableCell>
                   <TableCell align="right">
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: TYPE_COLORS.IN.fill }}>{r.byType.IN}</Typography>
@@ -822,7 +822,7 @@ export default function ProductivityPage() {
                 elevation={0}
                 sx={{
                   p: 2,
-                  borderRadius: 2.5,
+                  borderRadius: 2,
                   border: medal
                     ? ('1.5px solid ' + medal.border)
                     : (ps.isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(13,59,102,.08)'),
@@ -854,7 +854,7 @@ export default function ProductivityPage() {
                       }}
                     >
                       {medal ? (
-                        <Typography sx={{ fontWeight: 900, fontSize: 14, color: medal.icon }}>
+                        <Typography sx={{ fontWeight: 700, fontSize: 14, color: medal.icon }}>
                           {'#' + (globalIdx + 1)}
                         </Typography>
                       ) : (
@@ -880,15 +880,15 @@ export default function ProductivityPage() {
                 {/* Metrics row */}
                 <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
                   <Box sx={{ flex: 1, textAlign: 'center', py: 0.75, borderRadius: 1.5, bgcolor: ps.isDark ? 'rgba(66,165,245,.08)' : 'rgba(21,101,192,.04)' }}>
-                    <Typography sx={{ fontSize: 18, fontWeight: 800, color: 'text.primary' }}>{r.totalMovements}</Typography>
+                    <Typography sx={{ fontSize: 18, fontWeight: 600, color: 'text.primary' }}>{r.totalMovements}</Typography>
                     <Typography sx={{ fontSize: 10, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase' }}>Movimientos</Typography>
                   </Box>
                   <Box sx={{ flex: 1, textAlign: 'center', py: 0.75, borderRadius: 1.5, bgcolor: ps.isDark ? 'rgba(34,197,94,.08)' : 'rgba(46,125,50,.04)' }}>
-                    <Typography sx={{ fontSize: 18, fontWeight: 800, color: 'text.primary' }}>{r.totalTasks}</Typography>
+                    <Typography sx={{ fontSize: 18, fontWeight: 600, color: 'text.primary' }}>{r.totalTasks}</Typography>
                     <Typography sx={{ fontSize: 10, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase' }}>Tareas</Typography>
                   </Box>
                   <Box sx={{ flex: 1, textAlign: 'center', py: 0.75, borderRadius: 1.5, bgcolor: ps.isDark ? 'rgba(245,158,11,.08)' : 'rgba(245,158,11,.04)' }}>
-                    <Typography sx={{ fontSize: 18, fontWeight: 800, color: 'text.primary' }}>{r.pickCount || 0}</Typography>
+                    <Typography sx={{ fontSize: 18, fontWeight: 600, color: 'text.primary' }}>{r.pickCount || 0}</Typography>
                     <Typography sx={{ fontSize: 10, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase' }}>Picks</Typography>
                   </Box>
                 </Stack>

@@ -319,27 +319,27 @@ export default function InboundPage() {
         <Grid item xs={12} sm={6} md={3}>
           <Paper sx={ps.kpiCard('blue')}>
             <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.secondary', mb: 0.5 }}>Total Recepciones</Typography>
-            <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary' }}>{kpiCounts.total}</Typography>
+            <Typography sx={{ fontSize: 28, fontWeight: 600, color: 'text.primary' }}>{kpiCounts.total}</Typography>
           </Paper>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Paper sx={ps.kpiCard('amber')}>
             <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.secondary', mb: 0.5 }}>Esperadas</Typography>
-            <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary' }}>{kpiCounts.esperadas}</Typography>
+            <Typography sx={{ fontSize: 28, fontWeight: 600, color: 'text.primary' }}>{kpiCounts.esperadas}</Typography>
             <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>Status: ESPERADA</Typography>
           </Paper>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Paper sx={ps.kpiCard('blue')}>
             <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.secondary', mb: 0.5 }}>En Proceso</Typography>
-            <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary' }}>{kpiCounts.enProceso}</Typography>
+            <Typography sx={{ fontSize: 28, fontWeight: 600, color: 'text.primary' }}>{kpiCounts.enProceso}</Typography>
             <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>EN_DESCARGA + EN_INSPECCION</Typography>
           </Paper>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Paper sx={ps.kpiCard('green')}>
             <Typography sx={{ fontSize: 13, fontWeight: 700, color: 'text.secondary', mb: 0.5 }}>Completadas</Typography>
-            <Typography sx={{ fontSize: 28, fontWeight: 800, color: 'text.primary' }}>{kpiCounts.completadas}</Typography>
+            <Typography sx={{ fontSize: 28, fontWeight: 600, color: 'text.primary' }}>{kpiCounts.completadas}</Typography>
             <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>RECIBIDA + ALMACENADA</Typography>
           </Paper>
         </Grid>
@@ -427,7 +427,7 @@ export default function InboundPage() {
               {getWorkflowStep(selected.status) >= 0 && (
                 <>
                   <Divider />
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Flujo de Estado</Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Flujo de Estado</Typography>
                   <Stepper activeStep={getActiveStep(selected.status)} alternativeLabel sx={{ py: 1 }}>
                     {WORKFLOW_STEPS.map((step) => (
                       <Step key={step} completed={getActiveStep(selected.status) > WORKFLOW_STEPS.indexOf(step)}>
@@ -442,7 +442,7 @@ export default function InboundPage() {
               {getWorkflowStep(selected.status) < 0 && (
                 <>
                   <Divider />
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Flujo de Estado</Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Flujo de Estado</Typography>
                   <Stepper activeStep={getActiveStep(selected.status)} alternativeLabel sx={{ py: 1 }}>
                     {WORKFLOW_STEPS.map((step) => (
                       <Step key={step}>
@@ -457,7 +457,7 @@ export default function InboundPage() {
               )}
 
               <Divider />
-              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Lineas</Typography>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Lineas</Typography>
               {(selected.lines || []).map((l, i) => {
                 const received = hasReceivedData(selected)
                 const qtyRec = l.qtyReceived != null ? Number(l.qtyReceived) : null
@@ -504,7 +504,7 @@ export default function InboundPage() {
               {selected.discrepancies && Array.isArray(selected.discrepancies) && selected.discrepancies.length > 0 && (
                 <>
                   <Divider />
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#C62828' }}>Discrepancias Reportadas</Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#C62828' }}>Discrepancias Reportadas</Typography>
                   {selected.discrepancies.map((disc, i) => (
                     <Paper key={i} variant="outlined" sx={{ p: 1.5, borderRadius: 2, borderLeft: '4px solid #C62828' }}>
                       <Typography variant="body2" sx={ps.cellText}>
@@ -520,7 +520,7 @@ export default function InboundPage() {
               {selected.receivedLines && Array.isArray(selected.receivedLines) && selected.receivedLines.length > 0 && (
                 <>
                   <Divider />
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Lineas Recibidas</Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Lineas Recibidas</Typography>
                   {selected.receivedLines.map((rl, i) => {
                     const matchingLine = (selected.lines || []).find(l => l.sku === rl.sku)
                     const expQty = matchingLine ? Number(matchingLine.qtyExpected || 0) : null
@@ -576,7 +576,7 @@ export default function InboundPage() {
                   {putawayErr && <Alert severity="error" sx={{ mt: 1 }}>{putawayErr}</Alert>}
                   {putawaySuggestions.length > 0 && (
                     <Paper variant="outlined" sx={{ borderRadius: 2, mt: 1 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 800, px: 2, pt: 1.5 }}>Ubicaciones Sugeridas</Typography>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600, px: 2, pt: 1.5 }}>Ubicaciones Sugeridas</Typography>
                       <List dense>
                         {putawaySuggestions.map((loc, i) => (
                           <ListItem key={i}>
@@ -610,7 +610,7 @@ export default function InboundPage() {
             <TextField label="Notas" value={notes} onChange={e => setNotes(e.target.value)} sx={ps.inputSx} fullWidth multiline rows={2} />
             <Divider />
             <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Lineas de recibo</Typography>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Lineas de recibo</Typography>
               <Button size="small" startIcon={<AddIcon />} onClick={addLine}>Agregar linea</Button>
             </Stack>
             {lines.map((l, i) => (
@@ -641,7 +641,7 @@ export default function InboundPage() {
                 <b>Orden:</b> {receiveOrder.orderNumber || (receiveOrder.id || receiveOrder._id)} | <b>Proveedor:</b> {receiveOrder.supplier || '-'}
               </Typography>
               <Divider />
-              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Ajustar cantidades recibidas</Typography>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Ajustar cantidades recibidas</Typography>
               {receiveLines.map((l, i) => (
                 <Paper key={i} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center">

@@ -147,10 +147,10 @@ function ChangesDiff({ changes, isDark }) {
         <Table size="small" sx={{ '& td, & th': { fontSize: 12, py: 0.75 } }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ fontWeight: 800, width: '25%', color: 'text.secondary' }}>Campo</TableCell>
-              <TableCell sx={{ fontWeight: 800, width: '35%', color: isDark ? '#FCA5A5' : '#C62828' }}>Antes</TableCell>
-              <TableCell sx={{ fontWeight: 800, width: '5%' }}></TableCell>
-              <TableCell sx={{ fontWeight: 800, width: '35%', color: isDark ? '#86EFAC' : '#2E7D32' }}>Despues</TableCell>
+              <TableCell sx={{ fontWeight: 600, width: '25%', color: 'text.secondary' }}>Campo</TableCell>
+              <TableCell sx={{ fontWeight: 600, width: '35%', color: isDark ? '#FCA5A5' : '#C62828' }}>Antes</TableCell>
+              <TableCell sx={{ fontWeight: 600, width: '5%' }}></TableCell>
+              <TableCell sx={{ fontWeight: 600, width: '35%', color: isDark ? '#86EFAC' : '#2E7D32' }}>Despues</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -198,10 +198,10 @@ function ChangesDiff({ changes, isDark }) {
         <Table size="small" sx={{ '& td, & th': { fontSize: 12, py: 0.75 } }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ fontWeight: 800, width: '25%', color: 'text.secondary' }}>Campo</TableCell>
-              <TableCell sx={{ fontWeight: 800, width: '35%', color: isDark ? '#FCA5A5' : '#C62828' }}>Antes</TableCell>
-              <TableCell sx={{ fontWeight: 800, width: '5%' }}></TableCell>
-              <TableCell sx={{ fontWeight: 800, width: '35%', color: isDark ? '#86EFAC' : '#2E7D32' }}>Despues</TableCell>
+              <TableCell sx={{ fontWeight: 600, width: '25%', color: 'text.secondary' }}>Campo</TableCell>
+              <TableCell sx={{ fontWeight: 600, width: '35%', color: isDark ? '#FCA5A5' : '#C62828' }}>Antes</TableCell>
+              <TableCell sx={{ fontWeight: 600, width: '5%' }}></TableCell>
+              <TableCell sx={{ fontWeight: 600, width: '35%', color: isDark ? '#86EFAC' : '#2E7D32' }}>Despues</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -495,7 +495,7 @@ export default function AuditPage() {
               </Box>
               <Box>
                 <Typography sx={{ fontSize: 11, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Total registros</Typography>
-                <Typography sx={{ fontSize: 24, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>{kpis.total.toLocaleString()}</Typography>
+                <Typography sx={{ fontSize: 24, fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>{kpis.total.toLocaleString()}</Typography>
               </Box>
             </Stack>
           </Paper>
@@ -511,7 +511,7 @@ export default function AuditPage() {
               </Box>
               <Box>
                 <Typography sx={{ fontSize: 11, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Acciones hoy</Typography>
-                <Typography sx={{ fontSize: 24, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>{kpis.todayActions.toLocaleString()}</Typography>
+                <Typography sx={{ fontSize: 24, fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>{kpis.todayActions.toLocaleString()}</Typography>
               </Box>
             </Stack>
           </Paper>
@@ -527,7 +527,7 @@ export default function AuditPage() {
               </Box>
               <Box>
                 <Typography sx={{ fontSize: 11, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Usuarios activos</Typography>
-                <Typography sx={{ fontSize: 24, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>{kpis.uniqueUsers}</Typography>
+                <Typography sx={{ fontSize: 24, fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>{kpis.uniqueUsers}</Typography>
               </Box>
             </Stack>
           </Paper>
@@ -543,7 +543,7 @@ export default function AuditPage() {
               </Box>
               <Box>
                 <Typography sx={{ fontSize: 11, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>Entidad mas frecuente</Typography>
-                <Typography sx={{ fontSize: 20, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>{kpis.topEntity}</Typography>
+                <Typography sx={{ fontSize: 20, fontWeight: 600, color: 'text.primary', lineHeight: 1.1 }}>{kpis.topEntity}</Typography>
                 <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>{kpis.topEntityCount} registros</Typography>
               </Box>
             </Stack>
@@ -684,7 +684,7 @@ export default function AuditPage() {
                   label={dayjs(dateKey).format('dddd, DD MMM YYYY')}
                   sx={{
                     ...ps.metricChip('info'),
-                    fontWeight: 800,
+                    fontWeight: 600,
                     textTransform: 'capitalize',
                   }}
                 />
@@ -771,7 +771,7 @@ export default function AuditPage() {
 
               {/* Changes section with diff */}
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>Cambios</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>Cambios</Typography>
                 <ChangesDiff changes={selected.changes} isDark={ps.isDark} />
               </Box>
             </Stack>

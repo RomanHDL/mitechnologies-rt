@@ -285,7 +285,7 @@ export default function ProductionPage() {
     const pct = total > 0 ? Math.round((value / total) * 100) : 0
     return (
       <Paper elevation={0} sx={ps.kpiCard(accent)}>
-        <Typography sx={{ ...ps.cardHeaderSubtitle, fontSize: 11, fontWeight: 800, letterSpacing: 0.6, textTransform: 'uppercase' }}>
+        <Typography sx={{ ...ps.cardHeaderSubtitle, fontSize: 11, fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase' }}>
           {title}
         </Typography>
         <Typography sx={{ ...ps.pageTitle, mt: 0.5, fontSize: 30, lineHeight: 1 }}>
@@ -356,7 +356,7 @@ export default function ProductionPage() {
               sx={{
                 height: 40,
                 borderRadius: 2,
-                fontWeight: 800,
+                fontWeight: 600,
                 textTransform: 'none',
                 px: 2.5,
               }}
@@ -496,7 +496,7 @@ export default function ProductionPage() {
                           )}
                         </TableCell>
 
-                        <TableCell sx={{ ...ps.cellText, fontWeight: 800 }}>{areaLabel(r.area)}</TableCell>
+                        <TableCell sx={{ ...ps.cellText, fontWeight: 600 }}>{areaLabel(r.area)}</TableCell>
                         <TableCell sx={ps.cellTextSecondary}>{r.subarea || '--'}</TableCell>
 
                         {/* Color-coded status */}
@@ -593,7 +593,7 @@ export default function ProductionPage() {
                           <TableCell colSpan={9} sx={{ p: 0, borderBottom: isExpanded ? undefined : 'none' }}>
                             <Collapse in={isExpanded} timeout="auto" unmountOnExit>
                               <Box sx={{ px: 4, py: 1.5 }}>
-                                <Typography variant="caption" sx={{ ...ps.cellText, fontWeight: 800, mb: 0.5, display: 'block' }}>
+                                <Typography variant="caption" sx={{ ...ps.cellText, fontWeight: 600, mb: 0.5, display: 'block' }}>
                                   Detalle de items
                                 </Typography>
                                 <Table size="small" sx={{ maxWidth: 400 }}>
@@ -717,7 +717,7 @@ export default function ProductionPage() {
             <Grid container spacing={2}>
               {/* Left panel - day summary */}
               <Grid item xs={12} md={4}>
-                <Paper elevation={0} sx={{ p: 2, borderRadius: 3 }}>
+                <Paper elevation={0} sx={{ p: 2, borderRadius: 2 }}>
                   <Typography sx={{ ...ps.cardHeaderTitle, mb: 1.5 }}>
                     Estado del dia
                   </Typography>
@@ -747,7 +747,7 @@ export default function ProductionPage() {
                     <TableBody>
                       {(dash.rows || []).map((r, i) => (
                         <TableRow key={r.id} sx={ps.tableRow(i)}>
-                          <TableCell sx={{ ...ps.cellText, fontWeight: 800 }}>{r.palletId}</TableCell>
+                          <TableCell sx={{ ...ps.cellText, fontWeight: 600 }}>{r.palletId}</TableCell>
                           <TableCell>
                             <Chip label={r.status} size="small" sx={ps.statusChip(r.status)} />
                           </TableCell>
@@ -759,7 +759,7 @@ export default function ProductionPage() {
                               sx={{
                                 borderRadius: 2,
                                 textTransform: 'none',
-                                fontWeight: 800,
+                                fontWeight: 600,
                               }}
                             >
                               {r.status === 'PROCESADO' ? 'Marcar Pendiente' : 'Marcar Procesado'}
@@ -790,9 +790,9 @@ export default function ProductionPage() {
         onClose={() => setCreateOpen(false)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}
+        PaperProps={{ sx: { borderRadius: 2 } }}
       >
-        <DialogTitle sx={{ fontWeight: 800 }}>Nueva solicitud de produccion</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 600 }}>Nueva solicitud de produccion</DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
             {/* Area */}
@@ -827,7 +827,7 @@ export default function ProductionPage() {
 
             {/* Items table */}
             <Grid item xs={12}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
                 Items
               </Typography>
               <Table size="small">
@@ -945,7 +945,7 @@ export default function ProductionPage() {
             variant="contained"
             onClick={handleCreateSubmit}
             disabled={!canCreate}
-            sx={{ textTransform: 'none', fontWeight: 800, px: 3 }}
+            sx={{ textTransform: 'none', fontWeight: 600, px: 3 }}
           >
             Crear solicitud
           </Button>

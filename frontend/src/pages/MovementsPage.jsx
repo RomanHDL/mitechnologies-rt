@@ -210,7 +210,7 @@ export default function MovementsPage() {
             <Typography variant="caption" sx={{ ...ps.pageSubtitle, display: 'block', mb: 0.5 }}>
               Total movimientos
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
+            <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary' }}>
               {resumen.total}
             </Typography>
           </Paper>
@@ -221,7 +221,7 @@ export default function MovementsPage() {
               <ArrowDownwardIcon fontSize="small" color="success" />
               <Typography variant="caption" sx={ps.pageSubtitle}>Entradas (IN)</Typography>
             </Stack>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
+            <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary' }}>
               {resumen.entradas}
             </Typography>
           </Paper>
@@ -232,7 +232,7 @@ export default function MovementsPage() {
               <ArrowUpwardIcon fontSize="small" color="error" />
               <Typography variant="caption" sx={ps.pageSubtitle}>Salidas (OUT)</Typography>
             </Stack>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
+            <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary' }}>
               {resumen.salidas}
             </Typography>
           </Paper>
@@ -243,7 +243,7 @@ export default function MovementsPage() {
               <SwapHorizIcon fontSize="small" color="warning" />
               <Typography variant="caption" sx={ps.pageSubtitle}>Transferencias</Typography>
             </Stack>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary' }}>
+            <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary' }}>
               {resumen.transferencias}
             </Typography>
           </Paper>

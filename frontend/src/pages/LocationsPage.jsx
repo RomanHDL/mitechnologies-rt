@@ -165,7 +165,7 @@ function KpiCard({ label, value, sub, accent, icon, onClick, isDark }) {
       elevation={0}
       onClick={onClick}
       sx={{
-        p: 2, borderRadius: 3, cursor: onClick ? 'pointer' : 'default',
+        p: 2, borderRadius: 2, cursor: onClick ? 'pointer' : 'default',
         bgcolor: c.bg, border: `1px solid ${c.border}`,
         transition: 'transform .1s ease, box-shadow .1s ease',
         '&:hover': onClick ? { transform: 'translateY(-2px)', boxShadow: `0 8px 24px ${c.border}` } : {},
@@ -174,7 +174,7 @@ function KpiCard({ label, value, sub, accent, icon, onClick, isDark }) {
       <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
         <Box>
           <Typography sx={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'text.secondary', letterSpacing: .5 }}>{label}</Typography>
-          <Typography sx={{ fontSize: 28, fontWeight: 900, color: c.text, lineHeight: 1.2, mt: .5 }}>{value}</Typography>
+          <Typography sx={{ fontSize: 28, fontWeight: 700, color: c.text, lineHeight: 1.2, mt: .5 }}>{value}</Typography>
           {sub && <Typography sx={{ fontSize: 12, fontWeight: 600, color: 'text.secondary', mt: .3 }}>{sub}</Typography>}
         </Box>
         {icon && <Box sx={{ color: c.text, opacity: .6, mt: .5 }}>{icon}</Box>}
@@ -497,7 +497,7 @@ export default function LocationsPage() {
       {/* ══════ HEADER ══════ */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Box>
-          <Typography variant="h6" sx={{ fontWeight: 900 }}>Ubicaciones</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>Ubicaciones</Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>Gestion y visibilidad de ubicaciones del almacen</Typography>
         </Box>
         <Stack direction="row" spacing={1} alignItems="center">
@@ -533,7 +533,7 @@ export default function LocationsPage() {
         </Grid>
         <Grid item xs={6} sm={4} md={2}>
           <KpiCard label="Ocupacion %" value={`${globalSummary.occPct}%`}
-            sub={<LinearProgress variant="determinate" value={globalSummary.occPct} sx={{ mt: .5, height: 6, borderRadius: 3, bgcolor: isDark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.08)' }} />}
+            sub={<LinearProgress variant="determinate" value={globalSummary.occPct} sx={{ mt: .5, height: 6, borderRadius: 2, bgcolor: isDark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.08)' }} />}
             accent="purple" isDark={isDark} />
         </Grid>
         <Grid item xs={6} sm={4} md={2}>
@@ -553,7 +553,7 @@ export default function LocationsPage() {
       )}
 
       {/* ══════ FILTROS ══════ */}
-      <Paper elevation={0} sx={{ p: 2, borderRadius: 3, mb: 2 }}>
+      <Paper elevation={0} sx={{ p: 2, borderRadius: 2, mb: 2 }}>
         {!canEdit && (
           <Alert severity="warning" sx={{ mb: 2 }}>Solo ADMIN/SUPERVISOR puede editar ubicaciones y bloquear/desbloquear.</Alert>
         )}
@@ -628,7 +628,7 @@ export default function LocationsPage() {
           ].map(c => (
             <Chip key={c.key} clickable size="small" label={c.label}
               onClick={() => setState(c.key === state ? '' : c.key)}
-              sx={{ ...ps.metricChip(c.accent), fontWeight: 900, opacity: (!state || state === c.key) ? 1 : .5 }} />
+              sx={{ ...ps.metricChip(c.accent), fontWeight: 700, opacity: (!state || state === c.key) ? 1 : .5 }} />
           ))}
         </Stack>
       </Paper>
@@ -640,7 +640,7 @@ export default function LocationsPage() {
         <Box>
           {/* ─── VISTA LISTA ─── */}
           {view === 'LISTA' && (
-            <Paper elevation={0} sx={{ width: '100%', overflow: 'auto', borderRadius: 3 }}>
+            <Paper elevation={0} sx={{ width: '100%', overflow: 'auto', borderRadius: 2 }}>
               <Table size="small" sx={{ minWidth: 800 }}>
                 <TableHead>
                   <TableRow sx={ps.tableHeaderRow}>
@@ -663,7 +663,7 @@ export default function LocationsPage() {
                       <TableRow key={l._id} hover onClick={() => openDetail(l)}
                         sx={{ cursor: 'pointer', outline: isHi ? '2px solid rgba(59,130,246,.85)' : 'none', ...ps.tableRow(idx) }}>
                         <TableCell>
-                          <Typography sx={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 13 }}>
+                          <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 13 }}>
                             {l.code || `${l.height}${String(l.slot).padStart(2, '0')}-${l.rackCode}-${l._slot3}`}
                           </Typography>
                           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -673,18 +673,18 @@ export default function LocationsPage() {
                         <TableCell align="center">
                           <Stack direction="row" spacing={.5} alignItems="center" justifyContent="center">
                             {stateIcon(st)}
-                            <Chip size="small" label={st} sx={{ ...chipSxForState(st, isDark), fontWeight: 800, fontSize: 11 }} />
+                            <Chip size="small" label={st} sx={{ ...chipSxForState(st, isDark), fontWeight: 600, fontSize: 11 }} />
                           </Stack>
                           {isStale && (
                             <Chip size="small" label="Sin mov." icon={<WarningAmberIcon sx={{ fontSize: 14 }} />}
                               sx={{ mt: .5, fontSize: 10, bgcolor: isDark ? 'rgba(245,158,11,.12)' : 'rgba(245,158,11,.08)', color: isDark ? '#FCD34D' : '#92400E' }} />
                           )}
                         </TableCell>
-                        <TableCell align="center" sx={{ fontWeight: 800 }}>
+                        <TableCell align="center" sx={{ fontWeight: 600 }}>
                           {l.height} <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>{HEIGHT_LABEL[l.height] || ''}</Typography>
                         </TableCell>
                         <TableCell align="center" sx={ps.cellText}>{l.type || 'RACK'}</TableCell>
-                        <TableCell align="center" sx={{ fontWeight: 800 }}>{l.maxPallets || 1}</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 600 }}>{l.maxPallets || 1}</TableCell>
                         <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           <Tooltip title={noteText}><span style={{ fontSize: 13 }}>{noteText}</span></Tooltip>
                         </TableCell>
@@ -718,13 +718,13 @@ export default function LocationsPage() {
 
           {/* ─── VISTA MAPA ─── */}
           {view === 'MAPA' && (
-            <Paper elevation={0} sx={{ p: 2, borderRadius: 3 }}>
+            <Paper elevation={0} sx={{ p: 2, borderRadius: 2 }}>
               <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems={{ xs: 'stretch', md: 'center' }} justifyContent="space-between" sx={{ mb: 1 }}>
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <Typography sx={{ fontWeight: 900 }}>
+                  <Typography sx={{ fontWeight: 700 }}>
                     Rack {rackForMap || '—'}
                   </Typography>
-                  <Chip size="small" label={rackToArea(rackForMap)} sx={{ ...ps.metricChip('info'), fontWeight: 800 }} />
+                  <Chip size="small" label={rackToArea(rackForMap)} sx={{ ...ps.metricChip('info'), fontWeight: 600 }} />
                   {rackDetailLoading && <CircularProgress size={18} />}
                 </Stack>
                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
@@ -748,7 +748,7 @@ export default function LocationsPage() {
                   <Box sx={{ display: 'grid', gridTemplateColumns: '70px repeat(12, 1fr)', gap: 1, alignItems: 'center', mb: .5 }}>
                     <Box />
                     {SLOTS.map(s => (
-                      <Typography key={s} sx={{ fontSize: 12, opacity: .8, fontWeight: 900, textAlign: 'center' }}>
+                      <Typography key={s} sx={{ fontSize: 12, opacity: .8, fontWeight: 700, textAlign: 'center' }}>
                         {String(s).padStart(3, '0')}
                       </Typography>
                     ))}
@@ -756,7 +756,7 @@ export default function LocationsPage() {
 
                   {HEIGHTS.map(h => (
                     <Box key={h} sx={{ display: 'grid', gridTemplateColumns: '70px repeat(12, 1fr)', gap: 1, alignItems: 'center' }}>
-                      <Typography sx={{ fontWeight: 900, opacity: .9, fontSize: 13 }}>
+                      <Typography sx={{ fontWeight: 700, opacity: .9, fontSize: 13 }}>
                         {h} <Typography variant="caption" sx={{ display: 'block', fontSize: 9, color: 'text.secondary' }}>{HEIGHT_LABEL[h]}</Typography>
                       </Typography>
 
@@ -777,8 +777,8 @@ export default function LocationsPage() {
                               transition: 'transform .08s ease, box-shadow .12s ease',
                               '&:hover': l ? { transform: 'translateY(-1px)', boxShadow: '0 8px 20px rgba(0,0,0,.20)' } : {}
                             }}>
-                            <Typography sx={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 11 }}>{h}-{slot3}</Typography>
-                            <Typography sx={{ fontWeight: 800, fontSize: 10, opacity: .9, color: st === 'OCUPADO' ? (isDark ? '#86EFAC' : '#166534') : st === 'BLOQUEADO' ? (isDark ? '#FCA5A5' : '#991B1B') : 'text.secondary' }}>
+                            <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 11 }}>{h}-{slot3}</Typography>
+                            <Typography sx={{ fontWeight: 600, fontSize: 10, opacity: .9, color: st === 'OCUPADO' ? (isDark ? '#86EFAC' : '#166534') : st === 'BLOQUEADO' ? (isDark ? '#FCA5A5' : '#991B1B') : 'text.secondary' }}>
                               {st}
                             </Typography>
                             {hasPallet && (
@@ -800,15 +800,15 @@ export default function LocationsPage() {
           {view === 'RESUMEN' && (
             <Box>
               {/* Ocupación por zona */}
-              <Paper elevation={0} sx={{ p: 2, borderRadius: 3, mb: 2 }}>
-                <Typography sx={{ fontWeight: 900, mb: 2 }}>Ocupacion por Zona</Typography>
+              <Paper elevation={0} sx={{ p: 2, borderRadius: 2, mb: 2 }}>
+                <Typography sx={{ fontWeight: 700, mb: 2 }}>Ocupacion por Zona</Typography>
                 {zoneSummary.map(z => {
                   const pct = z.total ? Math.round((z.OCUPADO / z.total) * 100) : 0
                   const blkPct = z.total ? Math.round((z.BLOQUEADO / z.total) * 100) : 0
                   return (
                     <Box key={z.zone} sx={{ mb: 2, cursor: 'pointer' }} onClick={() => { setArea(z.zone); setView('LISTA') }}>
                       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: .5 }}>
-                        <Typography sx={{ fontWeight: 800, fontSize: 14 }}>{z.zone}</Typography>
+                        <Typography sx={{ fontWeight: 600, fontSize: 14 }}>{z.zone}</Typography>
                         <Stack direction="row" spacing={1}>
                           <Chip size="small" label={`${z.total} ubic.`} sx={ps.metricChip('default')} />
                           <Chip size="small" label={`${pct}% ocup.`} sx={ps.metricChip(pct > 80 ? 'bad' : pct > 50 ? 'warn' : 'ok')} />
@@ -825,9 +825,9 @@ export default function LocationsPage() {
               </Paper>
 
               {/* Resumen por rack */}
-              <Paper elevation={0} sx={{ p: 2, borderRadius: 3 }}>
-                <Typography sx={{ fontWeight: 900, mb: 1 }}>
-                  Resumen por Rack <span style={{ opacity: .7, fontWeight: 800 }}>(segun filtros)</span>
+              <Paper elevation={0} sx={{ p: 2, borderRadius: 2 }}>
+                <Typography sx={{ fontWeight: 700, mb: 1 }}>
+                  Resumen por Rack <span style={{ opacity: .7, fontWeight: 600 }}>(segun filtros)</span>
                 </Typography>
                 <Divider sx={{ my: 1.5 }} />
 
@@ -840,16 +840,16 @@ export default function LocationsPage() {
                       const barColor = occPct > 85 ? '#ef4444' : occPct > 60 ? '#f59e0b' : '#22c55e'
                       return (
                         <Paper key={rk.rackCode} elevation={0}
-                          sx={{ p: 2, borderRadius: 3, cursor: 'pointer', transition: 'transform .1s', '&:hover': { transform: 'translateY(-2px)' },
+                          sx={{ p: 2, borderRadius: 2, cursor: 'pointer', transition: 'transform .1s', '&:hover': { transform: 'translateY(-2px)' },
                             borderLeft: `4px solid ${barColor}` }}
                           onClick={() => { setRack(rk.rackCode); setArea(rackToArea(rk.rackCode)); setView('MAPA') }}>
                           <Stack direction="row" justifyContent="space-between" alignItems="center">
-                            <Typography sx={{ fontWeight: 900, fontSize: 18 }}>{rk.rackCode}</Typography>
-                            <Chip size="small" label={`${occPct}%`} sx={{ fontWeight: 900, bgcolor: `${barColor}22`, color: barColor, border: `1px solid ${barColor}44` }} />
+                            <Typography sx={{ fontWeight: 700, fontSize: 18 }}>{rk.rackCode}</Typography>
+                            <Chip size="small" label={`${occPct}%`} sx={{ fontWeight: 700, bgcolor: `${barColor}22`, color: barColor, border: `1px solid ${barColor}44` }} />
                           </Stack>
                           <LinearProgress variant="determinate" value={occPct}
-                            sx={{ mt: 1, mb: 1, height: 6, borderRadius: 3, bgcolor: isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.06)',
-                              '& .MuiLinearProgress-bar': { bgcolor: barColor, borderRadius: 3 } }} />
+                            sx={{ mt: 1, mb: 1, height: 6, borderRadius: 2, bgcolor: isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.06)',
+                              '& .MuiLinearProgress-bar': { bgcolor: barColor, borderRadius: 2 } }} />
                           <Stack direction="row" spacing={.5} flexWrap="wrap" useFlexGap>
                             <Chip size="small" label={`V ${rk.VACIO}`} sx={{ ...chipSxForState('VACIO', isDark), fontSize: 11 }} />
                             <Chip size="small" label={`O ${rk.OCUPADO}`} sx={{ ...chipSxForState('OCUPADO', isDark), fontSize: 11 }} />
@@ -867,8 +867,8 @@ export default function LocationsPage() {
 
         {/* ── DERECHA: PANEL DETALLE (desktop) ── */}
         <Box sx={{ display: { xs: 'none', lg: 'block' } }}>
-          <Paper elevation={0} sx={{ p: 2, borderRadius: 3, position: 'sticky', top: 92 }}>
-            <Typography sx={{ fontWeight: 900, mb: 1 }}>Detalle de Ubicacion</Typography>
+          <Paper elevation={0} sx={{ p: 2, borderRadius: 2, position: 'sticky', top: 92 }}>
+            <Typography sx={{ fontWeight: 700, mb: 1 }}>Detalle de Ubicacion</Typography>
             <Divider sx={{ mb: 1.5 }} />
 
             {!detailItem ? (
@@ -878,22 +878,22 @@ export default function LocationsPage() {
             ) : (
               <Box>
                 {/* Location code */}
-                <Typography sx={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 16, mb: 1 }}>{detailItem.code}</Typography>
+                <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 16, mb: 1 }}>{detailItem.code}</Typography>
 
                 {/* State + zone chips */}
                 <Stack direction="row" spacing={.5} flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
-                  <Chip size="small" icon={stateIcon(detailItem._state)} label={detailItem._state} sx={{ ...chipSxForState(detailItem._state, isDark), fontWeight: 900 }} />
-                  <Chip size="small" label={`Rack ${detailItem.rackCode}`} sx={{ ...ps.metricChip('default'), fontWeight: 800 }} />
-                  <Chip size="small" label={`${detailItem.height} (${HEIGHT_LABEL[detailItem.height] || ''})`} sx={{ ...ps.metricChip('default'), fontWeight: 800 }} />
-                  <Chip size="small" label={detailItem._area} sx={{ ...ps.metricChip('info'), fontWeight: 800 }} />
+                  <Chip size="small" icon={stateIcon(detailItem._state)} label={detailItem._state} sx={{ ...chipSxForState(detailItem._state, isDark), fontWeight: 700 }} />
+                  <Chip size="small" label={`Rack ${detailItem.rackCode}`} sx={{ ...ps.metricChip('default'), fontWeight: 600 }} />
+                  <Chip size="small" label={`${detailItem.height} (${HEIGHT_LABEL[detailItem.height] || ''})`} sx={{ ...ps.metricChip('default'), fontWeight: 600 }} />
+                  <Chip size="small" label={detailItem._area} sx={{ ...ps.metricChip('info'), fontWeight: 600 }} />
                 </Stack>
 
                 {/* Property grid */}
                 <Box sx={{ display: 'grid', gridTemplateColumns: '100px 1fr', rowGap: .8, columnGap: 1, mb: 1.5 }}>
                   <Typography sx={{ opacity: .6, fontSize: 12 }}>Tipo</Typography>
-                  <Typography sx={{ fontSize: 12, fontWeight: 800 }}>{detailItem.type || 'RACK'}</Typography>
+                  <Typography sx={{ fontSize: 12, fontWeight: 600 }}>{detailItem.type || 'RACK'}</Typography>
                   <Typography sx={{ opacity: .6, fontSize: 12 }}>Capacidad</Typography>
-                  <Typography sx={{ fontSize: 12, fontWeight: 800 }}>{detailItem.maxPallets || 1} pallet(s)</Typography>
+                  <Typography sx={{ fontSize: 12, fontWeight: 600 }}>{detailItem.maxPallets || 1} pallet(s)</Typography>
                   <Typography sx={{ opacity: .6, fontSize: 12 }}>Notas</Typography>
                   <Typography sx={{ fontSize: 12, fontWeight: 700 }}>
                     {detailItem.blocked ? `Bloqueado: ${detailItem.blockedReason || 'Sin motivo'}` : (detailItem.notes || '—')}
@@ -903,7 +903,7 @@ export default function LocationsPage() {
                 <Divider sx={{ my: 1.5 }} />
 
                 {/* Pallet info */}
-                <Typography sx={{ fontWeight: 800, fontSize: 13, mb: 1 }}>
+                <Typography sx={{ fontWeight: 600, fontSize: 13, mb: 1 }}>
                   <LocalShippingIcon sx={{ fontSize: 16, verticalAlign: 'middle', mr: .5 }} />
                   Pallet en esta ubicacion
                 </Typography>
@@ -914,7 +914,7 @@ export default function LocationsPage() {
                   <Typography sx={{ opacity: .6, fontSize: 12, fontStyle: 'italic' }}>Sin pallet asignado (ubicacion vacia).</Typography>
                 ) : (
                   <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, mb: 1 }}>
-                    <Typography sx={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 13 }}>{detailPallet.code}</Typography>
+                    <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 13 }}>{detailPallet.code}</Typography>
                     <Box sx={{ display: 'grid', gridTemplateColumns: '70px 1fr', rowGap: .5, mt: .5 }}>
                       <Typography sx={{ opacity: .6, fontSize: 11 }}>Status</Typography>
                       <Chip size="small" label={detailPallet.status || 'IN_STOCK'} sx={{ ...ps.metricChip(detailPallet.status === 'IN_STOCK' ? 'ok' : 'warn'), fontSize: 10, height: 20 }} />
@@ -931,7 +931,7 @@ export default function LocationsPage() {
                 {/* Recent movements */}
                 {detailMovements.length > 0 && (
                   <>
-                    <Typography sx={{ fontWeight: 800, fontSize: 13, mt: 1.5, mb: 1 }}>
+                    <Typography sx={{ fontWeight: 600, fontSize: 13, mt: 1.5, mb: 1 }}>
                       <HistoryIcon sx={{ fontSize: 16, verticalAlign: 'middle', mr: .5 }} />
                       Ultimos Movimientos
                     </Typography>
@@ -940,7 +940,7 @@ export default function LocationsPage() {
                         <Box sx={{ width: 8, height: 8, borderRadius: '50%', mt: .6, flexShrink: 0,
                           bgcolor: mv.type === 'IN' ? '#22c55e' : mv.type === 'OUT' ? '#ef4444' : mv.type === 'TRANSFER' ? '#3b82f6' : '#f59e0b' }} />
                         <Box sx={{ flex: 1 }}>
-                          <Typography sx={{ fontSize: 11, fontWeight: 800 }}>
+                          <Typography sx={{ fontSize: 11, fontWeight: 600 }}>
                             {mv.type} · {dayjs(mv.createdAt).format('DD/MM HH:mm')}
                           </Typography>
                           <Typography sx={{ fontSize: 10, color: 'text.secondary' }}>
@@ -1006,11 +1006,11 @@ export default function LocationsPage() {
             <Typography sx={{ opacity: .75 }}>Sin seleccion.</Typography>
           ) : (
             <Box>
-              <Typography sx={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 18 }}>{detailItem.code}</Typography>
+              <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 18 }}>{detailItem.code}</Typography>
               <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap' }} useFlexGap>
-                <Chip size="small" label={detailItem._state} sx={{ ...chipSxForState(detailItem._state, isDark), fontWeight: 900 }} />
-                <Chip size="small" label={`Rack ${detailItem.rackCode}`} sx={{ ...ps.metricChip('default'), fontWeight: 900 }} />
-                <Chip size="small" label={detailItem._area} sx={{ ...ps.metricChip('info'), fontWeight: 900 }} />
+                <Chip size="small" label={detailItem._state} sx={{ ...chipSxForState(detailItem._state, isDark), fontWeight: 700 }} />
+                <Chip size="small" label={`Rack ${detailItem.rackCode}`} sx={{ ...ps.metricChip('default'), fontWeight: 700 }} />
+                <Chip size="small" label={detailItem._area} sx={{ ...ps.metricChip('info'), fontWeight: 700 }} />
               </Stack>
 
               <Divider sx={{ my: 2 }} />
@@ -1020,7 +1020,7 @@ export default function LocationsPage() {
                 <Stack alignItems="center" sx={{ py: 2 }}><CircularProgress size={24} /></Stack>
               ) : detailPallet ? (
                 <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, mb: 2 }}>
-                  <Typography sx={{ fontWeight: 800, mb: 1 }}>Pallet: {detailPallet.code}</Typography>
+                  <Typography sx={{ fontWeight: 600, mb: 1 }}>Pallet: {detailPallet.code}</Typography>
                   <Typography variant="body2">Status: {detailPallet.status}</Typography>
                   <Typography variant="body2">Lote: {detailPallet.lot || '—'}</Typography>
                   <Typography variant="body2">SKU: {detailPallet.sku || (detailPallet.items?.[0]?.sku) || '—'}</Typography>
@@ -1044,7 +1044,7 @@ export default function LocationsPage() {
 
       {/* ══════ MODAL HISTORIAL DE MOVIMIENTOS ══════ */}
       <Dialog open={historyOpen} onClose={() => setHistoryOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ fontWeight: 900 }}>
+        <DialogTitle sx={{ fontWeight: 700 }}>
           Historial de Movimientos
           <IconButton onClick={() => setHistoryOpen(false)} sx={{ position: 'absolute', right: 8, top: 8 }}><CloseIcon /></IconButton>
         </DialogTitle>
@@ -1071,7 +1071,7 @@ export default function LocationsPage() {
                     <TableCell sx={{ fontSize: 12 }}>{dayjs(mv.createdAt).format('DD/MM/YY HH:mm')}</TableCell>
                     <TableCell>
                       <Chip size="small" label={mv.type}
-                        sx={{ fontWeight: 800, fontSize: 11,
+                        sx={{ fontWeight: 600, fontSize: 11,
                           bgcolor: mv.type === 'IN' ? 'rgba(34,197,94,.12)' : mv.type === 'OUT' ? 'rgba(239,68,68,.12)' : mv.type === 'TRANSFER' ? 'rgba(59,130,246,.12)' : 'rgba(245,158,11,.12)',
                           color: mv.type === 'IN' ? '#166534' : mv.type === 'OUT' ? '#991B1B' : mv.type === 'TRANSFER' ? '#1D4ED8' : '#92400E',
                         }} />
@@ -1093,7 +1093,7 @@ export default function LocationsPage() {
 
       {/* ══════ DIALOG EDITAR ══════ */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 900 }}>Editar ubicacion</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700 }}>Editar ubicacion</DialogTitle>
         <DialogContent>
           <Typography variant="body2" sx={{ opacity: .8, mb: 2 }}>
             {selected ? `${selected.code} · Rack ${selected.rackCode} · ${selected.height} · Slot ${String(selected.slot).padStart(3, '0')}` : ''}

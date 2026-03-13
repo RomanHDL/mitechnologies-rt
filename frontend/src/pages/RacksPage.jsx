@@ -265,7 +265,7 @@ export default function RacksPage() {
     <Box>
       {/* Title */}
       <Box sx={{ display:'flex', alignItems:'center', justifyContent:'space-between', mb: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: 900, color: 'text.primary' }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
           Racks
         </Typography>
 
@@ -291,19 +291,19 @@ export default function RacksPage() {
       >
         <Paper elevation={0} sx={{ ...ps.kpiCard('blue') }}>
           <Typography sx={{ color: 'text.secondary', fontSize:12 }}>Rack</Typography>
-          <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1, color: 'text.primary' }}>{rackCode}</Typography>
+          <Typography sx={{ fontWeight: 700, fontSize: 28, lineHeight: 1.1, color: 'text.primary' }}>{rackCode}</Typography>
           <Typography sx={{ color: 'text.secondary', fontSize:12, mt:.5 }}>Activo</Typography>
         </Paper>
 
         <Paper elevation={0} sx={{ ...ps.kpiCard() }}>
           <Typography sx={{ color: 'text.secondary', fontSize:12 }}>Total Posiciones</Typography>
-          <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1, color: 'text.primary' }}>{capacity}</Typography>
+          <Typography sx={{ fontWeight: 700, fontSize: 28, lineHeight: 1.1, color: 'text.primary' }}>{capacity}</Typography>
           <Typography sx={{ color: 'text.secondary', fontSize:12, mt:.5 }}>Capacidad</Typography>
         </Paper>
 
         <Paper elevation={0} sx={{ ...ps.kpiCard('green') }}>
           <Typography sx={{ color: 'text.secondary', fontSize:12 }}>Ocupadas</Typography>
-          <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1, color: 'text.primary' }}>{stats.ocupadas}</Typography>
+          <Typography sx={{ fontWeight: 700, fontSize: 28, lineHeight: 1.1, color: 'text.primary' }}>{stats.ocupadas}</Typography>
           <Typography sx={{ color: 'text.secondary', fontSize:12, mt:.5 }}>
             {Math.round((stats.ocupadas / capacity) * 100)}%
           </Typography>
@@ -311,7 +311,7 @@ export default function RacksPage() {
 
         <Paper elevation={0} sx={{ ...ps.kpiCard() }}>
           <Typography sx={{ color: 'text.secondary', fontSize:12 }}>Vacias</Typography>
-          <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1, color: 'text.primary' }}>{stats.vacias}</Typography>
+          <Typography sx={{ fontWeight: 700, fontSize: 28, lineHeight: 1.1, color: 'text.primary' }}>{stats.vacias}</Typography>
           <Typography sx={{ color: 'text.secondary', fontSize:12, mt:.5 }}>
             {Math.round((stats.vacias / capacity) * 100)}%
           </Typography>
@@ -319,7 +319,7 @@ export default function RacksPage() {
 
         <Paper elevation={0} sx={{ ...ps.kpiCard('red') }}>
           <Typography sx={{ color: 'text.secondary', fontSize:12 }}>Bloqueadas</Typography>
-          <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1, color: 'text.primary' }}>{stats.bloqueadas}</Typography>
+          <Typography sx={{ fontWeight: 700, fontSize: 28, lineHeight: 1.1, color: 'text.primary' }}>{stats.bloqueadas}</Typography>
           <Typography sx={{ color: 'text.secondary', fontSize:12, mt:.5 }}>
             {Math.round((stats.bloqueadas / capacity) * 100)}%
           </Typography>
@@ -327,7 +327,7 @@ export default function RacksPage() {
 
         <Paper elevation={0} sx={{ ...ps.kpiCard('amber') }}>
           <Typography sx={{ color: 'text.secondary', fontSize:12 }}>% Ocupacion</Typography>
-          <Typography sx={{ fontWeight: 900, fontSize: 28, lineHeight: 1.1, color: 'text.primary' }}>{stats.ocupacionPct}%</Typography>
+          <Typography sx={{ fontWeight: 700, fontSize: 28, lineHeight: 1.1, color: 'text.primary' }}>{stats.ocupacionPct}%</Typography>
           <Typography sx={{ color: 'text.secondary', fontSize:12, mt:.5 }}>Del rack actual</Typography>
         </Paper>
       </Box>
@@ -343,10 +343,10 @@ export default function RacksPage() {
         {/* =================== LEFT =================== */}
         <Box>
           {/* Top bar: Area chips + Rack selector + search + filters */}
-          <Paper elevation={0} sx={{ p:2, borderRadius:3, mb:2 }}>
+          <Paper elevation={0} sx={{ p:2, borderRadius:2, mb:2 }}>
             {/* Area filter chips */}
             <Stack direction="row" spacing={1} sx={{ mb: 2 }} alignItems="center">
-              <Typography sx={{ fontSize: 12, fontWeight: 800, color: 'text.secondary', mr: 0.5 }}>Area:</Typography>
+              <Typography sx={{ fontSize: 12, fontWeight: 600, color: 'text.secondary', mr: 0.5 }}>Area:</Typography>
               <Chip
                 size="small"
                 label="Todas"
@@ -383,7 +383,7 @@ export default function RacksPage() {
                     size="small"
                     disabled={!canPrev}
                     onClick={goToPrevRack}
-                    sx={{ minWidth: 40, fontWeight: 900, borderRadius: 2 }}
+                    sx={{ minWidth: 40, fontWeight: 700, borderRadius: 2 }}
                   >
                     {'<'}
                   </Button>
@@ -409,7 +409,7 @@ export default function RacksPage() {
                     size="small"
                     disabled={!canNext}
                     onClick={goToNextRack}
-                    sx={{ minWidth: 40, fontWeight: 900, borderRadius: 2 }}
+                    sx={{ minWidth: 40, fontWeight: 700, borderRadius: 2 }}
                   >
                     {'>'}
                   </Button>
@@ -431,7 +431,7 @@ export default function RacksPage() {
                 sx={{
                   height: 40,
                   minWidth: 120,
-                  fontWeight: 900,
+                  fontWeight: 700,
                   borderRadius: 2,
                   textTransform: 'none'
                 }}
@@ -506,9 +506,9 @@ export default function RacksPage() {
           </Paper>
 
           {/* Rack Map */}
-          <Paper elevation={0} sx={{ p:2, borderRadius:3 }}>
+          <Paper elevation={0} sx={{ p:2, borderRadius:2 }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 900, color: 'text.primary' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
                 Mapa del Rack {rackCode} <span style={{ opacity:.75 }}>(A-C / 01-12)</span>
               </Typography>
               <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>
@@ -541,7 +541,7 @@ export default function RacksPage() {
                   key={level}
                   sx={{ display:'grid', gridTemplateColumns:'64px repeat(12, 1fr)', gap:1, alignItems:'center' }}
                 >
-                  <Typography sx={{ fontWeight: 900, color: 'text.primary' }}>{level}</Typography>
+                  <Typography sx={{ fontWeight: 700, color: 'text.primary' }}>{level}</Typography>
 
                   {positions.map(pos => {
                     const { state, code, raw } = getCell(level, pos)
@@ -582,7 +582,7 @@ export default function RacksPage() {
                           }
                         }}
                       >
-                        <div style={{ fontWeight: 900, fontSize: 13, color: 'inherit' }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: 'inherit' }}>
                           {level}{String(pos).padStart(2,'0')}
                         </div>
                         {state === 'OCUPADO' && palletCode ? (
@@ -620,8 +620,8 @@ export default function RacksPage() {
 
         {/* =================== RIGHT (PANEL) =================== */}
         <Box>
-          <Paper elevation={0} sx={{ p:2, borderRadius:3, mb:2 }}>
-            <Typography sx={{ fontWeight: 900, mb: 1, color: 'text.primary' }}>Detalles de Ubicacion</Typography>
+          <Paper elevation={0} sx={{ p:2, borderRadius:2, mb:2 }}>
+            <Typography sx={{ fontWeight: 700, mb: 1, color: 'text.primary' }}>Detalles de Ubicacion</Typography>
             <Divider sx={{ mb: 2 }} />
 
             {actionSuccess && (
@@ -641,7 +641,7 @@ export default function RacksPage() {
               </Typography>
             ) : (
               <Box>
-                <Typography sx={{ fontWeight: 900, fontSize: 18, mb: 1, color: 'text.primary' }}>
+                <Typography sx={{ fontWeight: 700, fontSize: 18, mb: 1, color: 'text.primary' }}>
                   {selected.code || `${selected.level}${String(selected.pos).padStart(2,'0')}-${rackCode}-${String(selected.pos).padStart(3,'0')}`}
                 </Typography>
 
@@ -706,7 +706,7 @@ export default function RacksPage() {
                 <Divider sx={{ my:2 }} />
 
                 {/* Quick actions */}
-                <Typography sx={{ fontSize: 12, fontWeight: 800, color: 'text.secondary', mb: 1 }}>
+                <Typography sx={{ fontSize: 12, fontWeight: 600, color: 'text.secondary', mb: 1 }}>
                   Acciones rapidas
                 </Typography>
 
@@ -730,7 +730,7 @@ export default function RacksPage() {
                       onClick={handleBlockToggle}
                       sx={{
                         textTransform:'none',
-                        fontWeight: 900,
+                        fontWeight: 700,
                         borderRadius: 2,
                         bgcolor: selected.state === 'BLOQUEADO'
                           ? (isDark ? 'rgba(34,197,94,.25)' : '#2E7D32')
@@ -759,7 +759,7 @@ export default function RacksPage() {
                       onClick={handleTransferOpen}
                       sx={{
                         textTransform:'none',
-                        fontWeight: 900,
+                        fontWeight: 700,
                         borderRadius: 2,
                         mb: 1,
                       }}
@@ -785,7 +785,7 @@ export default function RacksPage() {
                           onClick={handleBlockToggle}
                           sx={{
                             textTransform:'none',
-                            fontWeight: 900,
+                            fontWeight: 700,
                             borderRadius: 2,
                             color: isDark ? '#FCA5A5' : '#C62828',
                             borderColor: isDark ? 'rgba(239,68,68,.35)' : '#C62828',
@@ -808,7 +808,7 @@ export default function RacksPage() {
                     onClick={handleTransferOpen}
                     sx={{
                       textTransform:'none',
-                      fontWeight: 900,
+                      fontWeight: 700,
                       borderRadius: 2,
                       mb: 1,
                     }}
@@ -820,8 +820,8 @@ export default function RacksPage() {
             )}
           </Paper>
 
-          <Paper elevation={0} sx={{ p:2, borderRadius:3 }}>
-            <Typography sx={{ fontWeight: 900, mb: 1, color: 'text.primary' }}>Estadisticas del Rack</Typography>
+          <Paper elevation={0} sx={{ p:2, borderRadius:2 }}>
+            <Typography sx={{ fontWeight: 700, mb: 1, color: 'text.primary' }}>Estadisticas del Rack</Typography>
             <Divider sx={{ mb: 2 }} />
 
             <Stack spacing={1.2}>
@@ -864,7 +864,7 @@ export default function RacksPage() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle sx={{ fontWeight: 900 }}>
+        <DialogTitle sx={{ fontWeight: 700 }}>
           Transferir Pallet
         </DialogTitle>
         <DialogContent>
@@ -924,7 +924,7 @@ export default function RacksPage() {
             variant="contained"
             onClick={handleTransfer}
             disabled={!transferDest || transferLoading}
-            sx={{ textTransform: 'none', fontWeight: 900, borderRadius: 2 }}
+            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
           >
             {transferLoading ? <CircularProgress size={20} sx={{ color: '#fff' }} /> : 'Transferir'}
           </Button>

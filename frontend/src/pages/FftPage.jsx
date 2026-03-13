@@ -269,7 +269,7 @@ export default function FftPage() {
       >
         <Stack direction="row" spacing={1} alignItems="flex-start" justifyContent="space-between">
           <Box sx={{ minWidth: 0 }}>
-            <Typography sx={{ fontWeight: 900, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <Typography sx={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {code}
             </Typography>
 
@@ -293,7 +293,7 @@ export default function FftPage() {
               bgcolor: state === 'OCUPADO' ? 'rgba(34,197,94,.18)' : state === 'BLOQUEADO' ? 'rgba(239,68,68,.16)' : (isDark ? 'rgba(255,255,255,.06)' : 'rgba(21,101,192,.08)'),
               color: state === 'OCUPADO' ? (isDark ? '#a7f3d0' : '#1b5e20') : state === 'BLOQUEADO' ? (isDark ? '#fca5a5' : '#b71c1c') : (isDark ? '#e5e7eb' : '#1565C0'),
               border: state === 'OCUPADO' ? '1px solid rgba(34,197,94,.28)' : state === 'BLOQUEADO' ? '1px solid rgba(239,68,68,.28)' : (isDark ? '1px solid rgba(255,255,255,.10)' : '1px solid rgba(21,101,192,.20)'),
-              fontWeight: 900,
+              fontWeight: 700,
             }}
           />
         </Stack>
@@ -331,7 +331,7 @@ export default function FftPage() {
       >
         <Stack direction="row" spacing={1} alignItems="flex-start" justifyContent="space-between">
           <Box>
-            <Typography sx={{ fontWeight: 900 }}>
+            <Typography sx={{ fontWeight: 700 }}>
               {key} {idx === 0 ? '(abajo)' : idx === 4 ? '(arriba)' : ''}
             </Typography>
 
@@ -369,7 +369,7 @@ export default function FftPage() {
               bgcolor: state === 'OCUPADO' ? 'rgba(34,197,94,.18)' : state === 'BLOQUEADO' ? 'rgba(239,68,68,.16)' : (isDark ? 'rgba(255,255,255,.06)' : 'rgba(21,101,192,.08)'),
               color: state === 'OCUPADO' ? (isDark ? '#a7f3d0' : '#1b5e20') : state === 'BLOQUEADO' ? (isDark ? '#fca5a5' : '#b71c1c') : (isDark ? '#e5e7eb' : '#1565C0'),
               border: state === 'OCUPADO' ? '1px solid rgba(34,197,94,.28)' : state === 'BLOQUEADO' ? '1px solid rgba(239,68,68,.28)' : (isDark ? '1px solid rgba(255,255,255,.10)' : '1px solid rgba(21,101,192,.20)'),
-              fontWeight: 900,
+              fontWeight: 700,
             }}
           />
         </Stack>
@@ -400,7 +400,7 @@ export default function FftPage() {
   // =========================
   const renderAreaComparison = () => (
     <Paper elevation={0} sx={{ ...ps.card, p: 2, mb: 2 }}>
-      <Typography sx={{ fontWeight: 900, mb: 1.5 }}>Comparativa de Areas</Typography>
+      <Typography sx={{ fontWeight: 700, mb: 1.5 }}>Comparativa de Areas</Typography>
       <Divider sx={{ mb: 2 }} />
       <Stack spacing={1.5}>
         {AREAS.map(a => {
@@ -460,10 +460,10 @@ export default function FftPage() {
         onClose={handlePopoverClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         transformOrigin={{ vertical: 'top', horizontal: 'center' }}
-        slotProps={{ paper: { sx: { borderRadius: 2.5, p: 2, minWidth: 260, maxWidth: 320, border: isDark ? '1px solid rgba(255,255,255,.10)' : '1px solid rgba(21,101,192,.12)' } } }}
+        slotProps={{ paper: { sx: { borderRadius: 2, p: 2, minWidth: 260, maxWidth: 320, border: isDark ? '1px solid rgba(255,255,255,.10)' : '1px solid rgba(21,101,192,.12)' } } }}
       >
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-          <Typography sx={{ fontWeight: 900, fontSize: 14 }}>{popoverData.key}</Typography>
+          <Typography sx={{ fontWeight: 700, fontSize: 14 }}>{popoverData.key}</Typography>
           <IconButton size="small" onClick={handlePopoverClose}><CloseIcon sx={{ fontSize: 16 }} /></IconButton>
         </Stack>
 
@@ -553,7 +553,7 @@ export default function FftPage() {
                     ml: 1,
                     height: 20,
                     fontSize: 10,
-                    fontWeight: 800,
+                    fontWeight: 600,
                     ...(isActive ? ps.metricChip('info') : ps.metricChip('default')),
                     height: 20,
                   }}
@@ -571,7 +571,7 @@ export default function FftPage() {
             <StorageIcon sx={{ fontSize: 18, opacity: .6 }} />
             <Typography sx={{ opacity: .75, fontSize: 11, textTransform: 'uppercase', letterSpacing: .5 }}>Total Posiciones</Typography>
           </Stack>
-          <Typography sx={{ fontWeight: 900, fontSize: 26 }}>{stats.cap}</Typography>
+          <Typography sx={{ fontWeight: 700, fontSize: 26 }}>{stats.cap}</Typography>
         </Paper>
 
         <Paper elevation={0} sx={ps.kpiCard('green')}>
@@ -579,7 +579,7 @@ export default function FftPage() {
             <InventoryIcon sx={{ fontSize: 18, opacity: .6 }} />
             <Typography sx={{ opacity: .75, fontSize: 11, textTransform: 'uppercase', letterSpacing: .5 }}>Ocupadas</Typography>
           </Stack>
-          <Typography sx={{ fontWeight: 900, fontSize: 26 }}>{stats.ocupadas}</Typography>
+          <Typography sx={{ fontWeight: 700, fontSize: 26 }}>{stats.ocupadas}</Typography>
         </Paper>
 
         <Paper elevation={0} sx={ps.kpiCard('blue')}>
@@ -587,7 +587,7 @@ export default function FftPage() {
             <CheckCircleOutlineIcon sx={{ fontSize: 18, opacity: .6 }} />
             <Typography sx={{ opacity: .75, fontSize: 11, textTransform: 'uppercase', letterSpacing: .5 }}>Vacias</Typography>
           </Stack>
-          <Typography sx={{ fontWeight: 900, fontSize: 26 }}>{stats.vacias}</Typography>
+          <Typography sx={{ fontWeight: 700, fontSize: 26 }}>{stats.vacias}</Typography>
         </Paper>
 
         <Paper elevation={0} sx={ps.kpiCard('red')}>
@@ -595,7 +595,7 @@ export default function FftPage() {
             <BlockIcon sx={{ fontSize: 18, opacity: .6 }} />
             <Typography sx={{ opacity: .75, fontSize: 11, textTransform: 'uppercase', letterSpacing: .5 }}>Bloqueadas</Typography>
           </Stack>
-          <Typography sx={{ fontWeight: 900, fontSize: 26 }}>{stats.bloqueadas}</Typography>
+          <Typography sx={{ fontWeight: 700, fontSize: 26 }}>{stats.bloqueadas}</Typography>
         </Paper>
 
         <Paper elevation={0} sx={ps.kpiCard('amber')}>
@@ -603,7 +603,7 @@ export default function FftPage() {
             <PercentIcon sx={{ fontSize: 18, opacity: .6 }} />
             <Typography sx={{ opacity: .75, fontSize: 11, textTransform: 'uppercase', letterSpacing: .5 }}>% Ocupacion</Typography>
           </Stack>
-          <Typography sx={{ fontWeight: 900, fontSize: 26 }}>{stats.pct}%</Typography>
+          <Typography sx={{ fontWeight: 700, fontSize: 26 }}>{stats.pct}%</Typography>
           <LinearProgress
             variant="determinate"
             value={stats.pct}
@@ -677,7 +677,7 @@ export default function FftPage() {
           {/* Centro: Grid o Estantes */}
           <Paper elevation={0} sx={{ ...ps.card, p: 2 }}>
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-              <Typography sx={{ fontWeight: 900 }}>
+              <Typography sx={{ fontWeight: 700 }}>
                 {isFftAccesorios(areaDb, subarea) ? 'Accesorios (FFT) -- Estantes por altura' : 'Mapa/Grid de BINs'}
               </Typography>
               <Stack direction="row" spacing={1}>
@@ -716,7 +716,7 @@ export default function FftPage() {
         {/* DER (detalle + comparativa) */}
         <Box>
           <Paper elevation={0} sx={{ ...ps.card, p: 2, mb: 2 }}>
-            <Typography sx={{ fontWeight: 900, mb: 1 }}>Detalle</Typography>
+            <Typography sx={{ fontWeight: 700, mb: 1 }}>Detalle</Typography>
             <Divider sx={{ mb: 2, }} />
 
             {!selected ? (
@@ -725,7 +725,7 @@ export default function FftPage() {
               </Typography>
             ) : (
               <Box>
-                <Typography sx={{ fontWeight: 900, fontSize: 16, mb: 1 }}>
+                <Typography sx={{ fontWeight: 700, fontSize: 16, mb: 1 }}>
                   {selected.key}
                 </Typography>
 
@@ -803,14 +803,14 @@ export default function FftPage() {
 
           {/* Ocupacion actual */}
           <Paper elevation={0} sx={{ ...ps.card, p: 2, mb: 2 }}>
-            <Typography sx={{ fontWeight: 900, mb: 1 }}>Ocupacion</Typography>
+            <Typography sx={{ fontWeight: 700, mb: 1 }}>Ocupacion</Typography>
             <Divider sx={{ mb: 2, }} />
 
             <Stack spacing={1.2}>
               <Box>
                 <Stack direction="row" justifyContent="space-between">
                   <Typography sx={{ opacity: .75, fontSize: 12 }}>Ocupacion</Typography>
-                  <Typography sx={{ fontWeight: 900, fontSize: 12 }}>{stats.pct}%</Typography>
+                  <Typography sx={{ fontWeight: 700, fontSize: 12 }}>{stats.pct}%</Typography>
                 </Stack>
                 <LinearProgress
                   variant="determinate"
@@ -826,13 +826,13 @@ export default function FftPage() {
 
               <Box sx={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 1 }}>
                 <Typography sx={{ opacity: .75, fontSize: 12 }}>Vacias</Typography>
-                <Typography sx={{ fontWeight: 900, fontSize: 12 }}>{stats.vacias}</Typography>
+                <Typography sx={{ fontWeight: 700, fontSize: 12 }}>{stats.vacias}</Typography>
 
                 <Typography sx={{ opacity: .75, fontSize: 12 }}>Ocupadas</Typography>
-                <Typography sx={{ fontWeight: 900, fontSize: 12 }}>{stats.ocupadas}</Typography>
+                <Typography sx={{ fontWeight: 700, fontSize: 12 }}>{stats.ocupadas}</Typography>
 
                 <Typography sx={{ opacity: .75, fontSize: 12 }}>Bloqueadas</Typography>
-                <Typography sx={{ fontWeight: 900, fontSize: 12 }}>{stats.bloqueadas}</Typography>
+                <Typography sx={{ fontWeight: 700, fontSize: 12 }}>{stats.bloqueadas}</Typography>
               </Box>
             </Stack>
           </Paper>
@@ -851,9 +851,9 @@ export default function FftPage() {
         onClose={() => { if (!blockLoading) { setBlockDialog(null); setBlockReason('') } }}
         maxWidth="xs"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 3 } }}
+        PaperProps={{ sx: { borderRadius: 2 } }}
       >
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: 800 }}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: 600 }}>
           {blockDialog?.action === 'block' ? 'Bloquear Ubicacion' : 'Desbloquear Ubicacion'}
           <IconButton size="small" onClick={() => { setBlockDialog(null); setBlockReason('') }} disabled={blockLoading}>
             <CloseIcon fontSize="small" />
