@@ -17,52 +17,40 @@ import Button from '@mui/material/Button'
 import IconButton from '@mui/material/IconButton'
 import TooltipMUI from '@mui/material/Tooltip'
 import LinearProgress from '@mui/material/LinearProgress'
+import Table from '@mui/material/Table'
+import TableBody from '@mui/material/TableBody'
+import TableCell from '@mui/material/TableCell'
+import TableHead from '@mui/material/TableHead'
+import TableRow from '@mui/material/TableRow'
+import { useTheme } from '@mui/material/styles'
 
 import RefreshIcon from '@mui/icons-material/Refresh'
-import SwapHorizIcon from '@mui/icons-material/SwapHoriz'
-import AssignmentIcon from '@mui/icons-material/Assignment'
-import WarningAmberIcon from '@mui/icons-material/WarningAmber'
-import CheckCircleIcon from '@mui/icons-material/CheckCircle'
-import BlockIcon from '@mui/icons-material/Block'
-import Inventory2Icon from '@mui/icons-material/Inventory2'
-import UploadFileIcon from '@mui/icons-material/UploadFile'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import TrendingDownIcon from '@mui/icons-material/TrendingDown'
 import WarehouseIcon from '@mui/icons-material/Warehouse'
 import LocalShippingIcon from '@mui/icons-material/LocalShipping'
 import BalanceIcon from '@mui/icons-material/Balance'
-import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck'
 import DownloadIcon from '@mui/icons-material/Download'
-import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive'
-import AddBoxIcon from '@mui/icons-material/AddBox'
-import FactCheckIcon from '@mui/icons-material/FactCheck'
+import UploadFileIcon from '@mui/icons-material/UploadFile'
+import BlockIcon from '@mui/icons-material/Block'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
-import ExpandLessIcon from '@mui/icons-material/ExpandLess'
+import InventoryIcon from '@mui/icons-material/Inventory'
+import AssignmentIcon from '@mui/icons-material/Assignment'
 
 import {
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  CartesianGrid,
-  Cell,
+  XAxis, YAxis, Tooltip, ResponsiveContainer,
+  BarChart, Bar, CartesianGrid, Cell,
+  PieChart, Pie,
+  AreaChart, Area,
 } from 'recharts'
 
 import * as XLSX from 'xlsx'
 
-function Pill({ label, icon, ps }) {
-  return (
-    <Chip
-      size="small"
-      icon={icon}
-      label={label}
-      sx={{ ...ps.metricChip('info'), fontSize: '0.6875rem' }}
-    />
-  )
-}
+/* ═══════════════════════════════════════════════════
+   Helpers
+   ═══════════════════════════════════════════════════ */
 
 function getRoleFromToken(token) {
   try {
@@ -71,9 +59,7 @@ function getRoleFromToken(token) {
     if (parts.length < 2) return ''
     const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
     return String(payload.role || payload.rol || payload.Role || '').toUpperCase()
-  } catch {
-    return ''
-  }
+  } catch { return '' }
 }
 
 function safeNum(v) {
@@ -81,164 +67,186 @@ function safeNum(v) {
   return Number.isFinite(n) ? n : 0
 }
 
-function movementTypeChipSx(type) {
-  const t = String(type || '').toUpperCase()
-  if (t === 'IN' || t === 'ENTRADA') return { bgcolor: 'rgba(34,197,94,.08)', color: '#15803D', border: '1px solid rgba(34,197,94,.20)', fontWeight: 600 }
-  if (t === 'OUT' || t === 'SALIDA') return { bgcolor: 'rgba(239,68,68,.08)', color: '#B91C1C', border: '1px solid rgba(239,68,68,.20)', fontWeight: 600 }
-  if (t === 'TRANSFER' || t === 'TRANSFERENCIA') return { bgcolor: 'rgba(59,130,246,.08)', color: '#1D4ED8', border: '1px solid rgba(59,130,246,.20)', fontWeight: 600 }
-  if (t === 'ADJUST' || t === 'AJUSTE') return { bgcolor: 'rgba(245,158,11,.08)', color: '#B45309', border: '1px solid rgba(245,158,11,.20)', fontWeight: 600 }
-  return { bgcolor: 'rgba(148,163,184,.06)', color: 'text.secondary', border: '1px solid rgba(148,163,184,.15)', fontWeight: 600 }
+function fmtNum(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K'
+  return String(n)
 }
 
-function ElegantTooltip({ active, payload, label }) {
-  if (!active || !payload || !payload.length) return null
-  const v = payload?.[0]?.value
+function shortDate(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  return `${d.getDate()}/${d.getMonth() + 1}`
+}
 
+function timeAgo(dateStr) {
+  if (!dateStr) return ''
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'Ahora'
+  if (mins < 60) return `${mins}m`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h`
+  return `${Math.floor(hrs / 24)}d`
+}
+
+/* ═══════════════════════════════════════════════════
+   Chart palette & theme-aware colors
+   ═══════════════════════════════════════════════════ */
+
+const CHART_COLORS = {
+  blue: '#3B82F6',
+  green: '#16A34A',
+  red: '#DC2626',
+  amber: '#D97706',
+  purple: '#7C3AED',
+  cyan: '#0891B2',
+  slate: '#64748B',
+}
+
+const MOVEMENT_COLORS = {
+  IN: '#16A34A',
+  OUT: '#DC2626',
+  TRANSFER: '#3B82F6',
+  ADJUST: '#D97706',
+}
+
+const MOVEMENT_LABELS = {
+  IN: 'Entradas',
+  OUT: 'Salidas',
+  TRANSFER: 'Transferencias',
+  ADJUST: 'Ajustes',
+}
+
+/* ═══════════════════════════════════════════════════
+   Reusable chart components
+   ═══════════════════════════════════════════════════ */
+
+function ChartTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        px: 1.25,
-        py: 0.9,
-        borderRadius: 2,
-        border: '1px solid rgba(148,163,184,.25)',
-        bgcolor: 'rgba(2,6,23,.88)',
-        backdropFilter: 'blur(10px)',
-      }}
-    >
-      <Typography sx={{ fontSize: 12, fontWeight: 600, color: 'rgba(226,232,240,.95)' }}>
-        {label || 'Dato'}
+    <Paper elevation={0} sx={{
+      px: 1.5, py: 1, borderRadius: 1.5,
+      bgcolor: 'rgba(15,23,42,.92)', backdropFilter: 'blur(8px)',
+      border: '1px solid rgba(255,255,255,.08)',
+    }}>
+      <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'rgba(226,232,240,.9)', mb: 0.25 }}>
+        {label}
       </Typography>
-      <Typography sx={{ fontSize: 12, color: 'rgba(226,232,240,.85)' }}>
-        Valor: <b>{v ?? 0}</b>
-      </Typography>
+      {payload.map((p, i) => (
+        <Typography key={i} sx={{ fontSize: 11, color: p.color || 'rgba(226,232,240,.7)' }}>
+          {p.name || p.dataKey}: <b>{p.value ?? 0}</b>
+        </Typography>
+      ))}
     </Paper>
   )
 }
 
-function StatusMiniCard({ title, value, subtitle, icon, tone = 'info', progress }) {
-  const tones = {
-    info: {
-      border: 'rgba(59,130,246,.12)',
-      iconColor: '#3B82F6',
-      iconBg: 'rgba(59,130,246,.08)',
-      barColor: '#3B82F6',
-    },
-    success: {
-      border: 'rgba(34,197,94,.12)',
-      iconColor: '#16A34A',
-      iconBg: 'rgba(34,197,94,.08)',
-      barColor: '#16A34A',
-    },
-    warning: {
-      border: 'rgba(245,158,11,.12)',
-      iconColor: '#D97706',
-      iconBg: 'rgba(245,158,11,.08)',
-      barColor: '#D97706',
-    },
-    danger: {
-      border: 'rgba(239,68,68,.12)',
-      iconColor: '#DC2626',
-      iconBg: 'rgba(239,68,68,.08)',
-      barColor: '#DC2626',
-    },
-  }
-
-  const t = tones[tone] || tones.info
-
+function SectionHeader({ title, subtitle, action }) {
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        p: 2,
-        borderRadius: 2,
-        border: `1px solid`,
-        borderColor: t.border,
-        height: '100%',
-        transition: 'border-color .15s ease',
-        '&:hover': { borderColor: 'rgba(0,0,0,.12)' },
-      }}
-    >
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+      <Box>
+        <Typography sx={{ fontWeight: 600, fontSize: 14, color: 'text.primary' }}>{title}</Typography>
+        {subtitle && <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>{subtitle}</Typography>}
+      </Box>
+      {action}
+    </Box>
+  )
+}
+
+function KpiCard({ title, value, subtitle, icon, trend, trendLabel, color = '#3B82F6' }) {
+  const isPositive = trend > 0
+  const isNegative = trend < 0
+  return (
+    <Paper elevation={0} sx={{ p: 2, height: '100%', borderRadius: 2 }}>
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.25 }}>
         <Box sx={{
-          width: 32, height: 32, borderRadius: 1.5,
-          bgcolor: t.iconBg,
-          display: 'grid', placeItems: 'center',
-          color: t.iconColor,
+          width: 34, height: 34, borderRadius: 1.5, flexShrink: 0,
+          bgcolor: `${color}10`, display: 'grid', placeItems: 'center',
+          color: color,
         }}>
           {icon}
         </Box>
-        <Typography sx={{ fontSize: 12, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.3 }}>
+        <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.4 }}>
           {title}
         </Typography>
       </Stack>
-
-      <Typography sx={{ fontSize: 26, lineHeight: 1, fontWeight: 700, color: 'text.primary', mb: 0.5 }}>
+      <Typography sx={{ fontSize: 28, fontWeight: 700, color: 'text.primary', lineHeight: 1, mb: 0.5 }}>
         {value}
       </Typography>
-
-      <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
-        {subtitle}
-      </Typography>
-
-      {typeof progress === 'number' && (
-        <Box sx={{ mt: 1.25, height: 4, borderRadius: 2, bgcolor: 'rgba(0,0,0,.04)', overflow: 'hidden' }}>
-          <Box sx={{
-            height: '100%',
-            width: `${Math.min(progress, 100)}%`,
-            borderRadius: 2,
-            bgcolor: progress > 90 ? '#DC2626' : progress > 70 ? '#D97706' : t.barColor,
-            transition: 'width 0.5s ease',
+      <Stack direction="row" spacing={0.5} alignItems="center">
+        <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>{subtitle}</Typography>
+        {typeof trend === 'number' && trend !== 0 && (
+          <Chip size="small" label={`${isPositive ? '+' : ''}${trend} ${trendLabel || ''}`} sx={{
+            height: 18, fontSize: 10, fontWeight: 600,
+            bgcolor: isPositive ? 'rgba(22,163,74,.08)' : 'rgba(220,38,38,.08)',
+            color: isPositive ? '#16A34A' : '#DC2626',
+            border: `1px solid ${isPositive ? 'rgba(22,163,74,.15)' : 'rgba(220,38,38,.15)'}`,
+            '& .MuiChip-label': { px: 0.75 },
           }} />
-        </Box>
-      )}
+        )}
+      </Stack>
     </Paper>
   )
 }
+
+function StatusDot({ color, label, value }) {
+  return (
+    <Stack direction="row" spacing={0.75} alignItems="center">
+      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color, flexShrink: 0 }} />
+      <Typography sx={{ fontSize: 12, color: 'text.secondary', flex: 1 }}>{label}</Typography>
+      <Typography sx={{ fontSize: 12, fontWeight: 600, color: 'text.primary' }}>{value}</Typography>
+    </Stack>
+  )
+}
+
+/* ═══════════════════════════════════════════════════
+   MAIN COMPONENT
+   ═══════════════════════════════════════════════════ */
 
 export default function DashboardPage() {
   const { token, user } = useAuth()
   const nav = useNavigate()
   const ps = usePageStyles()
+  const theme = useTheme()
+  const isDark = theme.palette.mode === 'dark'
 
+  /* ── State ── */
   const [stats, setStats] = useState({
-    occupancyPct: 0,
-    occupied: 0,
-    total: 0,
-    entradasHoy: 0,
-    salidasHoy: 0,
+    occupancyPct: 0, occupied: 0, total: 0,
+    entradasHoy: 0, salidasHoy: 0,
   })
-
+  const [occupancyByArea, setOccupancyByArea] = useState({})
+  const [movementsPerDay, setMovementsPerDay] = useState({})
   const [top, setTop] = useState([])
   const [latest, setLatest] = useState([])
   const [orders, setOrders] = useState([])
   const [err, setErr] = useState('')
   const [range, setRange] = useState('7D')
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null)
-
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [socketOnline, setSocketOnline] = useState(false)
-
   const fileRef = useRef(null)
   const [importing, setImporting] = useState(false)
   const [importMsg, setImportMsg] = useState('')
-
   const [activeAlerts, setActiveAlerts] = useState([])
-  const [alertsExpanded, setAlertsExpanded] = useState(false)
   const [rackFull, setRackFull] = useState([])
   const [lowStock, setLowStock] = useState([])
+  const [pendingTasks, setPendingTasks] = useState(0)
+  const [pendingInbound, setPendingInbound] = useState(0)
 
+  /* ── Role check ── */
   const roleFromState = String(user?.role || '').toUpperCase()
   const roleFromToken = getRoleFromToken(token)
   const isAdmin = Boolean(
-    user?.isAdmin === true ||
-    roleFromState === 'ADMIN' ||
-    roleFromToken === 'ADMIN'
+    user?.isAdmin === true || roleFromState === 'ADMIN' || roleFromToken === 'ADMIN'
   )
 
-  const axisStroke = ps.isDark ? 'rgba(148,163,184,.45)' : 'rgba(100,116,139,.6)'
-  const gridStroke = ps.isDark ? 'rgba(148,163,184,.12)' : 'rgba(148,163,184,.22)'
+  /* ── Chart colors ── */
+  const gridStroke = isDark ? 'rgba(148,163,184,.10)' : 'rgba(148,163,184,.18)'
+  const axisStroke = isDark ? 'rgba(148,163,184,.35)' : 'rgba(100,116,139,.5)'
 
+  /* ── Data fetch ── */
   const refresh = async () => {
     if (isRefreshing) return
     setIsRefreshing(true)
@@ -248,10 +256,12 @@ export default function DashboardPage() {
       const results = await Promise.allSettled([
         apiFetch(`/api/dashboard?range=${encodeURIComponent(range)}`),
         apiFetch('/api/movements?limit=10'),
-        apiFetch('/api/inventory/top?limit=5'),
+        apiFetch('/api/inventory/top?limit=8'),
         apiFetch('/api/orders'),
         apiFetch('/api/alerts?status=ACTIVE'),
         apiFetch('/api/reports/alerts'),
+        apiFetch('/api/tasks?status=PENDING').catch(() => []),
+        apiFetch('/api/inbound?status=ESPERADA').catch(() => []),
       ])
 
       const s = results[0].status === 'fulfilled' ? results[0].value : null
@@ -260,15 +270,15 @@ export default function DashboardPage() {
       const ord = results[3].status === 'fulfilled' ? results[3].value : null
       const alertsRes = results[4].status === 'fulfilled' ? results[4].value : null
       const reportsRes = results[5].status === 'fulfilled' ? results[5].value : null
+      const tasksRes = results[6].status === 'fulfilled' ? results[6].value : null
+      const inboundRes = results[7].status === 'fulfilled' ? results[7].value : null
 
       if (s) {
         setStats(s)
-        if (Array.isArray(s.latest) && s.latest.length) {
-          setLatest(s.latest)
-        }
-        if (Array.isArray(s.topSkus) && s.topSkus.length) {
-          setTop(s.topSkus)
-        }
+        if (s.movementsPerDay) setMovementsPerDay(s.movementsPerDay)
+        if (s.occupancy?.byArea) setOccupancyByArea(s.occupancy.byArea)
+        if (Array.isArray(s.latest) && s.latest.length) setLatest(s.latest)
+        if (Array.isArray(s.topSkus) && s.topSkus.length) setTop(s.topSkus)
       }
 
       const movList = (mov?.data || mov || [])
@@ -278,7 +288,7 @@ export default function DashboardPage() {
       if (!s?.topSkus?.length) setTop(invList)
 
       const ordList = (ord?.data || ord || [])
-      setOrders((ordList || []).slice(0, 6))
+      setOrders((ordList || []).slice(0, 8))
 
       const alertsList2 = Array.isArray(alertsRes?.data) ? alertsRes.data : Array.isArray(alertsRes) ? alertsRes : []
       setActiveAlerts(alertsList2)
@@ -288,11 +298,16 @@ export default function DashboardPage() {
         setLowStock(Array.isArray(reportsRes.lowStock) ? reportsRes.lowStock : [])
       }
 
-      const fails = results
+      const tasksList = Array.isArray(tasksRes?.data) ? tasksRes.data : Array.isArray(tasksRes) ? tasksRes : []
+      setPendingTasks(tasksList.length)
+
+      const inboundList = Array.isArray(inboundRes?.data) ? inboundRes.data : Array.isArray(inboundRes) ? inboundRes : []
+      setPendingInbound(inboundList.length)
+
+      const fails = results.slice(0, 6)
         .map((r, idx) => ({ r, idx }))
         .filter(x => x.r.status === 'rejected')
         .map(x => x.r.reason?.message || `Fallo en endpoint #${x.idx + 1}`)
-
       if (fails.length) setErr(fails.join(' | '))
 
       setLastUpdatedAt(new Date())
@@ -303,889 +318,608 @@ export default function DashboardPage() {
     }
   }
 
+  /* ── Socket.IO ── */
   useEffect(() => {
     if (!token) return
-
     const base = import.meta.env.VITE_API_URL
     if (!base) return
-
     const socket = io(String(base).replace(/\/+$/, ''), {
-      transports: ['websocket', 'polling'],
-      auth: { token },
+      transports: ['websocket', 'polling'], auth: { token },
     })
-
-    const onAnyUpdate = () => {
-      refresh()
-    }
-
+    const onUpdate = () => refresh()
     socket.on('connect', () => setSocketOnline(true))
     socket.on('disconnect', () => setSocketOnline(false))
     socket.on('connect_error', () => setSocketOnline(false))
-
-    socket.on('dashboard:update', onAnyUpdate)
-    socket.on('palletDashboard:update', onAnyUpdate)
-    socket.on('production:update', onAnyUpdate)
-
+    socket.on('dashboard:update', onUpdate)
+    socket.on('palletDashboard:update', onUpdate)
+    socket.on('production:update', onUpdate)
     return () => {
-      socket.off('dashboard:update', onAnyUpdate)
-      socket.off('palletDashboard:update', onAnyUpdate)
-      socket.off('production:update', onAnyUpdate)
+      socket.off('dashboard:update', onUpdate)
+      socket.off('palletDashboard:update', onUpdate)
+      socket.off('production:update', onUpdate)
       socket.disconnect()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, range])
 
+  useEffect(() => { if (token) refresh() }, [token, range]) // eslint-disable-line
   useEffect(() => {
     if (!token) return
-    refresh()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, range])
-
-  useEffect(() => {
-    if (!token) return
-    const id = setInterval(() => {
-      refresh()
-    }, 60000)
+    const id = setInterval(refresh, 60000)
     return () => clearInterval(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, range])
+  }, [token, range]) // eslint-disable-line
 
+  /* ── Excel import ── */
   const doImportExcel = async (file) => {
     if (!file) return
-    setImportMsg('')
-    setErr('')
-    setImporting(true)
+    setImportMsg(''); setErr(''); setImporting(true)
     try {
       await apiUpload('/api/admin/import-excel', file)
-      setImportMsg('✅ Importado correctamente')
+      setImportMsg('Importado correctamente')
       await refresh()
-    } catch (e) {
-      setErr(e?.message || 'Error importando Excel')
-    } finally {
-      setImporting(false)
-      if (fileRef.current) fileRef.current.value = ''
-    }
+    } catch (e) { setErr(e?.message || 'Error importando Excel') }
+    finally { setImporting(false); if (fileRef.current) fileRef.current.value = '' }
   }
+
+  /* ═══════════════════════════════════════════════════
+     COMPUTED DATA
+     ═══════════════════════════════════════════════════ */
 
   const occupancyPct = safeNum(stats.occupancyPct)
   const occupied = safeNum(stats.occupied)
   const total = safeNum(stats.total)
   const available = Math.max(total - occupied, 0)
-
   const blockedCount = safeNum(stats.bloqueadas || stats.blocked || 0)
-
-  const lastUpdatedLabel = lastUpdatedAt
-    ? lastUpdatedAt.toLocaleString()
-    : '---'
 
   const entradasCamiones = safeNum(stats.entradasCamiones ?? stats.camionesEntrada ?? 0)
   const entradasPallets = safeNum(stats.entradasPallets ?? stats.palletsEntrada ?? 0)
   const entradasPiezas = safeNum(stats.entradasPiezas ?? stats.piezasEntrada ?? 0)
-
   const salidasOrdenes = safeNum(stats.salidasOrdenes ?? stats.ordenesSalida ?? 0)
   const salidasPallets = safeNum(stats.salidasPallets ?? stats.palletsSalida ?? 0)
   const salidasPiezas = safeNum(stats.salidasPiezas ?? stats.piezasSalida ?? 0)
 
-  const entradasData = [
-    { name: 'Camiones', value: entradasCamiones },
-    { name: 'Pallets', value: entradasPallets },
-    { name: 'Piezas', value: entradasPiezas },
-  ]
+  const diferencialTotal = useMemo(() => entradasPallets - salidasPallets, [entradasPallets, salidasPallets])
 
-  const salidasData = [
-    { name: 'Órdenes', value: salidasOrdenes },
-    { name: 'Pallets', value: salidasPallets },
-    { name: 'Piezas', value: salidasPiezas },
-  ]
+  /* Occupancy donut data */
+  const occupancyDonut = useMemo(() => [
+    { name: 'Ocupado', value: occupied, color: '#3B82F6' },
+    { name: 'Disponible', value: available, color: isDark ? '#1E293B' : '#E2E8F0' },
+    { name: 'Bloqueado', value: blockedCount, color: '#DC2626' },
+  ].filter(d => d.value > 0), [occupied, available, blockedCount, isDark])
 
-  const diferencialData = [
-    { name: 'Operaciones', value: entradasCamiones - salidasOrdenes },
-    { name: 'Pallets', value: entradasPallets - salidasPallets },
-    { name: 'Piezas', value: entradasPiezas - salidasPiezas },
-  ]
+  /* Area occupancy for horizontal bars */
+  const areaOccupancyData = useMemo(() => {
+    const areas = ['A1', 'A2', 'A3', 'A4']
+    return areas.map(a => {
+      // Try from rackFull report first
+      const rf = rackFull.find(r => r.area === a)
+      if (rf) return { area: a, pct: safeNum(rf.occupancyPct ?? rf.percentage ?? rf.pct), occupied: safeNum(rf.occupied), total: safeNum(rf.total) }
+      // Try from occupancy.byArea
+      const val = safeNum(occupancyByArea[a])
+      return { area: a, pct: val, occupied: 0, total: 0 }
+    })
+  }, [rackFull, occupancyByArea])
 
-  const diferencialTotal = useMemo(() => {
-    return safeNum(entradasPallets - salidasPallets)
-  }, [entradasPallets, salidasPallets])
+  /* Movement trend (time series from movementsPerDay) */
+  const trendData = useMemo(() => {
+    const days = range === 'HOY' ? 1 : range === '7D' ? 7 : 30
+    const result = []
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      const key = d.toISOString().slice(0, 10)
+      const dayData = movementsPerDay[key] || {}
+      result.push({
+        date: `${d.getDate()}/${d.getMonth() + 1}`,
+        fullDate: key,
+        IN: safeNum(dayData.IN),
+        OUT: safeNum(dayData.OUT),
+        TRANSFER: safeNum(dayData.TRANSFER),
+        ADJUST: safeNum(dayData.ADJUST),
+        total: safeNum(dayData.IN) + safeNum(dayData.OUT) + safeNum(dayData.TRANSFER) + safeNum(dayData.ADJUST),
+      })
+    }
+    return result
+  }, [movementsPerDay, range])
 
-  const semaforoOperacion = useMemo(() => {
-    if (blockedCount > 0) return { label: 'Atención', tone: 'warning' }
-    if (diferencialTotal < 0) return { label: 'Bajo salida', tone: 'danger' }
-    if (entradasPallets === 0 && salidasPallets === 0) return { label: 'Sin movimiento', tone: 'info' }
-    return { label: 'Estable', tone: 'success' }
+  /* Entries vs Exits comparative */
+  const comparativeData = useMemo(() => [
+    { name: 'Operaciones', entradas: entradasCamiones, salidas: salidasOrdenes },
+    { name: 'Pallets', entradas: entradasPallets, salidas: salidasPallets },
+    { name: 'Piezas', entradas: entradasPiezas, salidas: salidasPiezas },
+  ], [entradasCamiones, salidasOrdenes, entradasPallets, salidasPallets, entradasPiezas, salidasPiezas])
+
+  /* Top SKUs for horizontal bar */
+  const topSkuData = useMemo(() =>
+    (top || []).slice(0, 6).map(t => ({
+      sku: t.sku?.length > 16 ? t.sku.slice(0, 16) + '…' : t.sku,
+      fullSku: t.sku,
+      qty: safeNum(t.totalQty ?? t.qty ?? 0),
+    })).reverse()
+  , [top])
+
+  /* Order status breakdown */
+  const orderStatusData = useMemo(() => {
+    const counts = { PENDIENTE: 0, COMPLETADA: 0, CANCELADA: 0 }
+    ;(orders || []).forEach(o => {
+      const s = String(o.status || 'PENDIENTE').toUpperCase()
+      if (s.includes('COMPLET') || s.includes('SHIPPED')) counts.COMPLETADA++
+      else if (s.includes('CANCEL')) counts.CANCELADA++
+      else counts.PENDIENTE++
+    })
+    return [
+      { name: 'Pendientes', value: counts.PENDIENTE, color: '#D97706' },
+      { name: 'Completadas', value: counts.COMPLETADA, color: '#16A34A' },
+      { name: 'Canceladas', value: counts.CANCELADA, color: '#DC2626' },
+    ].filter(d => d.value > 0)
+  }, [orders])
+
+  /* Operation status */
+  const opStatus = useMemo(() => {
+    if (blockedCount > 0) return { label: 'Atencion', color: '#D97706', bg: 'rgba(217,119,6,.08)' }
+    if (diferencialTotal < 0) return { label: 'Bajo salida', color: '#DC2626', bg: 'rgba(220,38,38,.08)' }
+    if (entradasPallets === 0 && salidasPallets === 0) return { label: 'Sin movimiento', color: '#64748B', bg: 'rgba(100,116,139,.08)' }
+    return { label: 'Operacion estable', color: '#16A34A', bg: 'rgba(22,163,74,.08)' }
   }, [blockedCount, diferencialTotal, entradasPallets, salidasPallets])
 
-  const alertsList = [
-    {
-      icon: <BlockIcon sx={{ color: 'error.main' }} fontSize="small" />,
-      label: 'Ubicaciones bloqueadas',
-      count: blockedCount || 0,
-      to: '/ubicaciones'
-    },
-    {
-      icon: <AssignmentIcon color="primary" fontSize="small" />,
-      label: 'Ordenes recientes',
-      count: orders?.length || 0,
-      to: '/ordenes'
-    },
-    {
-      icon: <Inventory2Icon color="primary" fontSize="small" />,
-      label: 'Top SKUs con movimiento',
-      count: top?.length || 0,
-      to: '/inventario'
-    },
-  ]
+  const lastUpdatedLabel = lastUpdatedAt ? lastUpdatedAt.toLocaleString() : '---'
 
+  /* ── Excel export ── */
   const exportDashboardExcel = () => {
     const wb = XLSX.utils.book_new()
-
-    const resumenSheet = XLSX.utils.json_to_sheet([
-      {
-        Rango: range,
-        'Última actualización': lastUpdatedLabel,
-        'Ocupación %': occupancyPct,
-        'Ubicaciones ocupadas': occupied,
-        'Ubicaciones totales': total,
-        'Ubicaciones disponibles': available,
-        'Entradas operaciones': entradasCamiones,
-        'Entradas pallets': entradasPallets,
-        'Entradas piezas': entradasPiezas,
-        'Salidas órdenes': salidasOrdenes,
-        'Salidas pallets': salidasPallets,
-        'Salidas piezas': salidasPiezas,
-        'Diferencial pallets': diferencialTotal,
-        'Ubicaciones bloqueadas': blockedCount,
-        'Estado operación': semaforoOperacion.label,
-      }
-    ])
-    XLSX.utils.book_append_sheet(wb, resumenSheet, 'Resumen')
-
-    const entradasSheet = XLSX.utils.json_to_sheet(entradasData)
-    XLSX.utils.book_append_sheet(wb, entradasSheet, 'Entradas')
-
-    const salidasSheet = XLSX.utils.json_to_sheet(salidasData)
-    XLSX.utils.book_append_sheet(wb, salidasSheet, 'Salidas')
-
-    const diferencialSheet = XLSX.utils.json_to_sheet(diferencialData)
-    XLSX.utils.book_append_sheet(wb, diferencialSheet, 'Diferencial')
-
-    const movimientosSheet = XLSX.utils.json_to_sheet(
-      (latest || []).map((m) => ({
-        Fecha: m.createdAt ? new Date(m.createdAt).toLocaleString() : '',
-        Tipo: m.type || '',
-        Nota: m.note || '',
-        PalletId: m.palletId || '',
-        Usuario: m.userEmail || m.user?.email || '',
-      }))
-    )
-    XLSX.utils.book_append_sheet(wb, movimientosSheet, 'Movimientos')
-
-    const alertasSheet = XLSX.utils.json_to_sheet(
-      alertsList.map((a) => ({
-        Alerta: a.label,
-        Cantidad: a.count,
-      }))
-    )
-    XLSX.utils.book_append_sheet(wb, alertasSheet, 'Alertas')
-
-    const topSheet = XLSX.utils.json_to_sheet(
-      (top || []).map((t) => ({
-        SKU: t.sku,
-        Cantidad: t.totalQty ?? t.qty ?? 0,
-      }))
-    )
-    XLSX.utils.book_append_sheet(wb, topSheet, 'TopSKUs')
-
-    const ordenesSheet = XLSX.utils.json_to_sheet(
-      (orders || []).map((o) => ({
-        Orden: o.orderNumber || 'ORD',
-        Status: o.status || '',
-        Destino: `${o.destinationType || ''}${o.destinationRef ? ` - ${o.destinationRef}` : ''}`,
-      }))
-    )
-    XLSX.utils.book_append_sheet(wb, ordenesSheet, 'Ordenes')
-
-    XLSX.writeFile(wb, `dashboard_${String(range).toLowerCase()}_${new Date().toISOString().slice(0, 10)}.xlsx`)
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{
+      Rango: range, 'Ultima actualizacion': lastUpdatedLabel,
+      'Ocupacion %': occupancyPct, 'Ubicaciones ocupadas': occupied,
+      'Ubicaciones totales': total, 'Disponibles': available,
+      'Entradas operaciones': entradasCamiones, 'Entradas pallets': entradasPallets,
+      'Entradas piezas': entradasPiezas, 'Salidas ordenes': salidasOrdenes,
+      'Salidas pallets': salidasPallets, 'Salidas piezas': salidasPiezas,
+      'Diferencial pallets': diferencialTotal, 'Bloqueadas': blockedCount,
+      'Estado operacion': opStatus.label,
+    }]), 'Resumen')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(trendData), 'Tendencia')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
+      (latest || []).map(m => ({ Fecha: m.createdAt ? new Date(m.createdAt).toLocaleString() : '', Tipo: m.type || '', Nota: m.note || '', PalletId: m.palletId || '', Usuario: m.userEmail || m.user?.email || '' }))
+    ), 'Movimientos')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
+      (top || []).map(t => ({ SKU: t.sku, Cantidad: t.totalQty ?? t.qty ?? 0 }))
+    ), 'TopSKUs')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
+      (orders || []).map(o => ({ Orden: o.orderNumber || 'ORD', Status: o.status || '', Destino: `${o.destinationType || ''} ${o.destinationRef || ''}`.trim() }))
+    ), 'Ordenes')
+    XLSX.writeFile(wb, `dashboard_${range.toLowerCase()}_${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
+
+  /* ═══════════════════════════════════════════════════
+     RENDER
+     ═══════════════════════════════════════════════════ */
 
   return (
     <Box sx={ps.page}>
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: { xs: 'flex-start', md: 'flex-end' },
-          justifyContent: 'space-between',
-          flexDirection: { xs: 'column', md: 'row' },
-          gap: 1.5,
-          mb: 2.5
-        }}
-      >
+      {/* ── HEADER ── */}
+      <Box sx={{ display: 'flex', alignItems: { xs: 'flex-start', md: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', md: 'row' }, gap: 1.5, mb: 2.5 }}>
         <Box>
-          <Typography variant="h5" sx={ps.pageTitle}>
-            Centro de Operaciones
-          </Typography>
-
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5, flexWrap: 'wrap' }}>
-            <Typography variant="body2" sx={ps.pageSubtitle}>
-              Estado general del almacen - Ultima actualizacion: <b>{lastUpdatedLabel}</b>
-            </Typography>
-
-            <Chip
-              size="small"
-              label={socketOnline ? 'Realtime: Online' : 'Realtime: Offline'}
-              sx={{
-                ml: 1,
-                fontWeight: 600,
-                borderRadius: 1.5,
-                bgcolor: socketOnline ? 'rgba(34,197,94,.12)' : 'rgba(244,63,94,.10)',
-                border: `1px solid ${socketOnline ? 'rgba(34,197,94,.35)' : 'rgba(244,63,94,.35)'}`,
-                color: socketOnline ? 'rgba(34,197,94,.95)' : 'rgba(244,63,94,.95)'
-              }}
-              variant="outlined"
-            />
-
-            <Chip
-              size="small"
-              label={`Operación: ${semaforoOperacion.label}`}
-              sx={{
-                fontWeight: 600,
-                borderRadius: 1.5,
-                bgcolor:
-                  semaforoOperacion.tone === 'success' ? 'rgba(34,197,94,.12)' :
-                  semaforoOperacion.tone === 'warning' ? 'rgba(245,158,11,.12)' :
-                  semaforoOperacion.tone === 'danger' ? 'rgba(239,68,68,.12)' :
-                  'rgba(59,130,246,.10)',
-                border:
-                  semaforoOperacion.tone === 'success' ? '1px solid rgba(34,197,94,.35)' :
-                  semaforoOperacion.tone === 'warning' ? '1px solid rgba(245,158,11,.35)' :
-                  semaforoOperacion.tone === 'danger' ? '1px solid rgba(239,68,68,.35)' :
-                  '1px solid rgba(59,130,246,.25)',
-                color:
-                  semaforoOperacion.tone === 'success' ? 'rgba(34,197,94,.95)' :
-                  semaforoOperacion.tone === 'warning' ? 'rgba(245,158,11,.95)' :
-                  semaforoOperacion.tone === 'danger' ? 'rgba(248,113,113,.95)' :
-                  'rgba(147,197,253,.95)'
-              }}
-              variant="outlined"
-            />
-
-            {isRefreshing && (
-              <Chip
-                size="small"
-                label="Actualizando…"
-                sx={{
-                  fontWeight: 600,
-                  borderRadius: 1.5,
-                  bgcolor: 'rgba(59,130,246,.08)',
-                  border: '1px solid rgba(59,130,246,.15)',
-                  color: 'rgba(59,130,246,.90)'
-                }}
-                variant="outlined"
-              />
-            )}
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="h5" sx={ps.pageTitle}>Centro de Operaciones</Typography>
+            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: socketOnline ? '#16A34A' : '#DC2626', flexShrink: 0 }} />
           </Stack>
+          <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: 0.25 }}>
+            Ultima actualizacion: {lastUpdatedLabel}
+          </Typography>
         </Box>
 
-        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-          <Stack direction="row" spacing={0.5} sx={{ display: { xs: 'none', sm: 'flex' } }}>
-            {['HOY', '7D', '30D'].map((r) => (
-              <Button
-                key={r}
-                size="small"
-                variant={range === r ? 'contained' : 'outlined'}
-                onClick={() => setRange(r)}
-                sx={{ borderRadius: 2, minWidth: 60 }}
-              >
-                {r === 'HOY' ? 'Hoy' : r === '7D' ? '7 dias' : '30 dias'}
-              </Button>
-            ))}
-          </Stack>
-
-          <TooltipMUI title="Exportar dashboard a Excel">
-            <span>
-              <Button
-                variant="outlined"
-                startIcon={<DownloadIcon />}
-                onClick={exportDashboardExcel}
-                sx={{ borderRadius: 2 }}
-              >
-                Exportar Excel
-              </Button>
-            </span>
+        <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap">
+          {['HOY', '7D', '30D'].map(r => (
+            <Button key={r} size="small" variant={range === r ? 'contained' : 'outlined'}
+              onClick={() => setRange(r)} sx={{ minWidth: 56, fontSize: 12 }}>
+              {r === 'HOY' ? 'Hoy' : r === '7D' ? '7 dias' : '30 dias'}
+            </Button>
+          ))}
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+          <TooltipMUI title="Exportar Excel">
+            <IconButton size="small" onClick={exportDashboardExcel} sx={ps.actionBtn('primary')}>
+              <DownloadIcon sx={{ fontSize: 16 }} />
+            </IconButton>
           </TooltipMUI>
-
-          <TooltipMUI title={isAdmin ? 'Importar Excel (solo admin)' : 'Solo admin puede importar'}>
-            <span>
-              <Button
-                variant="outlined"
-                startIcon={<UploadFileIcon />}
-                disabled={importing || !token || !isAdmin}
-                onClick={() => fileRef.current?.click()}
-                sx={{ borderRadius: 2 }}
-              >
-                Importar Excel
-              </Button>
-            </span>
-          </TooltipMUI>
-
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".xlsx,.xls"
-            style={{ display: 'none' }}
-            onChange={(e) => doImportExcel(e.target.files?.[0])}
-          />
-
-          <TooltipMUI title="Actualizar">
-            <span>
-              <IconButton
-                onClick={refresh}
-                disabled={isRefreshing}
-                sx={{
-                  ...ps.actionBtn('primary'),
-                  opacity: isRefreshing ? 0.65 : 1,
-                }}
-              >
-                <RefreshIcon fontSize="small" />
+          {isAdmin && (
+            <TooltipMUI title="Importar Excel">
+              <IconButton size="small" disabled={importing} onClick={() => fileRef.current?.click()} sx={ps.actionBtn('success')}>
+                <UploadFileIcon sx={{ fontSize: 16 }} />
               </IconButton>
-            </span>
+            </TooltipMUI>
+          )}
+          <input ref={fileRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={e => doImportExcel(e.target.files?.[0])} />
+          <TooltipMUI title="Actualizar">
+            <IconButton size="small" onClick={refresh} disabled={isRefreshing} sx={ps.actionBtn('primary')}>
+              <RefreshIcon sx={{ fontSize: 16 }} />
+            </IconButton>
           </TooltipMUI>
         </Stack>
       </Box>
 
-      {(importing || isRefreshing) && (
-        <Paper elevation={0} sx={{ ...ps.card, mb: 2, p: 1.5 }}>
-          <Typography sx={{ fontWeight: 600, mb: 1 }}>
-            {importing ? 'Importando Excel...' : 'Actualizando dashboard...'}
-          </Typography>
-          <LinearProgress />
-        </Paper>
-      )}
+      {(importing || isRefreshing) && <LinearProgress sx={{ mb: 1.5, borderRadius: 1 }} />}
+      {importMsg && <Alert severity="success" sx={{ mb: 1.5 }}>{importMsg}</Alert>}
+      {err && <Alert severity="warning" sx={{ mb: 1.5 }}>{err}</Alert>}
 
-      {importMsg && <Alert severity="success" sx={{ mb: 2 }}>{importMsg}</Alert>}
-      {err && <Alert severity="warning" sx={{ mb: 2 }}>Dashboard cargo con fallas: {err}</Alert>}
-
-      <Grid container spacing={2} sx={{ mb: 2.5 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatusMiniCard
-            title="Ocupación"
-            value={`${occupancyPct}%`}
-            subtitle={`${occupied}/${total} ubicaciones`}
-            icon={<WarehouseIcon fontSize="small" />}
-            tone="info"
-            progress={occupancyPct}
-          />
+      {/* ── ROW 1: KPI STRIP ── */}
+      <Grid container spacing={2} sx={{ mb: 2 }}>
+        <Grid item xs={6} sm={3}>
+          <KpiCard title="Ocupacion" value={`${occupancyPct}%`}
+            subtitle={`${occupied} de ${total}`}
+            icon={<WarehouseIcon sx={{ fontSize: 18 }} />}
+            color={CHART_COLORS.blue} />
         </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <StatusMiniCard
-            title="Entradas del día"
-            value={entradasPallets}
-            subtitle={`${entradasCamiones} operaciones de entrada`}
-            icon={<TrendingUpIcon fontSize="small" />}
-            tone="success"
-          />
+        <Grid item xs={6} sm={3}>
+          <KpiCard title="Entradas" value={fmtNum(entradasPallets)}
+            subtitle={`${entradasPiezas} piezas`}
+            icon={<TrendingUpIcon sx={{ fontSize: 18 }} />}
+            color={CHART_COLORS.green}
+            trend={diferencialTotal > 0 ? diferencialTotal : undefined}
+            trendLabel="neto" />
         </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <StatusMiniCard
-            title="Salidas del día"
-            value={salidasPallets}
-            subtitle={`${salidasOrdenes} operaciones de salida`}
-            icon={<LocalShippingIcon fontSize="small" />}
-            tone="warning"
-          />
+        <Grid item xs={6} sm={3}>
+          <KpiCard title="Salidas" value={fmtNum(salidasPallets)}
+            subtitle={`${salidasOrdenes} ordenes`}
+            icon={<LocalShippingIcon sx={{ fontSize: 18 }} />}
+            color={CHART_COLORS.amber} />
         </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <StatusMiniCard
-            title="Diferencial"
-            value={diferencialTotal}
-            subtitle={diferencialTotal < 0 ? 'Más salida que entrada' : 'Balance operativo'}
-            icon={diferencialTotal < 0 ? <TrendingDownIcon fontSize="small" /> : <BalanceIcon fontSize="small" />}
-            tone={diferencialTotal < 0 ? 'danger' : 'success'}
-          />
+        <Grid item xs={6} sm={3}>
+          <KpiCard title="Diferencial" value={diferencialTotal}
+            subtitle={diferencialTotal >= 0 ? 'Balance positivo' : 'Mas salida que entrada'}
+            icon={diferencialTotal < 0 ? <TrendingDownIcon sx={{ fontSize: 18 }} /> : <BalanceIcon sx={{ fontSize: 18 }} />}
+            color={diferencialTotal < 0 ? CHART_COLORS.red : CHART_COLORS.green} />
         </Grid>
       </Grid>
 
-      {/* ── Alertas Activas + Stock Bajo ── */}
-      <Grid container spacing={2} sx={{ mb: 2.5 }}>
-        <Grid item xs={12} sm={6} md={4}>
-          <Paper
-            elevation={0}
-            sx={{
-              ...ps.card,
-              p: 2,
-              border: '1px solid',
-              borderColor: activeAlerts.length > 0 ? 'rgba(239,68,68,.25)' : 'rgba(34,197,94,.20)',
-              cursor: 'pointer',
-            }}
-            onClick={() => setAlertsExpanded((prev) => !prev)}
-          >
-            <Stack direction="row" spacing={1.5} alignItems="center">
-              <NotificationsActiveIcon
-                sx={{
-                  color: activeAlerts.length > 0 ? 'error.main' : 'success.main',
-                  fontSize: 28,
-                }}
-              />
-              <Box sx={{ flex: 1 }}>
-                <Typography sx={{ fontWeight: 600, fontSize: 12, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.3 }}>
-                  Alertas Activas
-                </Typography>
-                <Typography sx={{ fontWeight: 700, fontSize: 26, lineHeight: 1, color: 'text.primary' }}>
-                  {activeAlerts.length}
-                </Typography>
-              </Box>
-              {activeAlerts.length > 0 && (
-                alertsExpanded
-                  ? <ExpandLessIcon sx={{ color: 'text.secondary' }} />
-                  : <ExpandMoreIcon sx={{ color: 'text.secondary' }} />
-              )}
-            </Stack>
-
-            {alertsExpanded && activeAlerts.length > 0 && (
-              <Stack spacing={0.8} sx={{ mt: 1.5 }}>
-                {activeAlerts.slice(0, 5).map((a, idx) => (
-                  <Paper
-                    key={a._id || a.id || idx}
-                    variant="outlined"
-                    sx={{ p: 1, borderRadius: 2, bgcolor: 'rgba(239,68,68,.04)' }}
-                  >
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <ErrorOutlineIcon sx={{ color: 'error.main', fontSize: 16 }} />
-                      <Typography sx={{ fontSize: 12, fontWeight: 700, flex: 1, color: 'text.primary' }}>
-                        {a.message || a.title || a.type || 'Alerta'}
+      {/* ── ROW 2: OCCUPANCY + ENTRIES VS EXITS ── */}
+      <Grid container spacing={2} sx={{ mb: 2 }}>
+        {/* Occupancy Donut + Area Breakdown */}
+        <Grid item xs={12} md={5}>
+          <Paper elevation={0} sx={{ p: 2, borderRadius: 2, height: '100%' }}>
+            <SectionHeader title="Ocupacion del Almacen" subtitle={`${available} ubicaciones disponibles`} />
+            <Grid container spacing={1}>
+              <Grid item xs={6}>
+                <Box sx={{ height: 180, position: 'relative' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={occupancyDonut} dataKey="value" innerRadius="65%" outerRadius="90%" paddingAngle={2} startAngle={90} endAngle={-270}>
+                        {occupancyDonut.map((d, i) => <Cell key={i} fill={d.color} stroke="none" />)}
+                      </Pie>
+                      <Tooltip content={<ChartTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <Box sx={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', pointerEvents: 'none' }}>
+                    <Box sx={{ textAlign: 'center' }}>
+                      <Typography sx={{ fontSize: 24, fontWeight: 700, color: 'text.primary', lineHeight: 1 }}>
+                        {occupancyPct}%
                       </Typography>
-                      {a.type && (
-                        <Chip size="small" label={a.type} sx={ps.metricChip('bad')} />
-                      )}
-                    </Stack>
-                  </Paper>
-                ))}
-                {activeAlerts.length > 5 && (
-                  <Typography
-                    variant="caption"
-                    sx={{ color: 'text.secondary', textAlign: 'center', cursor: 'pointer', fontWeight: 700 }}
-                    onClick={(e) => { e.stopPropagation(); nav('/alertas') }}
-                  >
-                    Ver todas ({activeAlerts.length})
+                      <Typography sx={{ fontSize: 10, color: 'text.secondary' }}>ocupado</Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              </Grid>
+              <Grid item xs={6}>
+                <Stack spacing={1} sx={{ pt: 1 }}>
+                  <StatusDot color="#3B82F6" label="Ocupado" value={occupied} />
+                  <StatusDot color={isDark ? '#334155' : '#E2E8F0'} label="Disponible" value={available} />
+                  <StatusDot color="#DC2626" label="Bloqueado" value={blockedCount} />
+                  <Divider sx={{ my: 0.5 }} />
+                  <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.3, pt: 0.5 }}>
+                    Por area
                   </Typography>
-                )}
-              </Stack>
-            )}
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={4}>
-          <Paper elevation={0} sx={{ ...ps.card, p: 2, border: '1px solid', borderColor: lowStock.length > 0 ? 'rgba(245,158,11,.25)' : 'rgba(148,163,184,.15)' }}>
-            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: lowStock.length > 0 ? 1.5 : 0 }}>
-              <Inventory2Icon sx={{ color: lowStock.length > 0 ? 'warning.main' : 'text.secondary', fontSize: 28 }} />
-              <Box sx={{ flex: 1 }}>
-                <Typography sx={{ fontWeight: 600, fontSize: 12, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.3 }}>
-                  Stock Bajo
-                </Typography>
-                <Typography sx={{ fontWeight: 700, fontSize: 26, lineHeight: 1, color: 'text.primary' }}>
-                  {lowStock.length}
-                </Typography>
-              </Box>
-              {lowStock.length > 0 && (
-                <Chip size="small" label="Requiere atencion" sx={ps.metricChip('warn')} />
-              )}
-            </Stack>
-
-            {lowStock.length > 0 && (
-              <Stack spacing={0.8}>
-                {lowStock.slice(0, 3).map((item, idx) => (
-                  <Paper
-                    key={item.sku || item._id || idx}
-                    variant="outlined"
-                    sx={{ p: 1, borderRadius: 2, bgcolor: 'rgba(245,158,11,.04)', cursor: 'pointer' }}
-                    onClick={() => nav('/inventario')}
-                  >
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                      <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 13, color: 'text.primary' }}>
-                        {item.sku || item.name || 'SKU'}
-                      </Typography>
-                      <Chip
-                        size="small"
-                        label={`Qty: ${item.qty ?? item.quantity ?? item.currentStock ?? 0}`}
-                        sx={ps.metricChip('warn')}
-                      />
-                    </Stack>
-                  </Paper>
-                ))}
-              </Stack>
-            )}
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <Paper elevation={0} sx={{ ...ps.card, p: 2, border: '1px solid', borderColor: rackFull.length > 0 ? 'rgba(239,68,68,.25)' : 'rgba(148,163,184,.15)' }}>
-            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: rackFull.length > 0 ? 1.5 : 0 }}>
-              <WarehouseIcon sx={{ color: rackFull.length > 0 ? 'error.main' : 'text.secondary', fontSize: 28 }} />
-              <Box sx={{ flex: 1 }}>
-                <Typography sx={{ fontWeight: 600, fontSize: 12, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.3 }}>
-                  Areas Criticas
-                </Typography>
-                <Typography sx={{ fontWeight: 700, fontSize: 26, lineHeight: 1, color: 'text.primary' }}>
-                  {rackFull.length}
-                </Typography>
-                <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
-                  Areas con &gt;90% ocupacion
-                </Typography>
-              </Box>
-            </Stack>
-
-            {rackFull.length > 0 && (
-              <Stack spacing={0.8}>
-                {rackFull.slice(0, 4).map((area, idx) => {
-                  const pct = safeNum(area.occupancyPct ?? area.percentage ?? area.pct ?? 0)
-                  return (
-                    <Paper
-                      key={area.area || area.name || area._id || idx}
-                      variant="outlined"
-                      sx={{ p: 1, borderRadius: 2, bgcolor: 'rgba(239,68,68,.04)', cursor: 'pointer' }}
-                      onClick={() => nav('/racks')}
-                    >
-                      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
-                        <Typography sx={{ fontWeight: 700, fontSize: 13, color: 'text.primary' }}>
-                          {area.area || area.name || 'Area'}
-                        </Typography>
-                        <Chip size="small" label={`${pct}%`} sx={ps.metricChip('bad')} />
+                  {areaOccupancyData.map(a => (
+                    <Box key={a.area}>
+                      <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.25 }}>
+                        <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>{a.area}</Typography>
+                        <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.primary' }}>{a.pct}%</Typography>
                       </Stack>
-                      <Box sx={ps.progressBar}>
-                        <Box sx={ps.progressFill(pct, 'rgba(239,68,68,.65)')} />
+                      <Box sx={{ height: 4, borderRadius: 2, bgcolor: isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.05)' }}>
+                        <Box sx={{ height: '100%', borderRadius: 2, width: `${Math.min(a.pct, 100)}%`, bgcolor: a.pct > 90 ? '#DC2626' : a.pct > 70 ? '#D97706' : '#3B82F6', transition: 'width .4s ease' }} />
                       </Box>
-                    </Paper>
-                  )
-                })}
-              </Stack>
-            )}
+                    </Box>
+                  ))}
+                </Stack>
+              </Grid>
+            </Grid>
+          </Paper>
+        </Grid>
 
-            {rackFull.length === 0 && (
-              <Typography sx={{ fontSize: 13, color: 'text.secondary', mt: 0.5 }}>
-                Todas las areas dentro de limites normales.
-              </Typography>
-            )}
+        {/* Entries vs Exits Comparative */}
+        <Grid item xs={12} md={7}>
+          <Paper elevation={0} sx={{ p: 2, borderRadius: 2, height: '100%' }}>
+            <SectionHeader title="Entradas vs Salidas"
+              subtitle={range === 'HOY' ? 'Hoy' : range === '7D' ? 'Ultimos 7 dias' : 'Ultimos 30 dias'}
+              action={
+                <Chip size="small" label={opStatus.label} sx={{
+                  fontWeight: 600, fontSize: 11, height: 22,
+                  bgcolor: opStatus.bg, color: opStatus.color,
+                  border: `1px solid ${opStatus.color}20`,
+                }} />
+              }
+            />
+            <Box sx={{ height: 220 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={comparativeData} barGap={4} barCategoryGap="25%">
+                  <CartesianGrid stroke={gridStroke} strokeDasharray="3 5" vertical={false} />
+                  <XAxis dataKey="name" stroke={axisStroke} tickLine={false} axisLine={false} fontSize={11} />
+                  <YAxis stroke={axisStroke} tickLine={false} axisLine={false} fontSize={11} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Bar dataKey="entradas" name="Entradas" fill={CHART_COLORS.green} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="salidas" name="Salidas" fill={CHART_COLORS.red} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </Box>
+            {/* Mini summary below chart */}
+            <Stack direction="row" spacing={2} sx={{ mt: 1, px: 1 }}>
+              <Stack direction="row" spacing={0.5} alignItems="center">
+                <Box sx={{ width: 10, height: 10, borderRadius: 1, bgcolor: CHART_COLORS.green }} />
+                <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>Entradas: <b>{entradasPallets}</b> pallets, <b>{entradasPiezas}</b> pzas</Typography>
+              </Stack>
+              <Stack direction="row" spacing={0.5} alignItems="center">
+                <Box sx={{ width: 10, height: 10, borderRadius: 1, bgcolor: CHART_COLORS.red }} />
+                <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>Salidas: <b>{salidasPallets}</b> pallets, <b>{salidasPiezas}</b> pzas</Typography>
+              </Stack>
+            </Stack>
           </Paper>
         </Grid>
       </Grid>
 
-      <Paper elevation={0} sx={{ ...ps.card, mb: 2.5 }}>
-        <Box sx={ps.cardHeader}>
-          <Typography sx={ps.cardHeaderTitle}>Grafica diferencial</Typography>
-          <Box sx={{ flex: 1 }} />
-          <Typography variant="caption" sx={ps.cardHeaderSubtitle}>
-            Diferencia entre entradas y salidas
-          </Typography>
+      {/* ── ROW 3: MOVEMENT TREND ── */}
+      <Paper elevation={0} sx={{ p: 2, borderRadius: 2, mb: 2 }}>
+        <SectionHeader title="Tendencia de Movimientos"
+          subtitle={`Volumen diario — ${trendData.length} dias`} />
+        <Box sx={{ height: 220 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={trendData}>
+              <defs>
+                <linearGradient id="gIn" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={MOVEMENT_COLORS.IN} stopOpacity={0.15} />
+                  <stop offset="100%" stopColor={MOVEMENT_COLORS.IN} stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="gOut" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={MOVEMENT_COLORS.OUT} stopOpacity={0.15} />
+                  <stop offset="100%" stopColor={MOVEMENT_COLORS.OUT} stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="gTr" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={MOVEMENT_COLORS.TRANSFER} stopOpacity={0.12} />
+                  <stop offset="100%" stopColor={MOVEMENT_COLORS.TRANSFER} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke={gridStroke} strokeDasharray="3 5" vertical={false} />
+              <XAxis dataKey="date" stroke={axisStroke} tickLine={false} axisLine={false} fontSize={10} />
+              <YAxis stroke={axisStroke} tickLine={false} axisLine={false} fontSize={10} width={30} />
+              <Tooltip content={<ChartTooltip />} />
+              <Area type="monotone" dataKey="IN" name="Entradas" stroke={MOVEMENT_COLORS.IN} fill="url(#gIn)" strokeWidth={2} dot={false} />
+              <Area type="monotone" dataKey="OUT" name="Salidas" stroke={MOVEMENT_COLORS.OUT} fill="url(#gOut)" strokeWidth={2} dot={false} />
+              <Area type="monotone" dataKey="TRANSFER" name="Transferencias" stroke={MOVEMENT_COLORS.TRANSFER} fill="url(#gTr)" strokeWidth={1.5} dot={false} />
+            </AreaChart>
+          </ResponsiveContainer>
         </Box>
+        <Stack direction="row" spacing={2} sx={{ mt: 1, px: 1 }}>
+          {['IN', 'OUT', 'TRANSFER', 'ADJUST'].map(t => (
+            <Stack key={t} direction="row" spacing={0.5} alignItems="center">
+              <Box sx={{ width: 8, height: 8, borderRadius: 1, bgcolor: MOVEMENT_COLORS[t] }} />
+              <Typography sx={{ fontSize: 10, color: 'text.secondary' }}>{MOVEMENT_LABELS[t]}</Typography>
+            </Stack>
+          ))}
+        </Stack>
+      </Paper>
 
-        <Box sx={{ p: 2.5 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={8}>
-              <Box sx={{ height: 280 }}>
+      {/* ── ROW 4: ALERTS + TOP SKUs + ORDERS ── */}
+      <Grid container spacing={2} sx={{ mb: 2 }}>
+        {/* Alerts & Critical */}
+        <Grid item xs={12} md={4}>
+          <Paper elevation={0} sx={{ p: 2, borderRadius: 2, height: '100%' }}>
+            <SectionHeader title="Alertas Operativas"
+              action={
+                <Chip size="small" label={activeAlerts.length + lowStock.length + rackFull.length}
+                  sx={{ height: 20, fontSize: 10, fontWeight: 600,
+                    bgcolor: (activeAlerts.length + lowStock.length + rackFull.length) > 0 ? 'rgba(220,38,38,.08)' : 'rgba(22,163,74,.08)',
+                    color: (activeAlerts.length + lowStock.length + rackFull.length) > 0 ? '#DC2626' : '#16A34A',
+                    '& .MuiChip-label': { px: 0.75 },
+                  }}
+                />
+              }
+            />
+            <Stack spacing={1}>
+              {/* Alert summary items */}
+              <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1.5, cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }} onClick={() => nav('/alertas')}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <WarningAmberIcon sx={{ fontSize: 16, color: activeAlerts.length > 0 ? '#DC2626' : '#64748B' }} />
+                  <Typography sx={{ fontSize: 12, flex: 1, color: 'text.primary' }}>Alertas activas</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: activeAlerts.length > 0 ? '#DC2626' : 'text.primary' }}>{activeAlerts.length}</Typography>
+                </Stack>
+              </Paper>
+
+              <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1.5, cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }} onClick={() => nav('/inventario')}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <InventoryIcon sx={{ fontSize: 16, color: lowStock.length > 0 ? '#D97706' : '#64748B' }} />
+                  <Typography sx={{ fontSize: 12, flex: 1, color: 'text.primary' }}>Stock bajo</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: lowStock.length > 0 ? '#D97706' : 'text.primary' }}>{lowStock.length}</Typography>
+                </Stack>
+              </Paper>
+
+              <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1.5, cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }} onClick={() => nav('/racks')}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <ErrorOutlineIcon sx={{ fontSize: 16, color: rackFull.length > 0 ? '#DC2626' : '#64748B' }} />
+                  <Typography sx={{ fontSize: 12, flex: 1, color: 'text.primary' }}>Areas criticas (&gt;90%)</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: rackFull.length > 0 ? '#DC2626' : 'text.primary' }}>{rackFull.length}</Typography>
+                </Stack>
+              </Paper>
+
+              <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1.5, cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }} onClick={() => nav('/ubicaciones')}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <BlockIcon sx={{ fontSize: 16, color: blockedCount > 0 ? '#DC2626' : '#64748B' }} />
+                  <Typography sx={{ fontSize: 12, flex: 1, color: 'text.primary' }}>Ubicaciones bloqueadas</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: blockedCount > 0 ? '#DC2626' : 'text.primary' }}>{blockedCount}</Typography>
+                </Stack>
+              </Paper>
+
+              <Divider />
+
+              <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1.5, cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }} onClick={() => nav('/tareas')}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <AssignmentIcon sx={{ fontSize: 16, color: '#3B82F6' }} />
+                  <Typography sx={{ fontSize: 12, flex: 1, color: 'text.primary' }}>Tareas pendientes</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: 'text.primary' }}>{pendingTasks}</Typography>
+                </Stack>
+              </Paper>
+
+              <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1.5, cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }} onClick={() => nav('/recepcion')}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <LocalShippingIcon sx={{ fontSize: 16, color: '#0891B2' }} />
+                  <Typography sx={{ fontSize: 12, flex: 1, color: 'text.primary' }}>Recepciones esperadas</Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: 'text.primary' }}>{pendingInbound}</Typography>
+                </Stack>
+              </Paper>
+
+              {(activeAlerts.length + lowStock.length + rackFull.length) === 0 && (
+                <Stack direction="row" spacing={0.75} alignItems="center" justifyContent="center" sx={{ py: 1 }}>
+                  <CheckCircleOutlineIcon sx={{ fontSize: 16, color: '#16A34A' }} />
+                  <Typography sx={{ fontSize: 12, color: '#16A34A', fontWeight: 600 }}>Sin alertas activas</Typography>
+                </Stack>
+              )}
+            </Stack>
+          </Paper>
+        </Grid>
+
+        {/* Top SKUs Horizontal Bar */}
+        <Grid item xs={12} md={4}>
+          <Paper elevation={0} sx={{ p: 2, borderRadius: 2, height: '100%' }}>
+            <SectionHeader title="Top SKUs" subtitle={`${top.length} productos con mas movimiento`}
+              action={<Button size="small" variant="text" onClick={() => nav('/inventario')} sx={{ fontSize: 11, minWidth: 0 }}>Ver todo</Button>}
+            />
+            {topSkuData.length > 0 ? (
+              <Box sx={{ height: 240 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={diferencialData}>
-                    <CartesianGrid stroke={gridStroke} strokeDasharray="4 6" vertical={false} />
-                    <XAxis dataKey="name" stroke={axisStroke} tickLine={false} axisLine={{ stroke: gridStroke }} />
-                    <YAxis stroke={axisStroke} tickLine={false} axisLine={{ stroke: gridStroke }} />
-                    <Tooltip content={<ElegantTooltip />} />
-                    <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                      {diferencialData.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={entry.value <= 0 ? '#DC2626' : '#16A34A'}
-                        />
-                      ))}
-                    </Bar>
+                  <BarChart data={topSkuData} layout="vertical" margin={{ left: 10, right: 20, top: 5, bottom: 5 }}>
+                    <CartesianGrid stroke={gridStroke} strokeDasharray="3 5" horizontal={false} />
+                    <XAxis type="number" stroke={axisStroke} tickLine={false} axisLine={false} fontSize={10} />
+                    <YAxis type="category" dataKey="sku" stroke={axisStroke} tickLine={false} axisLine={false} fontSize={10} width={80} />
+                    <Tooltip content={<ChartTooltip />} />
+                    <Bar dataKey="qty" name="Cantidad" fill={CHART_COLORS.blue} radius={[0, 4, 4, 0]} barSize={14} />
                   </BarChart>
                 </ResponsiveContainer>
               </Box>
-            </Grid>
-
-            <Grid item xs={12} md={4}>
-              <Stack spacing={1.2}>
-                {diferencialData.map((item) => (
-                  <Paper
-                    key={item.name}
-                    variant="outlined"
-                    sx={{
-                      p: 1.2,
-                      borderRadius: 2,
-                      borderColor: item.value <= 0 ? 'error.light' : 'success.light',
-                      bgcolor: item.value <= 0 ? 'rgba(220,38,38,.06)' : 'rgba(22,163,74,.06)'
-                    }}
-                  >
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                      <Typography sx={{ fontWeight: 700 }}>
-                        {item.name}
-                      </Typography>
-                      <Chip
-                        size="small"
-                        label={item.value}
-                        color={item.value <= 0 ? 'error' : 'success'}
-                      />
-                    </Stack>
-                  </Paper>
-                ))}
-
-                <Paper
-                  variant="outlined"
-                  sx={{
-                    p: 1.2,
-                    borderRadius: 2,
-                    borderColor: 'rgba(59,130,246,.25)',
-                    bgcolor: 'rgba(59,130,246,.06)'
-                  }}
-                >
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <PlaylistAddCheckIcon color="primary" fontSize="small" />
-                    <Typography sx={{ fontWeight: 700, fontSize: 13 }}>
-                      Resumen
-                    </Typography>
-                  </Stack>
-                  <Typography sx={{ mt: 1, fontSize: 13, color: 'text.secondary' }}>
-                    {diferencialTotal < 0
-                      ? 'La operación está sacando más pallets de los que entran.'
-                      : 'La operación se mantiene estable o positiva en pallets.'}
-                  </Typography>
-                </Paper>
-              </Stack>
-            </Grid>
-          </Grid>
-        </Box>
-      </Paper>
-
-      <Grid container spacing={2}>
-        <Grid item xs={12} md={8}>
-          <Paper elevation={0} sx={ps.card}>
-            <Box sx={ps.cardHeader}>
-              <Typography sx={ps.cardHeaderTitle}>Actividad reciente</Typography>
-              <Box sx={{ flex: 1 }} />
-              <Stack direction="row" spacing={1}>
-                <Pill label={`${latest?.length || 0} recientes`} icon={<SwapHorizIcon fontSize="small" />} ps={ps} />
-                <Pill label={`${orders?.length || 0} ordenes`} icon={<AssignmentIcon fontSize="small" />} ps={ps} />
-              </Stack>
-            </Box>
-
-            <Box sx={{ p: 2.5 }}>
-              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-                Últimos movimientos registrados. Rango visual: <b>{range === 'HOY' ? 'Hoy' : range === '7D' ? '7 dias' : '30 dias'}</b>
-              </Typography>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: 'text.primary' }}>
-                Ultimos movimientos
-              </Typography>
-
-              <Stack spacing={1}>
-                {latest.slice(0, 8).map(m => {
-                  const typ = (m.type || 'MOV').toUpperCase()
-                  const icon =
-                    (typ === 'IN' || typ === 'ENTRADA') ? <CheckCircleIcon sx={{ fontSize: 16 }} /> :
-                    (typ === 'OUT' || typ === 'SALIDA') ? <LocalShippingIcon sx={{ fontSize: 16 }} /> :
-                    (typ === 'TRANSFER' || typ === 'TRANSFERENCIA') ? <SwapHorizIcon sx={{ fontSize: 16 }} /> :
-                    (typ === 'ADJUST' || typ === 'AJUSTE') ? <BalanceIcon sx={{ fontSize: 16 }} /> :
-                    <Inventory2Icon sx={{ fontSize: 16 }} />
-
-                  return (
-                    <Paper
-                      key={m._id || m.id || `${m.type}-${m.createdAt}`}
-                      variant="outlined"
-                      sx={{
-                        p: 1.2,
-                        borderRadius: 2,
-                        cursor: 'pointer',
-                        transition: 'transform .12s ease, background .12s ease',
-                        '&:hover': {
-                          transform: 'translateY(-1px)',
-                          bgcolor: ps.isDark ? 'rgba(66,165,245,.04)' : 'rgba(21,101,192,.03)'
-                        }
-                      }}
-                      onClick={() => nav('/movimientos')}
-                    >
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Chip
-                          size="small"
-                          icon={icon}
-                          label={typ}
-                          sx={movementTypeChipSx(typ)}
-                        />
-                        <Typography variant="body2" sx={{ fontWeight: 700, flex: 1, color: 'text.primary' }}>
-                          {m.note || 'Movimiento'}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                          {m.createdAt ? new Date(m.createdAt).toLocaleString() : ''}
-                        </Typography>
-                      </Stack>
-                    </Paper>
-                  )
-                })}
-
-                {!latest?.length && (
-                  <Typography sx={ps.emptyText}>Sin movimientos recientes por ahora.</Typography>
-                )}
-              </Stack>
-            </Box>
+            ) : (
+              <Box sx={{ display: 'grid', placeItems: 'center', height: 200 }}>
+                <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>Sin datos de SKUs</Typography>
+              </Box>
+            )}
           </Paper>
         </Grid>
 
+        {/* Orders Status + Recent */}
         <Grid item xs={12} md={4}>
-          <Paper elevation={0} sx={ps.card}>
-            <Box sx={ps.cardHeader}>
-              <Typography sx={ps.cardHeaderTitle}>Panel operativo</Typography>
-              <Box sx={{ flex: 1 }} />
-              <WarningAmberIcon sx={{ color: 'warning.main', fontSize: 20 }} />
-            </Box>
-
-            <Box sx={{ p: 2 }}>
-              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
-                Datos que sí requieren atención o seguimiento.
-              </Typography>
-
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                Alertas / Pendientes
-              </Typography>
-
-              <Stack spacing={1} sx={{ mb: 2 }}>
-                {alertsList.map((item) => (
-                  <Paper
-                    key={item.label}
-                    variant="outlined"
-                    sx={{
-                      p: 1.2,
-                      borderRadius: 2,
-                      cursor: 'pointer',
-                      '&:hover': {
-                        bgcolor: ps.isDark ? 'rgba(66,165,245,.04)' : 'rgba(21,101,192,.03)'
-                      }
-                    }}
-                    onClick={() => nav(item.to)}
-                  >
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      {item.icon}
-                      <Typography sx={{ fontWeight: 700, flex: 1, fontSize: 13, color: 'text.primary' }}>
-                        {item.label}
-                      </Typography>
-                      <Chip size="small" label={item.count} sx={ps.metricChip('default')} />
-                    </Stack>
-                  </Paper>
-                ))}
-              </Stack>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                Top SKUs
-              </Typography>
-
-              <Stack spacing={1} sx={{ mb: 2 }}>
-                {top.slice(0, 5).map((t) => (
-                  <Paper
-                    key={t.sku}
-                    variant="outlined"
-                    sx={{
-                      p: 1.2,
-                      borderRadius: 2,
-                      cursor: 'pointer',
-                      '&:hover': {
-                        bgcolor: ps.isDark ? 'rgba(66,165,245,.04)' : 'rgba(21,101,192,.03)'
-                      }
-                    }}
-                    onClick={() => nav('/inventario')}
-                  >
+          <Paper elevation={0} sx={{ p: 2, borderRadius: 2, height: '100%' }}>
+            <SectionHeader title="Ordenes" subtitle={`${orders.length} recientes`}
+              action={<Button size="small" variant="text" onClick={() => nav('/ordenes')} sx={{ fontSize: 11, minWidth: 0 }}>Ver todo</Button>}
+            />
+            {/* Mini donut */}
+            {orderStatusData.length > 0 && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1.5 }}>
+                <Box sx={{ width: 80, height: 80, flexShrink: 0 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={orderStatusData} dataKey="value" innerRadius="55%" outerRadius="95%" paddingAngle={3} startAngle={90} endAngle={-270}>
+                        {orderStatusData.map((d, i) => <Cell key={i} fill={d.color} stroke="none" />)}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Box>
+                <Stack spacing={0.5}>
+                  {orderStatusData.map(d => (
+                    <StatusDot key={d.name} color={d.color} label={d.name} value={d.value} />
+                  ))}
+                </Stack>
+              </Box>
+            )}
+            {/* Compact order list */}
+            <Stack spacing={0.75} sx={{ maxHeight: 180, overflow: 'auto' }}>
+              {orders.slice(0, 5).map(o => {
+                const st = String(o.status || '').toUpperCase()
+                const stColor = st.includes('COMPLET') ? '#16A34A' : st.includes('CANCEL') ? '#DC2626' : '#D97706'
+                return (
+                  <Paper key={o._id || o.id || o.orderNumber} variant="outlined"
+                    sx={{ p: 1, borderRadius: 1.5, cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                    onClick={() => nav('/ordenes')}>
                     <Stack direction="row" justifyContent="space-between" alignItems="center">
-                      <Typography sx={{ fontWeight: 700, fontFamily: 'monospace', color: 'text.primary' }}>
-                        {t.sku}
-                      </Typography>
-                      <Chip size="small" label={t.totalQty ?? t.qty ?? 0} sx={ps.metricChip('info')} />
-                    </Stack>
-                  </Paper>
-                ))}
-
-                {!top?.length && <Typography sx={ps.emptyText}>Sin datos de Top SKUs por ahora.</Typography>}
-              </Stack>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                Ordenes recientes
-              </Typography>
-
-              <Stack spacing={1}>
-                {orders.slice(0, 4).map(o => (
-                  <Paper
-                    key={o._id || o.id || o.orderNumber}
-                    variant="outlined"
-                    sx={{
-                      p: 1.2,
-                      borderRadius: 2,
-                      cursor: 'pointer',
-                      '&:hover': {
-                        bgcolor: ps.isDark ? 'rgba(66,165,245,.04)' : 'rgba(21,101,192,.03)'
-                      }
-                    }}
-                    onClick={() => nav('/ordenes')}
-                  >
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                      <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, color: 'text.primary' }}>
+                      <Typography sx={{ fontSize: 12, fontWeight: 600, fontFamily: 'monospace', color: 'text.primary' }}>
                         {o.orderNumber || 'ORD'}
                       </Typography>
-                      <Chip size="small" label={o.status || '---'} sx={ps.statusChip(o.status || 'PENDIENTE')} />
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: stColor }} />
                     </Stack>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      {o.destinationType} {o.destinationRef ? `- ${o.destinationRef}` : ''}
+                    <Typography sx={{ fontSize: 10, color: 'text.secondary' }}>
+                      {o.destinationType || ''} {o.destinationRef ? `· ${o.destinationRef}` : ''}
                     </Typography>
                   </Paper>
-                ))}
-
-                {!orders?.length && <Typography sx={ps.emptyText}>Sin ordenes recientes por ahora.</Typography>}
-              </Stack>
-            </Box>
+                )
+              })}
+              {!orders?.length && (
+                <Typography sx={{ fontSize: 12, color: 'text.secondary', textAlign: 'center', py: 2 }}>Sin ordenes recientes</Typography>
+              )}
+            </Stack>
           </Paper>
         </Grid>
       </Grid>
 
-      {/* ── Atajos Operativos ── */}
-      <Paper elevation={0} sx={{ ...ps.card, mt: 2.5 }}>
-        <Box sx={ps.cardHeader}>
-          <Typography sx={ps.cardHeaderTitle}>Atajos Operativos</Typography>
-          <Box sx={{ flex: 1 }} />
-          <Typography variant="caption" sx={ps.cardHeaderSubtitle}>Acceso directo a operaciones clave</Typography>
+      {/* ── ROW 5: RECENT ACTIVITY (compact table) ── */}
+      <Paper elevation={0} sx={{ borderRadius: 2, overflow: 'hidden' }}>
+        <Box sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Box>
+            <Typography sx={{ fontWeight: 600, fontSize: 14, color: 'text.primary' }}>Actividad Reciente</Typography>
+            <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>{latest.length} ultimos movimientos</Typography>
+          </Box>
+          <Button size="small" variant="text" onClick={() => nav('/movimientos')} sx={{ fontSize: 11, minWidth: 0 }}>Ver todos</Button>
         </Box>
-
-        <Box sx={{ p: 2.5 }}>
-          <Grid container spacing={2}>
-            {[
-              { label: 'Nuevo Recibo', icon: <LocalShippingIcon />, to: '/recepcion', color: 'success' },
-              { label: 'Nueva Orden', icon: <AddBoxIcon />, to: '/ordenes', color: 'primary' },
-              { label: 'Ejecutar Conteo', icon: <FactCheckIcon />, to: '/conteos', color: 'warning' },
-              { label: 'Ver Alertas', icon: <NotificationsActiveIcon />, to: '/alertas', color: 'error' },
-            ].map((action) => (
-              <Grid key={action.label} item xs={12} sm={6} md={3}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={action.icon}
-                  onClick={() => nav(action.to)}
-                  sx={{
-                    ...ps.actionBtn(action.color),
-                    py: 1.5,
-                    borderRadius: 2,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    textTransform: 'none',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {action.label}
-                </Button>
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
+        {latest.length > 0 ? (
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Tipo</TableCell>
+                <TableCell>Detalle</TableCell>
+                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Usuario</TableCell>
+                <TableCell align="right">Tiempo</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {latest.slice(0, 8).map((m, i) => {
+                const typ = String(m.type || 'MOV').toUpperCase()
+                const tc = MOVEMENT_COLORS[typ] || '#64748B'
+                return (
+                  <TableRow key={m._id || m.id || i} hover sx={{ cursor: 'pointer' }} onClick={() => nav('/movimientos')}>
+                    <TableCell>
+                      <Chip size="small" label={MOVEMENT_LABELS[typ] || typ} sx={{
+                        height: 20, fontSize: 10, fontWeight: 600,
+                        bgcolor: `${tc}10`, color: tc, border: `1px solid ${tc}20`,
+                        '& .MuiChip-label': { px: 0.75 },
+                      }} />
+                    </TableCell>
+                    <TableCell>
+                      <Typography sx={{ fontSize: 12, color: 'text.primary' }}>
+                        {m.note || 'Movimiento registrado'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                      <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>
+                        {m.userEmail || m.user?.email || '—'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography sx={{ fontSize: 11, color: 'text.secondary', fontFamily: 'monospace' }}>
+                        {timeAgo(m.createdAt)}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        ) : (
+          <Box sx={{ p: 3, textAlign: 'center' }}>
+            <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>Sin movimientos recientes</Typography>
+          </Box>
+        )}
       </Paper>
     </Box>
   )
