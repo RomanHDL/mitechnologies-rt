@@ -4,16 +4,18 @@ import { api } from '../services/api'
 import { usePageStyles } from '../ui/pageStyles'
 
 import Box from '@mui/material/Box'
-import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
 import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
 import Alert from '@mui/material/Alert'
 import Stack from '@mui/material/Stack'
+import { useTheme } from '@mui/material/styles'
 
 export default function RegisterPage() {
   const nav = useNavigate()
   const ps = usePageStyles()
+  const theme = useTheme()
+  const isDark = theme.palette.mode === 'dark'
 
   const [fullName, setFullName] = useState('')
   const [employeeNumber, setEmployeeNumber] = useState('')
@@ -30,7 +32,7 @@ export default function RegisterPage() {
     setLoading(true)
     try {
       await api().post('/api/auth/register', { fullName, employeeNumber, email, password })
-      setOk('Cuenta creada. Ahora inicia sesion.')
+      setOk('Cuenta creada. Redirigiendo al login...')
       setTimeout(() => nav('/login'), 700)
     } catch (err) {
       setError(err?.message || 'No se pudo crear la cuenta')
@@ -39,21 +41,40 @@ export default function RegisterPage() {
     }
   }
 
+  const inputSx = {
+    '& .MuiOutlinedInput-root': {
+      bgcolor: isDark ? 'rgba(255,255,255,.03)' : '#FFFFFF',
+    },
+  }
+
   return (
-    <Box sx={ps.authBackground}>
-      <Paper elevation={0} sx={ps.authCard}>
-        <Box sx={{ textAlign: 'center', mb: 3 }}>
-          <Box
-            sx={{
-              width: 56, height: 56, borderRadius: 3,
-              bgcolor: 'primary.main', display: 'grid', placeItems: 'center',
-              mx: 'auto', mb: 2, boxShadow: '0 4px 14px rgba(21,101,192,.25)',
-            }}
-          >
-            <Typography sx={{ fontWeight: 800, fontSize: 20, color: 'white' }}>MT</Typography>
-          </Box>
-          <Typography variant="h5" sx={{ fontWeight: 800, color: 'text.primary' }}>Crear cuenta</Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>Registro de nuevo usuario</Typography>
+    <Box sx={{
+      minHeight: '100vh',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      px: 2, py: 4,
+      bgcolor: isDark ? '#020617' : '#F8FAFC',
+    }}>
+      <Box sx={{ width: '100%', maxWidth: 420 }}>
+        {/* Logo */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 4, justifyContent: 'center' }}>
+          <Box sx={{
+            width: 36, height: 36, borderRadius: 1.5,
+            background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
+            display: 'grid', placeItems: 'center',
+            fontWeight: 700, fontSize: 13, color: 'white',
+          }}>MT</Box>
+          <Typography sx={{ fontWeight: 700, fontSize: 16, color: 'text.primary', letterSpacing: -0.2 }}>
+            MiTechnologies
+          </Typography>
+        </Box>
+
+        <Box sx={{ mb: 3 }}>
+          <Typography sx={{ fontWeight: 700, fontSize: 24, color: 'text.primary', letterSpacing: -0.4, mb: 0.5 }}>
+            Crear cuenta
+          </Typography>
+          <Typography sx={{ fontSize: 14, color: 'text.secondary' }}>
+            Registro de nuevo usuario en el sistema
+          </Typography>
         </Box>
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -61,17 +82,31 @@ export default function RegisterPage() {
 
         <Box component="form" onSubmit={onSubmit}>
           <Stack spacing={2}>
-            <TextField sx={ps.authInput} label="Nombre completo" value={fullName} onChange={(e) => setFullName(e.target.value)} fullWidth />
-            <TextField sx={ps.authInput} label="Numero de empleado" value={employeeNumber} onChange={(e) => setEmployeeNumber(e.target.value)} fullWidth />
-            <TextField sx={ps.authInput} label="Correo" value={email} onChange={(e) => setEmail(e.target.value)} fullWidth />
-            <TextField sx={ps.authInput} label="Contrasena" type="password" value={password} onChange={(e) => setPassword(e.target.value)} fullWidth />
-            <Button type="submit" variant="contained" size="large" fullWidth sx={{ py: 1.3 }} disabled={loading}>
-              {loading ? 'Creando...' : 'Crear'}
+            <Box>
+              <Typography sx={{ fontSize: 13, fontWeight: 600, color: 'text.primary', mb: 0.75 }}>Nombre completo</Typography>
+              <TextField sx={inputSx} placeholder="Nombre y apellidos" value={fullName} onChange={(e) => setFullName(e.target.value)} fullWidth size="small" />
+            </Box>
+            <Box>
+              <Typography sx={{ fontSize: 13, fontWeight: 600, color: 'text.primary', mb: 0.75 }}>Numero de empleado</Typography>
+              <TextField sx={inputSx} placeholder="Ej: 0001" value={employeeNumber} onChange={(e) => setEmployeeNumber(e.target.value)} fullWidth size="small" />
+            </Box>
+            <Box>
+              <Typography sx={{ fontSize: 13, fontWeight: 600, color: 'text.primary', mb: 0.75 }}>Correo</Typography>
+              <TextField sx={inputSx} placeholder="correo@empresa.com" value={email} onChange={(e) => setEmail(e.target.value)} fullWidth size="small" />
+            </Box>
+            <Box>
+              <Typography sx={{ fontSize: 13, fontWeight: 600, color: 'text.primary', mb: 0.75 }}>Contrasena</Typography>
+              <TextField sx={inputSx} placeholder="Minimo 8 caracteres" type="password" value={password} onChange={(e) => setPassword(e.target.value)} fullWidth size="small" />
+            </Box>
+            <Button type="submit" variant="contained" size="large" fullWidth sx={{ py: 1.2, mt: 0.5 }} disabled={loading}>
+              {loading ? 'Creando...' : 'Crear cuenta'}
             </Button>
-            <Button variant="text" fullWidth onClick={() => nav('/login')} sx={{ fontWeight: 600 }}>Volver a login</Button>
+            <Button variant="text" fullWidth onClick={() => nav('/login')} sx={{ fontWeight: 500, color: 'text.secondary' }}>
+              Volver al login
+            </Button>
           </Stack>
         </Box>
-      </Paper>
+      </Box>
     </Box>
   )
 }
