@@ -45,17 +45,15 @@ import WebhookIcon from '@mui/icons-material/Webhook'
 import PushPinIcon from '@mui/icons-material/PushPin'
 import PushPinOutlinedIcon from '@mui/icons-material/PushPinOutlined'
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone'
-import AccountCircleIcon from '@mui/icons-material/AccountCircle'
+import PersonOutlineIcon from '@mui/icons-material/PersonOutline'
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 
 /* Sidebar dimensions */
-const SIDEBAR_OPEN = 248
-const SIDEBAR_CLOSED = 64
-const TOPBAR_H = 56
+const SIDEBAR_OPEN = 240
+const SIDEBAR_CLOSED = 60
+const TOPBAR_H = 52
 
-/* Grouped navigation
- * items without `roles` are visible to ALL roles.
- * items with `roles` are only visible to those roles.
- */
+/* Grouped navigation */
 const NAV_SECTIONS = [
   {
     label: 'Principal',
@@ -125,7 +123,7 @@ export default function Layout() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
 
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [pinned, setPinned] = useState(false)
+  const [pinned, setPinned] = useState(true)
   const [hovered, setHovered] = useState(false)
 
   const expanded = isMobile ? mobileOpen : (pinned || hovered)
@@ -141,60 +139,73 @@ export default function Layout() {
       ? (location.pathname === '/' || location.pathname === '/dashboard')
       : location.pathname.startsWith(to)
 
+  /* ── Sidebar colors (always dark) ── */
+  const sidebarBg = isDark ? '#0B1120' : '#0F172A'
+  const sidebarBorder = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.06)'
+  const sidebarHover = 'rgba(255,255,255,0.06)'
+  const sidebarActive = isDark ? 'rgba(96,165,250,0.12)' : 'rgba(96,165,250,0.10)'
+  const sidebarActiveBorder = isDark ? 'rgba(96,165,250,0.25)' : 'rgba(96,165,250,0.20)'
+  const sidebarText = 'rgba(255,255,255,0.72)'
+  const sidebarTextActive = '#FFFFFF'
+  const sidebarLabel = 'rgba(255,255,255,0.28)'
+
   /* Sidebar content shared by desktop and mobile */
   const sidebarContent = (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <Box sx={{
+      display: 'flex', flexDirection: 'column', height: '100%',
+      overflow: 'hidden', bgcolor: sidebarBg,
+    }}>
       {/* Logo */}
       <Box sx={{
-        display: 'flex', alignItems: 'center', gap: 1.5,
-        px: expanded ? 2.5 : 0, py: 1.8,
+        display: 'flex', alignItems: 'center', gap: 1.25,
+        px: expanded ? 2 : 0, py: 1.5,
         justifyContent: expanded ? 'flex-start' : 'center',
         minHeight: TOPBAR_H,
       }}>
         <Box sx={{
-          width: 34, height: 34, borderRadius: 2, flexShrink: 0,
-          background: 'rgba(255,255,255,0.12)',
-          border: '1px solid rgba(255,255,255,0.16)',
+          width: 32, height: 32, borderRadius: 1.5, flexShrink: 0,
+          background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
           display: 'grid', placeItems: 'center',
-          fontWeight: 800, fontSize: 13, color: 'white',
+          fontWeight: 700, fontSize: 12, color: 'white',
+          letterSpacing: 0.5,
         }}>MT</Box>
         {expanded && (
           <Box sx={{ overflow: 'hidden', whiteSpace: 'nowrap' }}>
-            <Typography sx={{ fontWeight: 800, fontSize: 14, color: 'white', lineHeight: 1.2 }}>
-              MyTechnologies
+            <Typography sx={{ fontWeight: 700, fontSize: 14, color: 'white', lineHeight: 1.2, letterSpacing: -0.2 }}>
+              MiTechnologies
             </Typography>
-            <Typography sx={{ fontSize: 10, color: 'rgba(255,255,255,0.60)', fontWeight: 600 }}>
-              Sistema WMS
+            <Typography sx={{ fontSize: 10, color: sidebarLabel, fontWeight: 500, letterSpacing: 0.3 }}>
+              WMS v2.0
             </Typography>
           </Box>
         )}
       </Box>
 
-      <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)', mx: expanded ? 2 : 1 }} />
+      <Divider sx={{ borderColor: sidebarBorder, mx: expanded ? 1.5 : 1 }} />
 
       {/* Nav sections */}
       <Box sx={{
-        flex: 1, overflowY: 'auto', overflowX: 'hidden', py: 1,
-        '&::-webkit-scrollbar': { width: 4 },
-        '&::-webkit-scrollbar-thumb': { background: 'rgba(255,255,255,0.12)', borderRadius: 99 },
+        flex: 1, overflowY: 'auto', overflowX: 'hidden', py: 0.75,
+        '&::-webkit-scrollbar': { width: 3 },
+        '&::-webkit-scrollbar-thumb': { background: 'rgba(255,255,255,0.08)', borderRadius: 99 },
         '&::-webkit-scrollbar-track': { background: 'transparent' },
       }}>
         {filteredSections.map((section) => (
-          <Box key={section.label} sx={{ mb: 0.5 }}>
+          <Box key={section.label} sx={{ mb: 0.25 }}>
             {expanded && (
               <Typography sx={{
-                px: 2.5, pt: 1.5, pb: 0.5,
-                fontSize: 10, fontWeight: 700, letterSpacing: 1,
+                px: 2, pt: 1.5, pb: 0.4,
+                fontSize: 11, fontWeight: 600, letterSpacing: 0.6,
                 textTransform: 'uppercase',
-                color: 'rgba(255,255,255,0.35)',
+                color: sidebarLabel,
               }}>
                 {section.label}
               </Typography>
             )}
             {!expanded && section.label !== 'Principal' && (
-              <Divider sx={{ borderColor: 'rgba(255,255,255,0.06)', mx: 1.5, my: 0.5 }} />
+              <Divider sx={{ borderColor: sidebarBorder, mx: 1.5, my: 0.5 }} />
             )}
-            <List disablePadding sx={{ px: expanded ? 1 : 0.75 }}>
+            <List disablePadding sx={{ px: expanded ? 0.75 : 0.5 }}>
               {section.items.map((item) => {
                 const active = checkActive(item.to)
                 return (
@@ -202,37 +213,34 @@ export default function Layout() {
                     <ListItemButton
                       onClick={() => { nav(item.to); if (isMobile) setMobileOpen(false) }}
                       sx={{
-                        borderRadius: 2, mb: 0.3, minHeight: 40,
-                        px: expanded ? 1.5 : 0, py: 0.6,
+                        borderRadius: 1.5, mb: 0.25, minHeight: 36,
+                        px: expanded ? 1.25 : 0, py: 0.5,
                         justifyContent: expanded ? 'flex-start' : 'center',
-                        bgcolor: active
-                          ? (isDark ? 'rgba(66,165,245,0.15)' : 'rgba(255,255,255,0.18)')
-                          : 'transparent',
-                        border: active
-                          ? ('1px solid ' + (isDark ? 'rgba(66,165,245,0.25)' : 'rgba(255,255,255,0.22)'))
-                          : '1px solid transparent',
+                        bgcolor: active ? sidebarActive : 'transparent',
+                        borderLeft: active
+                          ? `2px solid ${sidebarActiveBorder}`
+                          : '2px solid transparent',
                         '&:hover': {
-                          bgcolor: active
-                            ? (isDark ? 'rgba(66,165,245,0.20)' : 'rgba(255,255,255,0.22)')
-                            : 'rgba(255,255,255,0.08)',
+                          bgcolor: active ? sidebarActive : sidebarHover,
                         },
+                        transition: 'background .1s ease',
                       }}
                     >
                       <ListItemIcon sx={{
-                        color: active ? '#fff' : 'rgba(255,255,255,0.65)',
-                        minWidth: expanded ? 34 : 'unset',
+                        color: active ? '#60A5FA' : sidebarText,
+                        minWidth: expanded ? 32 : 'unset',
                         justifyContent: 'center',
                       }}>
-                        {React.cloneElement(item.icon, { sx: { fontSize: 20 } })}
+                        {React.cloneElement(item.icon, { sx: { fontSize: 19 } })}
                       </ListItemIcon>
                       {expanded && (
                         <ListItemText
                           primary={item.label}
                           primaryTypographyProps={{
                             sx: {
-                              fontWeight: active ? 700 : 500,
+                              fontWeight: active ? 600 : 400,
                               fontSize: 13, whiteSpace: 'nowrap',
-                              color: active ? '#fff' : 'rgba(255,255,255,0.82)',
+                              color: active ? sidebarTextActive : sidebarText,
                             },
                           }}
                         />
@@ -246,22 +254,55 @@ export default function Layout() {
         ))}
       </Box>
 
-      {/* Pin toggle desktop only */}
-      {!isMobile && expanded && (
-        <>
-          <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)', mx: 2 }} />
-          <Box sx={{ p: 1.5, display: 'flex', justifyContent: 'center' }}>
-            <Tooltip title={pinned ? 'Desfijar sidebar' : 'Fijar sidebar'}>
-              <IconButton
-                size="small"
-                onClick={() => setPinned(p => !p)}
-                sx={{ color: 'rgba(255,255,255,0.60)', '&:hover': { color: '#fff' } }}
-              >
-                {pinned ? <PushPinIcon fontSize="small" /> : <PushPinOutlinedIcon fontSize="small" />}
-              </IconButton>
-            </Tooltip>
+      {/* Bottom: pin toggle + user info */}
+      <Divider sx={{ borderColor: sidebarBorder, mx: expanded ? 1.5 : 1 }} />
+
+      {/* User mini card */}
+      {expanded && (
+        <Box sx={{ px: 1.5, py: 1.25 }}>
+          <Box sx={{
+            display: 'flex', alignItems: 'center', gap: 1,
+            p: 1, borderRadius: 1.5,
+            bgcolor: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.05)',
+          }}>
+            <Box sx={{
+              width: 28, height: 28, borderRadius: 1, flexShrink: 0,
+              bgcolor: 'rgba(96,165,250,0.15)',
+              display: 'grid', placeItems: 'center',
+              color: '#60A5FA', fontSize: 14,
+            }}>
+              <PersonOutlineIcon sx={{ fontSize: 16 }} />
+            </Box>
+            <Box sx={{ overflow: 'hidden', flex: 1 }}>
+              <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'white', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user?.fullName || user?.email || 'Usuario'}
+              </Typography>
+              <Typography sx={{ fontSize: 10, color: sidebarLabel, lineHeight: 1.2 }}>
+                {user?.role || '---'}
+              </Typography>
+            </Box>
           </Box>
-        </>
+        </Box>
+      )}
+
+      {/* Pin toggle desktop only */}
+      {!isMobile && (
+        <Box sx={{ px: 1, pb: 1, display: 'flex', justifyContent: 'center' }}>
+          <Tooltip title={pinned ? 'Colapsar sidebar' : 'Fijar sidebar'} placement="right">
+            <IconButton
+              size="small"
+              onClick={() => setPinned(p => !p)}
+              sx={{
+                color: sidebarText,
+                borderRadius: 1.5,
+                '&:hover': { color: '#fff', bgcolor: sidebarHover },
+              }}
+            >
+              {pinned ? <ChevronLeftIcon fontSize="small" /> : <PushPinOutlinedIcon fontSize="small" />}
+            </IconButton>
+          </Tooltip>
+        </Box>
       )}
     </Box>
   )
@@ -275,13 +316,11 @@ export default function Layout() {
           onMouseLeave={() => { if (!pinned) setHovered(false) }}
           sx={{
             width: sidebarW, minWidth: sidebarW, flexShrink: 0,
-            transition: 'width 200ms cubic-bezier(.4,0,.2,1), min-width 200ms cubic-bezier(.4,0,.2,1)',
+            transition: 'width 180ms ease, min-width 180ms ease',
             position: 'fixed', top: 0, left: 0, bottom: 0,
             zIndex: theme.zIndex.drawer + 1,
-            backgroundImage: isDark
-              ? 'linear-gradient(180deg, #0A2540 0%, #0B1929 100%)'
-              : 'linear-gradient(180deg, #1565C0 0%, #0D47A1 50%, #0A2540 100%)',
-            boxShadow: expanded ? '4px 0 24px rgba(0,0,0,0.18)' : '2px 0 8px rgba(0,0,0,0.08)',
+            bgcolor: sidebarBg,
+            borderRight: `1px solid ${sidebarBorder}`,
             color: '#fff',
           }}
         >
@@ -295,7 +334,7 @@ export default function Layout() {
           anchor="left"
           open={mobileOpen}
           onClose={() => setMobileOpen(false)}
-          PaperProps={{ sx: { width: SIDEBAR_OPEN } }}
+          PaperProps={{ sx: { width: SIDEBAR_OPEN, bgcolor: sidebarBg } }}
         >
           {sidebarContent}
         </Drawer>
@@ -305,7 +344,7 @@ export default function Layout() {
       <Box sx={{
         flex: 1,
         ml: isMobile ? 0 : (sidebarW + 'px'),
-        transition: 'margin-left 200ms cubic-bezier(.4,0,.2,1)',
+        transition: 'margin-left 180ms ease',
         display: 'flex', flexDirection: 'column', minHeight: '100vh',
       }}>
         {/* Top bar */}
@@ -314,56 +353,78 @@ export default function Layout() {
           elevation={0}
           sx={{
             backgroundImage: 'none !important',
-            bgcolor: isDark ? alpha('#0B1929', 0.85) : alpha('#FFFFFF', 0.80),
+            bgcolor: isDark ? alpha('#020617', 0.88) : alpha('#FFFFFF', 0.88),
             backdropFilter: 'blur(12px)',
             borderBottom: '1px solid',
-            borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(13,59,102,0.08)',
-            boxShadow: isDark
-              ? '0 1px 8px rgba(0,0,0,0.20)'
-              : '0 1px 4px rgba(13,59,102,0.05)',
-            color: isDark ? '#E8EDF4' : '#0A2540',
+            borderColor: isDark ? 'rgba(255,255,255,0.06)' : '#E2E8F0',
+            boxShadow: 'none',
+            color: isDark ? '#F1F5F9' : '#0F172A',
           }}
         >
-          <Toolbar sx={{ gap: 1, minHeight: TOPBAR_H + ' !important', px: { xs: 1.5, md: 3 } }}>
+          <Toolbar sx={{ gap: 0.75, minHeight: TOPBAR_H + ' !important', px: { xs: 1.5, md: 2.5 } }}>
             {isMobile && (
               <IconButton edge="start" onClick={() => setMobileOpen(true)} sx={{ mr: 0.5 }}>
                 <MenuIcon />
               </IconButton>
             )}
 
-            <Typography sx={{ fontWeight: 800, fontSize: 16, letterSpacing: -0.2 }}>
+            <Typography sx={{ fontWeight: 600, fontSize: 15, letterSpacing: -0.1 }}>
               {getPageTitle(location.pathname)}
             </Typography>
 
             <Box sx={{ flex: 1 }} />
 
             <Tooltip title={mode === 'light' ? 'Modo oscuro' : 'Modo claro'}>
-              <IconButton onClick={toggleMode} size="small" sx={{ borderRadius: 2 }}>
-                {mode === 'light' ? <DarkModeIcon fontSize="small" /> : <LightModeIcon fontSize="small" />}
+              <IconButton
+                onClick={toggleMode}
+                size="small"
+                sx={{
+                  borderRadius: 1.5,
+                  bgcolor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                  '&:hover': { bgcolor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)' },
+                }}
+              >
+                {mode === 'light'
+                  ? <DarkModeIcon sx={{ fontSize: 18 }} />
+                  : <LightModeIcon sx={{ fontSize: 18 }} />
+                }
               </IconButton>
             </Tooltip>
 
             <Tooltip title="Notificaciones">
-              <IconButton size="small" sx={{ borderRadius: 2 }}>
-                <NotificationsNoneIcon fontSize="small" />
+              <IconButton
+                size="small"
+                sx={{
+                  borderRadius: 1.5,
+                  bgcolor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                  '&:hover': { bgcolor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)' },
+                }}
+              >
+                <NotificationsNoneIcon sx={{ fontSize: 18 }} />
               </IconButton>
             </Tooltip>
 
             {!isMobile && (
               <Box sx={{
-                display: 'flex', alignItems: 'center', gap: 1,
-                bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(13,59,102,0.05)',
+                display: 'flex', alignItems: 'center', gap: 0.75,
+                bgcolor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
                 border: '1px solid',
-                borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(13,59,102,0.08)',
-                borderRadius: 2, px: 1.5, py: 0.5,
+                borderColor: isDark ? 'rgba(255,255,255,0.06)' : '#E2E8F0',
+                borderRadius: 1.5, px: 1.25, py: 0.4,
               }}>
-                <AccountCircleIcon sx={{ fontSize: 22, opacity: 0.7 }} />
+                <Box sx={{
+                  width: 24, height: 24, borderRadius: 1,
+                  bgcolor: isDark ? 'rgba(96,165,250,0.15)' : '#EFF6FF',
+                  display: 'grid', placeItems: 'center',
+                }}>
+                  <PersonOutlineIcon sx={{ fontSize: 14, color: isDark ? '#60A5FA' : '#3B82F6' }} />
+                </Box>
                 <Box>
-                  <Typography sx={{ fontSize: 12, fontWeight: 700, lineHeight: 1.2 }}>
+                  <Typography sx={{ fontSize: 12, fontWeight: 600, lineHeight: 1.2 }}>
                     {user?.fullName || user?.email || 'Usuario'}
                   </Typography>
-                  <Typography sx={{ fontSize: 10, opacity: 0.6, lineHeight: 1.2 }}>
-                    {user?.role || '---'}{user?.position ? (' / ' + user.position) : ''}
+                  <Typography sx={{ fontSize: 10, color: 'text.secondary', lineHeight: 1.2 }}>
+                    {user?.role || '---'}{user?.position ? (' · ' + user.position) : ''}
                   </Typography>
                 </Box>
               </Box>
@@ -373,8 +434,13 @@ export default function Layout() {
               <Chip
                 size="small"
                 label={user?.role || '---'}
-                variant="outlined"
-                sx={{ fontWeight: 700, fontSize: 10 }}
+                sx={{
+                  fontWeight: 600, fontSize: 10, height: 22,
+                  bgcolor: isDark ? 'rgba(96,165,250,0.12)' : '#EFF6FF',
+                  color: isDark ? '#60A5FA' : '#3B82F6',
+                  border: '1px solid',
+                  borderColor: isDark ? 'rgba(96,165,250,0.20)' : '#BFDBFE',
+                }}
               />
             )}
 
@@ -383,15 +449,15 @@ export default function Layout() {
                 size="small"
                 onClick={handleLogout}
                 sx={{
-                  borderRadius: 2,
-                  bgcolor: isDark ? 'rgba(198,40,40,0.12)' : 'rgba(198,40,40,0.06)',
+                  borderRadius: 1.5,
+                  bgcolor: isDark ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.04)',
                   border: '1px solid',
-                  borderColor: isDark ? 'rgba(198,40,40,0.25)' : 'rgba(198,40,40,0.12)',
-                  color: isDark ? '#EF5350' : '#C62828',
-                  '&:hover': { bgcolor: isDark ? 'rgba(198,40,40,0.22)' : 'rgba(198,40,40,0.12)' },
+                  borderColor: isDark ? 'rgba(239,68,68,0.15)' : 'rgba(239,68,68,0.10)',
+                  color: isDark ? '#FCA5A5' : '#DC2626',
+                  '&:hover': { bgcolor: isDark ? 'rgba(239,68,68,0.15)' : 'rgba(239,68,68,0.08)' },
                 }}
               >
-                <LogoutIcon sx={{ fontSize: 18 }} />
+                <LogoutIcon sx={{ fontSize: 16 }} />
               </IconButton>
             </Tooltip>
           </Toolbar>
@@ -402,7 +468,7 @@ export default function Layout() {
           flex: 1,
           px: { xs: 1.5, sm: 2, md: 3 },
           py: { xs: 2, md: 2.5 },
-          maxWidth: 1400,
+          maxWidth: 1440,
           width: '100%',
           mx: 'auto',
         }}>
