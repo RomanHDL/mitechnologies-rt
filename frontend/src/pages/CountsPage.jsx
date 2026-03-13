@@ -23,9 +23,6 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
 import Grid from '@mui/material/Grid'
 import LinearProgress from '@mui/material/LinearProgress'
-import Tabs from '@mui/material/Tabs'
-import Tab from '@mui/material/Tab'
-import TableFooter from '@mui/material/TableFooter'
 import EditIcon from '@mui/icons-material/Edit'
 import DoneIcon from '@mui/icons-material/Done'
 import CancelIcon from '@mui/icons-material/Cancel'
@@ -62,17 +59,6 @@ function KpiCard({ title, value, subtitle, accent = 'blue', ps }) {
   )
 }
 
-/* ── Scope badge ── */
-function ScopeBadge({ scope, area, level, ps }) {
-  const label = scope === 'LEVEL'
-    ? `${scope} — ${area || '?'} / Nivel ${level || '?'}`
-    : scope === 'CUSTOM'
-      ? `CUSTOM — ${area || '?'}`
-      : `AREA — ${area || '?'}`
-  const tone = scope === 'LEVEL' ? 'info' : scope === 'CUSTOM' ? 'warn' : 'default'
-  return <Chip size="small" label={label} sx={ps.metricChip(tone)} />
-}
-
 export default function CountsPage() {
   const { token, user } = useAuth()
   const role = String(user?.role || '').toUpperCase()
@@ -83,7 +69,7 @@ export default function CountsPage() {
 
   const [rows, setRows] = useState([])
   const [q, setQ] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
+  const [status, setStatus] = useState('')
   const [selected, setSelected] = useState(null)
 
   const [showDetail, setShowDetail] = useState(false)
@@ -114,8 +100,8 @@ export default function CountsPage() {
   const [captureMsg, setCaptureMsg] = useState('')
   const [captureErr, setCaptureErr] = useState('')
 
-  // Capture dialog tab: 0=Captura, 1=Diferencias
-  const [captureTab, setCaptureTab] = useState(0)
+  // Diferencias tab toggle
+  const [showDiffs, setShowDiffs] = useState(false)
 
   const safeId = (r) => r?.id || r?._id
 
@@ -142,16 +128,16 @@ export default function CountsPage() {
     setOkMsg('')
     try {
       if (!can) return setErr('No tienes permiso para crear conteos')
-      if (!String(area || '').trim()) return setErr('Area requerida')
+      if (scope !== 'CUSTOM' && !String(area || '').trim()) return setErr('Area requerida')
       if (!String(scope || '').trim()) return setErr('Scope requerido')
 
       setLoading(true)
       await client.post('/api/counts', {
-        name,
+        name: name || undefined,
         scope,
-        area,
-        level: scope === 'LEVEL' ? level : '',
-        notes
+        area: scope !== 'CUSTOM' ? area : (area || undefined),
+        level: scope === 'LEVEL' ? level : undefined,
+        notes: notes || undefined
       })
 
       setOpenCreate(false)
@@ -173,90 +159,74 @@ export default function CountsPage() {
   const filtered = useMemo(() => {
     let list = rows
     if (q) list = list.filter(r => (r.name || '').toLowerCase().includes(q.toLowerCase()))
-    if (statusFilter) list = list.filter(r => String(r.status || '') === statusFilter)
+    if (status) list = list.filter(r => String(r.status || '') === status)
     return list
-  }, [rows, q, statusFilter])
+  }, [rows, q, status])
 
-  // KPIs always from ALL rows (unfiltered)
-  const kpis = useMemo(() => {
+  // Resumen superior
+  const resumen = useMemo(() => {
     const st = (s) => String(s || '')
     return {
-      total: rows.length,
-      abiertos: rows.filter(r => st(r.status) === 'OPEN').length,
-      review: rows.filter(r => st(r.status) === 'REVIEW').length,
-      aprobados: rows.filter(r => st(r.status) === 'APPROVED').length,
-      cerrados: rows.filter(r => st(r.status) === 'CLOSED').length,
+      total: filtered.length,
+      abiertos: filtered.filter(r => st(r.status) === 'OPEN').length,
+      review: filtered.filter(r => st(r.status) === 'REVIEW').length,
+      aprobados: filtered.filter(r => st(r.status) === 'APPROVED').length,
+      cerrados: filtered.filter(r => st(r.status) === 'CLOSED').length,
     }
-  }, [rows])
+  }, [filtered])
 
-  // Exportar lista a Excel
+  // Exportar a Excel — includes variance data from lines
   const exportExcel = () => {
-    const data = filtered.map(r => ({
+    const summaryData = filtered.map(r => ({
       Nombre: r.name,
       Scope: r.scope,
       Area: r.area,
-      Nivel: r.level,
+      Nivel: r.level || '',
       Status: statusLabel(r.status),
       Creo: r.createdBy?.email || '',
       Aprobo: r.approvedBy?.email || '',
-      'Aprobado en': r.approvedAt ? dayjs(r.approvedAt).format('DD/MM/YYYY HH:mm') : '',
       Creado: r.createdAt ? dayjs(r.createdAt).format('DD/MM/YYYY HH:mm') : ''
     }))
-    const ws = XLSX.utils.json_to_sheet(data)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Conteos')
-    XLSX.writeFile(wb, 'conteos_ciclicos.xlsx')
-  }
 
-  // Export count detail with variances to Excel
-  const exportDetailExcel = () => {
-    if (!captureDetail?.lines?.length) return
-    const exportRows = []
-    const lines = captureDetail.lines || []
-    lines.forEach(line => {
-      const locCode = line.location?.code || line.locationId || line._id || ''
-      const systemItems = line.systemItems || []
-      const diffs = line.difference || []
-      systemItems.forEach(item => {
-        const diffObj = diffs.find(d => d.sku === item.sku)
-        const countedObj = (line.countedItems || []).find(ci => ci.sku === item.sku)
-        const systemQty = item.qty || 0
-        const countedQty = countedObj ? countedObj.qty : null
-        const diff = diffObj ? diffObj.diff : (countedQty !== null ? countedQty - systemQty : null)
-        const pctVar = systemQty > 0 && diff !== null ? ((Math.abs(diff) / systemQty) * 100) : null
-        exportRows.push({
-          Ubicacion: locCode,
-          SKU: item.sku,
-          'Qty Sistema': systemQty,
-          'Qty Contada': countedQty !== null ? countedQty : '',
-          Diferencia: diff !== null ? diff : '',
-          '% Varianza': pctVar !== null ? `${pctVar.toFixed(1)}%` : '',
-          Estado: countedQty === null ? 'Sin contar' : (diff === 0 ? 'Coincide' : 'Discrepancia')
+    // Build variance detail rows from all counts that have lines
+    const varianceData = []
+    filtered.forEach(r => {
+      const lines = r.lines || []
+      lines.forEach(line => {
+        const locCode = line.location?.code || line.locationId || line._id || ''
+        const diffs = line.difference || []
+        const countedItems = line.countedItems || []
+        const systemItems = line.systemItems || []
+        systemItems.forEach(si => {
+          const ci = countedItems.find(c => c.sku === si.sku)
+          const diffObj = diffs.find(d => d.sku === si.sku)
+          const diff = diffObj ? diffObj.diff : (ci ? ci.qty - si.qty : null)
+          const systemQty = si.qty || 0
+          const countedQty = ci ? ci.qty : null
+          const pct = systemQty > 0 && diff !== null ? Math.abs(diff / systemQty * 100) : 0
+          varianceData.push({
+            Conteo: r.name || safeId(r),
+            Ubicacion: locCode,
+            SKU: si.sku,
+            'Qty Sistema': systemQty,
+            'Qty Contada': countedQty !== null ? countedQty : '',
+            Diferencia: diff !== null ? diff : '',
+            '% Varianza': diff !== null ? `${pct.toFixed(1)}%` : '',
+          })
         })
       })
     })
-    const ws = XLSX.utils.json_to_sheet(exportRows)
+
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Detalle Conteo')
+    const ws1 = XLSX.utils.json_to_sheet(summaryData)
+    XLSX.utils.book_append_sheet(wb, ws1, 'Conteos')
 
-    // Add a summary sheet
-    const summary = []
-    const vs = varianceSummary
-    if (vs) {
-      summary.push({ Metrica: 'Total ubicaciones', Valor: vs.total })
-      summary.push({ Metrica: 'Coinciden', Valor: vs.matchCount })
-      summary.push({ Metrica: 'Discrepancias', Valor: vs.discrepancyCount })
-      summary.push({ Metrica: 'Sin contar', Valor: vs.uncountedCount })
-      summary.push({ Metrica: 'Varianza total absoluta', Valor: vs.totalVariance })
-      summary.push({ Metrica: 'Total qty sistema', Valor: vs.totalSystemQty })
-      summary.push({ Metrica: 'Total qty contada', Valor: vs.totalCountedQty })
-      summary.push({ Metrica: 'Precision %', Valor: `${vs.accuracy.toFixed(1)}%` })
+    if (varianceData.length > 0) {
+      const ws2 = XLSX.utils.json_to_sheet(varianceData)
+      XLSX.utils.book_append_sheet(wb, ws2, 'Varianzas')
     }
-    const ws2 = XLSX.utils.json_to_sheet(summary)
-    XLSX.utils.book_append_sheet(wb, ws2, 'Resumen')
 
-    const countName = (captureDetail.name || 'conteo').replace(/[^a-zA-Z0-9]/g, '_')
-    XLSX.writeFile(wb, `detalle_${countName}.xlsx`)
+    XLSX.writeFile(wb, 'conteos_ciclicos.xlsx')
   }
 
   // Acciones
@@ -276,15 +246,11 @@ export default function CountsPage() {
     }
   }
 
-  // Status workflow: OPEN -> REVIEW
   const sendToReview = async (id) => patchStatus(id, 'REVIEW')
-
-  // Status workflow: APPROVED -> CLOSED
   const closeCount = async (id) => patchStatus(id, 'CLOSED')
-
   const cancelCount = async (id) => patchStatus(id, 'CANCELLED')
 
-  // Approve via dedicated endpoint (only from REVIEW)
+  // Approve via dedicated endpoint
   const approveCount = async (id) => {
     if (!id) return
     setErr('')
@@ -346,8 +312,8 @@ export default function CountsPage() {
   const openCapture = async (row) => {
     setShowDetail(false)
     setShowCapture(true)
+    setShowDiffs(false)
     setSelected(row)
-    setCaptureTab(0)
     await loadCountDetail(safeId(row))
   }
 
@@ -357,7 +323,7 @@ export default function CountsPage() {
     setCountedValues({})
     setCaptureMsg('')
     setCaptureErr('')
-    setCaptureTab(0)
+    setShowDiffs(false)
   }
 
   const updateCountedValue = (locationId, sku, value) => {
@@ -407,23 +373,14 @@ export default function CountsPage() {
     let discrepancyCount = 0
     let uncountedCount = 0
     let totalVariance = 0
-    let totalSystemQty = 0
-    let totalCountedQty = 0
 
     lines.forEach(line => {
       const diffs = line.difference || []
       const counted = line.countedItems || []
-      const systemItems = line.systemItems || []
-
-      systemItems.forEach(si => { totalSystemQty += (si.qty || 0) })
-
       if (counted.length === 0) {
         uncountedCount++
         return
       }
-
-      counted.forEach(ci => { totalCountedQty += (ci.qty || 0) })
-
       const hasDiscrepancy = diffs.some(d => d.diff !== 0)
       if (hasDiscrepancy) {
         discrepancyCount++
@@ -433,28 +390,24 @@ export default function CountsPage() {
       }
     })
 
-    const accuracy = totalSystemQty > 0
-      ? Math.max(0, ((1 - (totalVariance / totalSystemQty)) * 100))
-      : 100
-
-    return { matchCount, discrepancyCount, uncountedCount, totalVariance, total: lines.length, totalSystemQty, totalCountedQty, accuracy }
+    return { matchCount, discrepancyCount, uncountedCount, totalVariance, total: lines.length }
   }, [captureDetail])
 
-  // Locations with variances only, sorted by largest variance first
+  // Diferencias: locations with variances sorted by largest absolute diff first
   const varianceLines = useMemo(() => {
     if (!captureDetail?.lines?.length) return []
     return captureDetail.lines
       .filter(line => {
-        const diffs = line.difference || []
         const counted = line.countedItems || []
+        const diffs = line.difference || []
         return counted.length > 0 && diffs.some(d => d.diff !== 0)
       })
       .map(line => {
         const diffs = line.difference || []
-        const totalAbsVariance = diffs.reduce((sum, d) => sum + Math.abs(d.diff || 0), 0)
-        return { ...line, totalAbsVariance }
+        const maxAbsDiff = Math.max(...diffs.map(d => Math.abs(d.diff || 0)), 0)
+        return { ...line, _maxAbsDiff: maxAbsDiff }
       })
-      .sort((a, b) => b.totalAbsVariance - a.totalAbsVariance)
+      .sort((a, b) => b._maxAbsDiff - a._maxAbsDiff)
   }, [captureDetail])
 
   // Approve from capture dialog
@@ -473,12 +426,36 @@ export default function CountsPage() {
     await loadCountDetail(id)
   }
 
-  // Close from capture dialog
-  const closeFromCapture = async () => {
+  // Export capture detail with variances
+  const exportCaptureExcel = () => {
     if (!captureDetail) return
-    const id = safeId(captureDetail)
-    await patchStatus(id, 'CLOSED')
-    await loadCountDetail(id)
+    const lines = captureDetail.lines || []
+    const data = []
+    lines.forEach(line => {
+      const locCode = line.location?.code || line.locationId || line._id || ''
+      const systemItems = line.systemItems || []
+      const countedItems = line.countedItems || []
+      const diffs = line.difference || []
+      systemItems.forEach(si => {
+        const ci = countedItems.find(c => c.sku === si.sku)
+        const diffObj = diffs.find(d => d.sku === si.sku)
+        const diff = diffObj ? diffObj.diff : (ci ? ci.qty - si.qty : null)
+        const systemQty = si.qty || 0
+        const pct = systemQty > 0 && diff !== null ? Math.abs(diff / systemQty * 100) : 0
+        data.push({
+          Ubicacion: locCode,
+          SKU: si.sku,
+          'Qty Sistema': systemQty,
+          'Qty Contada': ci ? ci.qty : '',
+          Diferencia: diff !== null ? diff : '',
+          '% Varianza': diff !== null ? `${pct.toFixed(1)}%` : '',
+        })
+      })
+    })
+    const ws = XLSX.utils.json_to_sheet(data)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Detalle Conteo')
+    XLSX.writeFile(wb, `conteo_${captureDetail.name || safeId(captureDetail)}.xlsx`)
   }
 
   // Paginacion
@@ -504,245 +481,31 @@ export default function CountsPage() {
     return map[String(s || '')] || String(s || '--')
   }
 
+  const scopeLabel = (s) => {
+    const map = { AREA: 'Area', LEVEL: 'Nivel', CUSTOM: 'Personalizado' }
+    return map[String(s || '')] || String(s || '--')
+  }
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
 
-  /** Variance color by percentage: green=match, yellow=<10%, red=>10% */
+  /** Color for difference values — green=match, yellow=<10%, red=>10% */
   const varianceColor = (diff, systemQty) => {
-    if (diff === 0) return { color: ps.isDark ? '#86EFAC' : '#2E7D32', bg: ps.isDark ? 'rgba(34,197,94,.10)' : 'rgba(46,125,50,.06)' }
-    const pct = systemQty > 0 ? (Math.abs(diff) / systemQty) * 100 : 100
-    if (pct <= 10) return { color: ps.isDark ? '#FCD34D' : '#E65100', bg: ps.isDark ? 'rgba(245,158,11,.10)' : 'rgba(245,158,11,.06)' }
-    return { color: ps.isDark ? '#FCA5A5' : '#C62828', bg: ps.isDark ? 'rgba(239,68,68,.10)' : 'rgba(198,40,40,.06)' }
+    if (diff === 0) return ps.isDark ? '#86EFAC' : '#2E7D32'
+    const pct = systemQty > 0 ? Math.abs(diff / systemQty * 100) : 100
+    if (pct <= 10) return ps.isDark ? '#FCD34D' : '#E65100'
+    return ps.isDark ? '#FCA5A5' : '#C62828'
   }
 
-  /** Render a location card with items table (reused in both tabs) */
-  const renderLocationCard = (line, lineIdx, showInputs) => {
-    const locId = line.locationId || line._id
-    const locCode = line.location?.code || locId || `Ubicacion ${lineIdx + 1}`
-    const systemItems = line.systemItems || []
-    const diffs = line.difference || []
-    const hasCounted = (line.countedItems || []).length > 0
-    const hasDiscrepancy = diffs.some(d => d.diff !== 0)
-    const isSaving = savingLocation === locId
-    const canEdit = showInputs && ['OPEN', 'REVIEW'].includes(String(captureDetail?.status || ''))
-
-    // Compute location-level totals
-    let locSystemTotal = 0
-    let locCountedTotal = 0
-    systemItems.forEach(si => { locSystemTotal += (si.qty || 0) })
-    if (hasCounted) {
-      ;(line.countedItems || []).forEach(ci => { locCountedTotal += (ci.qty || 0) })
-    }
-    const locDiffTotal = hasCounted ? locCountedTotal - locSystemTotal : null
-    const locAccuracy = hasCounted && locSystemTotal > 0
-      ? Math.max(0, (1 - (Math.abs(locDiffTotal) / locSystemTotal)) * 100)
-      : null
-
-    return (
-      <Paper
-        key={locId || lineIdx}
-        elevation={0}
-        sx={{
-          ...ps.card,
-          border: hasCounted
-            ? hasDiscrepancy
-              ? (ps.isDark ? '1px solid rgba(239,68,68,.25)' : '1px solid rgba(198,40,40,.20)')
-              : (ps.isDark ? '1px solid rgba(34,197,94,.25)' : '1px solid rgba(46,125,50,.20)')
-            : (ps.isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(13,59,102,.10)'),
-          overflow: 'visible'
-        }}
-      >
-        {/* Location header */}
-        <Box sx={{
-          ...ps.cardHeader,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between'
-        }}>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>
-              {locCode}
-            </Typography>
-            {hasCounted && !hasDiscrepancy && (
-              <Chip
-                icon={<CheckCircleIcon sx={{ fontSize: 14 }} />}
-                label="Coincide"
-                size="small"
-                sx={ps.metricChip('ok')}
-              />
-            )}
-            {hasCounted && hasDiscrepancy && (
-              <Chip
-                icon={<WarningAmberIcon sx={{ fontSize: 14 }} />}
-                label="Discrepancia"
-                size="small"
-                sx={ps.metricChip('bad')}
-              />
-            )}
-            {!hasCounted && (
-              <Chip label="Pendiente" size="small" sx={ps.metricChip('warn')} />
-            )}
-          </Stack>
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            {locAccuracy !== null && (
-              <Typography variant="caption" sx={{ fontWeight: 700, color: locAccuracy >= 90 ? (ps.isDark ? '#86EFAC' : '#2E7D32') : (ps.isDark ? '#FCA5A5' : '#C62828') }}>
-                {locAccuracy.toFixed(1)}% precision
-              </Typography>
-            )}
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              {systemItems.length} item{systemItems.length !== 1 ? 's' : ''} en sistema
-            </Typography>
-          </Stack>
-        </Box>
-
-        {/* Items table */}
-        <Box sx={{ overflowX: 'auto' }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow sx={ps.tableHeaderRow}>
-                <TableCell>SKU</TableCell>
-                <TableCell sx={{ textAlign: 'right' }}>Qty Sistema</TableCell>
-                {showInputs ? (
-                  <TableCell sx={{ textAlign: 'center', minWidth: 120 }}>Qty Contada</TableCell>
-                ) : (
-                  <TableCell sx={{ textAlign: 'right' }}>Qty Contada</TableCell>
-                )}
-                <TableCell sx={{ textAlign: 'right' }}>Diferencia</TableCell>
-                <TableCell sx={{ textAlign: 'right' }}>% Var</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {systemItems.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5}>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>Sin items en sistema</Typography>
-                  </TableCell>
-                </TableRow>
-              )}
-              {systemItems.map((item, itemIdx) => {
-                const sku = item.sku
-                const systemQty = item.qty || 0
-                const currentVal = countedValues[locId]?.[sku] ?? ''
-                const diffObj = diffs.find(d => d.sku === sku)
-                const diff = diffObj ? diffObj.diff : null
-                const countedQty = currentVal !== '' ? Number(currentVal) : null
-                const liveDiff = countedQty !== null ? countedQty - systemQty : null
-                const displayDiff = diff !== null ? diff : liveDiff
-                const vc = displayDiff !== null ? varianceColor(displayDiff, systemQty) : null
-                const pctVar = displayDiff !== null && systemQty > 0 ? ((Math.abs(displayDiff) / systemQty) * 100) : null
-
-                return (
-                  <TableRow key={sku || itemIdx} sx={ps.tableRow(itemIdx)}>
-                    <TableCell sx={{ ...ps.cellText, fontWeight: 700, fontFamily: 'monospace' }}>{sku}</TableCell>
-                    <TableCell sx={{ ...ps.cellText, textAlign: 'right' }}>{systemQty}</TableCell>
-                    {showInputs && canEdit ? (
-                      <TableCell sx={{ textAlign: 'center' }}>
-                        <TextField
-                          type="number"
-                          size="small"
-                          value={currentVal}
-                          onChange={(e) => updateCountedValue(locId, sku, e.target.value)}
-                          placeholder="0"
-                          inputProps={{ min: 0, style: { textAlign: 'center' } }}
-                          sx={{
-                            width: 100,
-                            ...ps.inputSx,
-                            '& .MuiOutlinedInput-root': {
-                              ...ps.inputSx['& .MuiOutlinedInput-root'],
-                              height: 36,
-                            }
-                          }}
-                        />
-                      </TableCell>
-                    ) : (
-                      <TableCell sx={{ ...ps.cellText, textAlign: showInputs ? 'center' : 'right', fontFamily: 'monospace' }}>
-                        {countedQty !== null ? countedQty : <Typography component="span" variant="caption" sx={{ color: 'text.disabled' }}>--</Typography>}
-                      </TableCell>
-                    )}
-                    <TableCell sx={{ textAlign: 'right' }}>
-                      {displayDiff !== null ? (
-                        <Box
-                          component="span"
-                          sx={{
-                            fontWeight: 800,
-                            color: vc.color,
-                            bgcolor: vc.bg,
-                            px: 1.2,
-                            py: 0.3,
-                            borderRadius: 1,
-                            fontSize: 13,
-                            fontFamily: 'monospace',
-                            opacity: diff !== null ? 1 : 0.7
-                          }}
-                        >
-                          {displayDiff > 0 ? `+${displayDiff}` : displayDiff}
-                        </Box>
-                      ) : (
-                        <Typography variant="caption" sx={{ color: 'text.disabled' }}>--</Typography>
-                      )}
-                    </TableCell>
-                    <TableCell sx={{ textAlign: 'right' }}>
-                      {pctVar !== null ? (
-                        <Typography variant="caption" sx={{ fontWeight: 700, color: vc?.color, fontFamily: 'monospace' }}>
-                          {pctVar.toFixed(1)}%
-                        </Typography>
-                      ) : (
-                        <Typography variant="caption" sx={{ color: 'text.disabled' }}>--</Typography>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-            {/* Summary row */}
-            {hasCounted && systemItems.length > 0 && (
-              <TableFooter>
-                <TableRow sx={{ '& td': { borderTop: ps.isDark ? '2px solid rgba(255,255,255,.12)' : '2px solid rgba(13,59,102,.12)' } }}>
-                  <TableCell sx={{ fontWeight: 800, color: 'text.primary' }}>TOTAL</TableCell>
-                  <TableCell sx={{ textAlign: 'right', fontWeight: 800, color: 'text.primary', fontFamily: 'monospace' }}>{locSystemTotal}</TableCell>
-                  <TableCell sx={{ textAlign: showInputs ? 'center' : 'right', fontWeight: 800, color: 'text.primary', fontFamily: 'monospace' }}>{locCountedTotal}</TableCell>
-                  <TableCell sx={{ textAlign: 'right' }}>
-                    {locDiffTotal !== null && (
-                      <Box component="span" sx={{
-                        fontWeight: 800,
-                        color: varianceColor(locDiffTotal, locSystemTotal).color,
-                        bgcolor: varianceColor(locDiffTotal, locSystemTotal).bg,
-                        px: 1.2, py: 0.3, borderRadius: 1, fontSize: 13, fontFamily: 'monospace'
-                      }}>
-                        {locDiffTotal > 0 ? `+${locDiffTotal}` : locDiffTotal}
-                      </Box>
-                    )}
-                  </TableCell>
-                  <TableCell sx={{ textAlign: 'right' }}>
-                    {locAccuracy !== null && (
-                      <Typography variant="caption" sx={{ fontWeight: 700, color: varianceColor(locDiffTotal || 0, locSystemTotal).color, fontFamily: 'monospace' }}>
-                        {locAccuracy.toFixed(1)}%
-                      </Typography>
-                    )}
-                  </TableCell>
-                </TableRow>
-              </TableFooter>
-            )}
-          </Table>
-        </Box>
-
-        {/* Save button per location */}
-        {showInputs && canEdit && (
-          <Box sx={{ px: 2, py: 1.5, display: 'flex', justifyContent: 'flex-end' }}>
-            <Button
-              variant="contained"
-              size="small"
-              onClick={() => saveLocationCount(safeId(captureDetail), locId)}
-              disabled={isSaving}
-              sx={{ borderRadius: 2, fontWeight: 700 }}
-            >
-              {isSaving ? <CircularProgress size={16} sx={{ mr: 1 }} /> : null}
-              {isSaving ? 'Guardando...' : 'Guardar conteo'}
-            </Button>
-          </Box>
-        )}
-      </Paper>
-    )
+  const varianceBg = (diff, systemQty) => {
+    if (diff === 0) return ps.isDark ? 'rgba(34,197,94,.10)' : 'rgba(46,125,50,.06)'
+    const pct = systemQty > 0 ? Math.abs(diff / systemQty * 100) : 100
+    if (pct <= 10) return ps.isDark ? 'rgba(245,158,11,.10)' : 'rgba(245,158,11,.08)'
+    return ps.isDark ? 'rgba(239,68,68,.10)' : 'rgba(198,40,40,.06)'
   }
+
+  /** Legacy diffColor/diffBg for backward compat in simple spots */
+  const diffColor = (diff) => varianceColor(diff, 0)
+  const diffBg = (diff) => varianceBg(diff, 0)
 
   return (
     <Box sx={ps.page}>
@@ -813,12 +576,12 @@ export default function CountsPage() {
       {err && <Alert severity="error" sx={{ mb: 2 }}>{err}</Alert>}
       {okMsg && <Alert severity="success" sx={{ mb: 2 }}>{okMsg}</Alert>}
 
-      {/* ── KPI Summary Cards (always from ALL rows, not filtered) ── */}
+      {/* ── KPI Summary Cards ── */}
       <Grid container spacing={2} sx={{ mb: 2.5 }}>
         <Grid item xs={6} sm={3}>
           <KpiCard
-            title="Total conteos"
-            value={kpis.total}
+            title="Total Conteos"
+            value={resumen.total}
             subtitle="Todos los conteos"
             accent="blue"
             ps={ps}
@@ -827,7 +590,7 @@ export default function CountsPage() {
         <Grid item xs={6} sm={3}>
           <KpiCard
             title="Abiertos"
-            value={kpis.abiertos}
+            value={resumen.abiertos}
             subtitle="Pendientes de conteo"
             accent="amber"
             ps={ps}
@@ -835,8 +598,8 @@ export default function CountsPage() {
         </Grid>
         <Grid item xs={6} sm={3}>
           <KpiCard
-            title="En revision"
-            value={kpis.review}
+            title="En Revision"
+            value={resumen.review}
             subtitle="Esperando aprobacion"
             accent="blue"
             ps={ps}
@@ -845,7 +608,7 @@ export default function CountsPage() {
         <Grid item xs={6} sm={3}>
           <KpiCard
             title="Aprobados"
-            value={kpis.aprobados}
+            value={resumen.aprobados}
             subtitle="Conteos confirmados"
             accent="green"
             ps={ps}
@@ -855,11 +618,11 @@ export default function CountsPage() {
 
       {/* Resumen chips */}
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.2} sx={{ mb: 2, flexWrap: 'wrap' }}>
-        <Chip label={`Total: ${kpis.total}`} sx={ps.metricChip('default')} />
-        <Chip label={`Abiertos: ${kpis.abiertos}`} sx={ps.metricChip('warn')} />
-        <Chip label={`Revision: ${kpis.review}`} sx={ps.metricChip('info')} />
-        <Chip label={`Aprobados: ${kpis.aprobados}`} sx={ps.metricChip('ok')} />
-        <Chip label={`Cerrados: ${kpis.cerrados}`} sx={ps.metricChip('default')} />
+        <Chip label={`Total: ${resumen.total}`} sx={ps.metricChip('default')} />
+        <Chip label={`Abiertos: ${resumen.abiertos}`} sx={ps.metricChip('warn')} />
+        <Chip label={`Revision: ${resumen.review}`} sx={ps.metricChip('info')} />
+        <Chip label={`Aprobados: ${resumen.aprobados}`} sx={ps.metricChip('ok')} />
+        <Chip label={`Cerrados: ${resumen.cerrados}`} sx={ps.metricChip('default')} />
       </Stack>
 
       {/* Filtros */}
@@ -875,8 +638,8 @@ export default function CountsPage() {
           <TextField
             select
             label="Status"
-            value={statusFilter}
-            onChange={e => { setStatusFilter(e.target.value); setPage(1) }}
+            value={status}
+            onChange={e => { setStatus(e.target.value); setPage(1) }}
             sx={{ minWidth: 180, ...ps.inputSx }}
           >
             <MenuItem value="">Todos</MenuItem>
@@ -905,7 +668,8 @@ export default function CountsPage() {
             <TableHead>
               <TableRow sx={ps.tableHeaderRow}>
                 <TableCell>Nombre</TableCell>
-                <TableCell>Scope / Area</TableCell>
+                <TableCell>Scope</TableCell>
+                <TableCell>Area / Nivel</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Creo</TableCell>
                 <TableCell>Fecha</TableCell>
@@ -916,7 +680,7 @@ export default function CountsPage() {
             <TableBody>
               {paginated.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6}>
+                  <TableCell colSpan={7}>
                     <Typography sx={ps.emptyText}>No se encontraron conteos</Typography>
                   </TableCell>
                 </TableRow>
@@ -927,12 +691,28 @@ export default function CountsPage() {
                 const st = String(r.status || '')
                 const isBusy = (k) => busyId === `${id}:${k}`
 
+                // Build scope info string
+                const scopeInfo = (() => {
+                  const parts = [r.area || '']
+                  if (r.scope === 'LEVEL' && r.level) parts.push(`Niv: ${r.level}`)
+                  return parts.filter(Boolean).join(' / ')
+                })()
+
                 return (
                   <TableRow key={id || idx} sx={ps.tableRow(idx)}>
                     <TableCell sx={ps.cellText}>{r.name || '--'}</TableCell>
                     <TableCell>
-                      <ScopeBadge scope={r.scope} area={r.area} level={r.level} ps={ps} />
+                      <Chip
+                        size="small"
+                        label={scopeLabel(r.scope)}
+                        sx={{
+                          ...ps.metricChip(r.scope === 'CUSTOM' ? 'info' : 'default'),
+                          fontSize: 11,
+                          height: 24,
+                        }}
+                      />
                     </TableCell>
+                    <TableCell sx={ps.cellText}>{scopeInfo || '--'}</TableCell>
                     <TableCell>
                       <Chip size="small" label={statusLabel(st)} sx={ps.metricChip(statusTone(st))} />
                     </TableCell>
@@ -975,8 +755,8 @@ export default function CountsPage() {
                         </span>
                       </Tooltip>
 
-                      {/* REVIEW -> APPROVED (approve) */}
-                      <Tooltip title="Aprobar conteo (ADMIN/SUPERVISOR)">
+                      {/* REVIEW -> APPROVED */}
+                      <Tooltip title="Aprobar conteo">
                         <span>
                           <IconButton
                             size="small"
@@ -1051,7 +831,7 @@ export default function CountsPage() {
         <DialogContent dividers>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Alert severity="info" sx={{ fontSize: 13 }}>
-              Crea un conteo por <b>AREA</b>, por <b>LEVEL</b> o <b>CUSTOM</b>. Se generaran lineas por ubicacion y quedara en <b>ABIERTO</b>.
+              Crea un conteo por <b>AREA</b>, por <b>NIVEL</b> o <b>PERSONALIZADO</b>. Se generaran lineas por ubicacion y quedara en <b>ABIERTO</b>.
             </Alert>
 
             <TextField
@@ -1081,6 +861,8 @@ export default function CountsPage() {
                 onChange={(e) => setArea(e.target.value)}
                 sx={{ flex: 1, ...ps.inputSx }}
                 placeholder="A1"
+                disabled={scope === 'CUSTOM'}
+                helperText={scope === 'CUSTOM' ? 'No aplica para scope personalizado' : ''}
               />
             </Stack>
 
@@ -1124,53 +906,18 @@ export default function CountsPage() {
         <DialogTitle sx={ps.cardHeaderTitle}>Detalle de conteo</DialogTitle>
         <DialogContent dividers>
           {selected && (
-            <Stack spacing={1.5} sx={{ pt: 1 }}>
+            <Stack spacing={1} sx={{ pt: 1 }}>
               <Typography variant="body2"><b>Nombre:</b> {selected.name || '--'}</Typography>
-
-              {/* Scope display */}
-              <Box>
-                <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>Alcance:</Typography>
-                <ScopeBadge scope={selected.scope} area={selected.area} level={selected.level} ps={ps} />
-              </Box>
-
+              <Typography variant="body2">
+                <b>Scope:</b> {scopeLabel(selected.scope)}
+                {selected.scope === 'AREA' && selected.area ? ` — Area: ${selected.area}` : ''}
+                {selected.scope === 'LEVEL' && selected.area ? ` — Area: ${selected.area}, Nivel: ${selected.level || '--'}` : ''}
+                {selected.scope === 'CUSTOM' ? ' — Personalizado' : ''}
+              </Typography>
               <Typography variant="body2"><b>Status:</b> {statusLabel(selected.status)}</Typography>
               <Typography variant="body2"><b>Creo:</b> {selected.createdBy?.email || '--'}</Typography>
               <Typography variant="body2"><b>Aprobo:</b> {selected.approvedBy?.email || '--'}</Typography>
-              {selected.approvedAt && (
-                <Typography variant="body2"><b>Fecha aprobacion:</b> {dayjs(selected.approvedAt).format('DD/MM/YYYY HH:mm')}</Typography>
-              )}
-              {selected.createdAt && (
-                <Typography variant="body2"><b>Creado:</b> {dayjs(selected.createdAt).format('DD/MM/YYYY HH:mm')}</Typography>
-              )}
-              {selected.notes && (
-                <Typography variant="body2"><b>Notas:</b> {selected.notes}</Typography>
-              )}
-
-              <Divider sx={{ my: 1 }} />
-
-              {/* Status workflow display */}
-              <Box>
-                <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>Flujo de estatus:</Typography>
-                <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap">
-                  {['OPEN', 'REVIEW', 'APPROVED', 'CLOSED'].map((s, i) => {
-                    const isCurrent = String(selected.status || '') === s
-                    return (
-                      <React.Fragment key={s}>
-                        {i > 0 && <Typography sx={{ color: 'text.disabled', mx: 0.5 }}>→</Typography>}
-                        <Chip
-                          size="small"
-                          label={statusLabel(s)}
-                          sx={{
-                            ...ps.metricChip(isCurrent ? statusTone(s) : 'default'),
-                            opacity: isCurrent ? 1 : 0.5,
-                            fontWeight: isCurrent ? 900 : 600,
-                          }}
-                        />
-                      </React.Fragment>
-                    )
-                  })}
-                </Stack>
-              </Box>
+              <Typography variant="body2"><b>Fecha:</b> {selected.createdAt ? dayjs(selected.createdAt).format('DD/MM/YYYY HH:mm') : '--'}</Typography>
 
               <Divider sx={{ my: 1 }} />
 
@@ -1219,22 +966,17 @@ export default function CountsPage() {
           <Box>
             Captura de conteo
             {captureDetail && (
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 400 }}>
-                  {captureDetail.name || 'Sin nombre'} | {statusLabel(captureDetail.status)}
-                </Typography>
-                <ScopeBadge scope={captureDetail.scope} area={captureDetail.area} level={captureDetail.level} ps={ps} />
-              </Stack>
+              <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 400, mt: 0.3 }}>
+                {captureDetail.name || 'Sin nombre'} | {scopeLabel(captureDetail.scope)}: {captureDetail.area || '--'}
+                {captureDetail.scope === 'LEVEL' ? ` / Niv: ${captureDetail.level || '--'}` : ''}
+                {' | '}{statusLabel(captureDetail.status)}
+              </Typography>
             )}
           </Box>
           <Stack direction="row" spacing={1} alignItems="center">
-            <Tooltip title="Exportar detalle con varianzas">
+            <Tooltip title="Exportar detalle a Excel">
               <span>
-                <IconButton
-                  onClick={exportDetailExcel}
-                  sx={ps.actionBtn('primary')}
-                  disabled={!captureDetail?.lines?.length}
-                >
+                <IconButton onClick={exportCaptureExcel} sx={ps.actionBtn('primary')} disabled={!captureDetail}>
                   <DownloadIcon fontSize="small" />
                 </IconButton>
               </span>
@@ -1245,7 +987,7 @@ export default function CountsPage() {
           </Stack>
         </DialogTitle>
 
-        <DialogContent dividers sx={{ p: 0 }}>
+        <DialogContent dividers>
           {captureLoading && (
             <Box sx={{ py: 4, textAlign: 'center' }}>
               <CircularProgress size={32} />
@@ -1253,184 +995,412 @@ export default function CountsPage() {
             </Box>
           )}
 
-          {captureErr && <Alert severity="error" sx={{ m: 2, mb: 0 }}>{captureErr}</Alert>}
-          {captureMsg && <Alert severity="success" sx={{ m: 2, mb: 0 }}>{captureMsg}</Alert>}
+          {captureErr && <Alert severity="error" sx={{ mb: 2 }}>{captureErr}</Alert>}
+          {captureMsg && <Alert severity="success" sx={{ mb: 2 }}>{captureMsg}</Alert>}
 
           {!captureLoading && captureDetail && (
-            <Box>
-              {/* Tabs: Captura | Diferencias */}
-              <Tabs
-                value={captureTab}
-                onChange={(_, v) => setCaptureTab(v)}
-                sx={{
-                  px: 2,
-                  borderBottom: ps.isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(13,59,102,.08)',
-                  '& .MuiTab-root': { fontWeight: 700, textTransform: 'none' }
-                }}
-              >
-                <Tab label="Captura" />
-                <Tab
-                  label={
-                    <Stack direction="row" spacing={0.5} alignItems="center">
-                      <span>Diferencias</span>
-                      {varianceLines.length > 0 && (
-                        <Chip
-                          size="small"
-                          label={varianceLines.length}
-                          sx={{ ...ps.metricChip('bad'), height: 22, fontSize: 11, minWidth: 28 }}
-                        />
-                      )}
-                    </Stack>
-                  }
-                />
-              </Tabs>
+            <Stack spacing={3} sx={{ pt: 1 }}>
 
-              <Box sx={{ p: 2 }}>
-                {/* ── Variance Summary (shown on both tabs) ── */}
-                {varianceSummary && varianceSummary.total > 0 && (
-                  <Paper elevation={0} sx={{ ...ps.card, p: 2, mb: 2.5, border: ps.isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(13,59,102,.08)' }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1.5, color: 'text.primary' }}>
-                      Resumen de varianzas
-                    </Typography>
+              {/* ── Variance Summary ── */}
+              {varianceSummary && varianceSummary.total > 0 && (
+                <Paper elevation={0} sx={{ ...ps.card, p: 2, border: ps.isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(13,59,102,.08)' }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1.5, color: 'text.primary' }}>
+                    Resumen de varianzas
+                  </Typography>
 
-                    <Grid container spacing={2}>
-                      <Grid item xs={6} sm={2}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="h5" sx={{ fontWeight: 900, color: 'text.primary' }}>{varianceSummary.total}</Typography>
-                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>Total ubic.</Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={6} sm={2}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="h5" sx={{ fontWeight: 900, color: ps.isDark ? '#86EFAC' : '#2E7D32' }}>{varianceSummary.matchCount}</Typography>
-                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>Coinciden</Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={6} sm={2}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="h5" sx={{ fontWeight: 900, color: ps.isDark ? '#FCA5A5' : '#C62828' }}>{varianceSummary.discrepancyCount}</Typography>
-                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>Discrepancias</Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={6} sm={2}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="h5" sx={{ fontWeight: 900, color: ps.isDark ? '#FCD34D' : '#E65100' }}>{varianceSummary.uncountedCount}</Typography>
-                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>Sin contar</Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={6} sm={2}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="h6" sx={{ fontWeight: 900, fontFamily: 'monospace', color: 'text.primary' }}>{varianceSummary.totalSystemQty}</Typography>
-                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>Qty sistema</Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={6} sm={2}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="h6" sx={{ fontWeight: 900, fontFamily: 'monospace', color: 'text.primary' }}>{varianceSummary.totalCountedQty}</Typography>
-                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>Qty contada</Typography>
-                        </Box>
-                      </Grid>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6} sm={3}>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="h5" sx={{ fontWeight: 900, color: 'text.primary' }}>{varianceSummary.total}</Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>Total ubicaciones</Typography>
+                      </Box>
                     </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="h5" sx={{ fontWeight: 900, color: ps.isDark ? '#86EFAC' : '#2E7D32' }}>{varianceSummary.matchCount}</Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>Coinciden</Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="h5" sx={{ fontWeight: 900, color: ps.isDark ? '#FCA5A5' : '#C62828' }}>{varianceSummary.discrepancyCount}</Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>Discrepancias</Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="h5" sx={{ fontWeight: 900, color: ps.isDark ? '#FCD34D' : '#E65100' }}>{varianceSummary.uncountedCount}</Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>Sin contar</Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
 
-                    {/* Progress bar + accuracy */}
-                    {varianceSummary.total > 0 && (
-                      <Box sx={{ mt: 2 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>Progreso de conteo</Typography>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>
-                            {Math.round(((varianceSummary.matchCount + varianceSummary.discrepancyCount) / varianceSummary.total) * 100)}%
+                  {/* Progress bar showing how many are counted */}
+                  {varianceSummary.total > 0 && (
+                    <Box sx={{ mt: 2 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>Progreso de conteo</Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>
+                          {Math.round(((varianceSummary.matchCount + varianceSummary.discrepancyCount) / varianceSummary.total) * 100)}%
+                        </Typography>
+                      </Box>
+                      <Box sx={ps.progressBar}>
+                        <Box sx={ps.progressFill(((varianceSummary.matchCount + varianceSummary.discrepancyCount) / varianceSummary.total) * 100)} />
+                      </Box>
+                    </Box>
+                  )}
+
+                  {varianceSummary.totalVariance > 0 && (
+                    <Alert severity="warning" sx={{ mt: 1.5, fontSize: 13 }}>
+                      Varianza total absoluta: <b>{varianceSummary.totalVariance}</b> unidades
+                    </Alert>
+                  )}
+                </Paper>
+              )}
+
+              {/* ── Toggle: Todas las ubicaciones / Solo diferencias ── */}
+              {varianceLines.length > 0 && (
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    variant={!showDiffs ? 'contained' : 'outlined'}
+                    size="small"
+                    onClick={() => setShowDiffs(false)}
+                    sx={{ borderRadius: 2, fontWeight: 700 }}
+                  >
+                    Todas ({(captureDetail.lines || []).length})
+                  </Button>
+                  <Button
+                    variant={showDiffs ? 'contained' : 'outlined'}
+                    size="small"
+                    color="error"
+                    onClick={() => setShowDiffs(true)}
+                    startIcon={<WarningAmberIcon />}
+                    sx={{ borderRadius: 2, fontWeight: 700 }}
+                  >
+                    Diferencias ({varianceLines.length})
+                  </Button>
+                </Stack>
+              )}
+
+              {/* ── Diferencias section (sorted by largest variance) ── */}
+              {showDiffs && varianceLines.length > 0 && (
+                <Paper elevation={0} sx={{
+                  ...ps.card,
+                  p: 0,
+                  border: ps.isDark ? '1px solid rgba(239,68,68,.20)' : '1px solid rgba(198,40,40,.15)',
+                }}>
+                  <Box sx={{
+                    ...ps.cardHeader,
+                    background: ps.isDark
+                      ? 'linear-gradient(90deg, rgba(239,68,68,.10), rgba(239,68,68,.03))'
+                      : 'linear-gradient(90deg, rgba(198,40,40,.06), rgba(198,40,40,.02))',
+                  }}>
+                    <WarningAmberIcon sx={{ fontSize: 18, color: ps.isDark ? '#FCA5A5' : '#C62828' }} />
+                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>
+                      Diferencias — Solo ubicaciones con varianzas (mayor a menor)
+                    </Typography>
+                  </Box>
+                  <Box sx={{ overflowX: 'auto' }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow sx={ps.tableHeaderRow}>
+                          <TableCell>Ubicacion</TableCell>
+                          <TableCell>SKU</TableCell>
+                          <TableCell sx={{ textAlign: 'right' }}>Qty Sistema</TableCell>
+                          <TableCell sx={{ textAlign: 'right' }}>Qty Contada</TableCell>
+                          <TableCell sx={{ textAlign: 'right' }}>Diferencia</TableCell>
+                          <TableCell sx={{ textAlign: 'right' }}>% Var</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {varianceLines.map((line, lineIdx) => {
+                          const locCode = line.location?.code || line.locationId || line._id || `Ubicacion ${lineIdx + 1}`
+                          const diffs = (line.difference || []).filter(d => d.diff !== 0)
+                          const systemItems = line.systemItems || []
+                          const countedItems = line.countedItems || []
+
+                          return diffs.map((d, di) => {
+                            const si = systemItems.find(s => s.sku === d.sku)
+                            const ci = countedItems.find(c => c.sku === d.sku)
+                            const systemQty = si ? si.qty : 0
+                            const countedQty = ci ? ci.qty : 0
+                            const pct = systemQty > 0 ? Math.abs(d.diff / systemQty * 100) : 0
+
+                            return (
+                              <TableRow key={`${locCode}-${d.sku}`} sx={ps.tableRow(lineIdx + di)}>
+                                {di === 0 ? (
+                                  <TableCell rowSpan={diffs.length} sx={{ ...ps.cellText, fontWeight: 700, verticalAlign: 'top' }}>
+                                    {locCode}
+                                  </TableCell>
+                                ) : null}
+                                <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace' }}>{d.sku}</TableCell>
+                                <TableCell sx={{ ...ps.cellText, textAlign: 'right' }}>{systemQty}</TableCell>
+                                <TableCell sx={{ ...ps.cellText, textAlign: 'right' }}>{countedQty}</TableCell>
+                                <TableCell sx={{ textAlign: 'right' }}>
+                                  <Box
+                                    component="span"
+                                    sx={{
+                                      fontWeight: 800,
+                                      color: varianceColor(d.diff, systemQty),
+                                      bgcolor: varianceBg(d.diff, systemQty),
+                                      px: 1.2, py: 0.3, borderRadius: 1,
+                                      fontSize: 13, fontFamily: 'monospace'
+                                    }}
+                                  >
+                                    {d.diff > 0 ? `+${d.diff}` : d.diff}
+                                  </Box>
+                                </TableCell>
+                                <TableCell sx={{ textAlign: 'right' }}>
+                                  <Typography
+                                    variant="caption"
+                                    sx={{
+                                      fontWeight: 700,
+                                      color: varianceColor(d.diff, systemQty),
+                                    }}
+                                  >
+                                    {pct.toFixed(1)}%
+                                  </Typography>
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })
+                        })}
+                      </TableBody>
+                    </Table>
+                  </Box>
+                </Paper>
+              )}
+
+              {/* ── Location lines (all) ── */}
+              {!showDiffs && (
+                <>
+                  {(captureDetail.lines || []).length === 0 && (
+                    <Alert severity="info">Este conteo no tiene lineas/ubicaciones generadas.</Alert>
+                  )}
+
+                  {(captureDetail.lines || []).map((line, lineIdx) => {
+                    const locId = line.locationId || line._id
+                    const locCode = line.location?.code || locId || `Ubicacion ${lineIdx + 1}`
+                    const systemItems = line.systemItems || []
+                    const diffs = line.difference || []
+                    const hasCounted = (line.countedItems || []).length > 0
+                    const hasDiscrepancy = diffs.some(d => d.diff !== 0)
+                    const isSaving = savingLocation === locId
+
+                    return (
+                      <Paper
+                        key={locId || lineIdx}
+                        elevation={0}
+                        sx={{
+                          ...ps.card,
+                          border: hasCounted
+                            ? hasDiscrepancy
+                              ? (ps.isDark ? '1px solid rgba(239,68,68,.25)' : '1px solid rgba(198,40,40,.20)')
+                              : (ps.isDark ? '1px solid rgba(34,197,94,.25)' : '1px solid rgba(46,125,50,.20)')
+                            : (ps.isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(13,59,102,.10)'),
+                          overflow: 'visible'
+                        }}
+                      >
+                        {/* Location header */}
+                        <Box sx={{
+                          ...ps.cardHeader,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between'
+                        }}>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>
+                              {locCode}
+                            </Typography>
+                            {hasCounted && !hasDiscrepancy && (
+                              <Chip
+                                icon={<CheckCircleIcon sx={{ fontSize: 14 }} />}
+                                label="Coincide"
+                                size="small"
+                                sx={ps.metricChip('ok')}
+                              />
+                            )}
+                            {hasCounted && hasDiscrepancy && (
+                              <Chip
+                                icon={<WarningAmberIcon sx={{ fontSize: 14 }} />}
+                                label="Discrepancia"
+                                size="small"
+                                sx={ps.metricChip('bad')}
+                              />
+                            )}
+                            {!hasCounted && (
+                              <Chip label="Pendiente" size="small" sx={ps.metricChip('warn')} />
+                            )}
+                          </Stack>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                            {systemItems.length} item{systemItems.length !== 1 ? 's' : ''} en sistema
                           </Typography>
                         </Box>
-                        <Box sx={ps.progressBar}>
-                          <Box sx={ps.progressFill(((varianceSummary.matchCount + varianceSummary.discrepancyCount) / varianceSummary.total) * 100)} />
+
+                        {/* Items table */}
+                        <Box sx={{ overflowX: 'auto' }}>
+                          <Table size="small">
+                            <TableHead>
+                              <TableRow sx={ps.tableHeaderRow}>
+                                <TableCell>SKU</TableCell>
+                                <TableCell sx={{ textAlign: 'right' }}>Qty Sistema</TableCell>
+                                <TableCell sx={{ textAlign: 'center', minWidth: 120 }}>Qty Contada</TableCell>
+                                <TableCell sx={{ textAlign: 'right' }}>Diferencia</TableCell>
+                                <TableCell sx={{ textAlign: 'right' }}>% Var</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {systemItems.length === 0 && (
+                                <TableRow>
+                                  <TableCell colSpan={5}>
+                                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>Sin items en sistema</Typography>
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                              {systemItems.map((item, itemIdx) => {
+                                const sku = item.sku
+                                const systemQty = item.qty || 0
+                                const currentVal = countedValues[locId]?.[sku] ?? ''
+                                const diffObj = diffs.find(d => d.sku === sku)
+                                const diff = diffObj ? diffObj.diff : null
+                                const countedQty = currentVal !== '' ? Number(currentVal) : null
+                                const liveDiff = countedQty !== null ? countedQty - systemQty : null
+                                const activeDiff = diff !== null && diff !== undefined ? diff : liveDiff
+                                const pct = systemQty > 0 && activeDiff !== null ? Math.abs(activeDiff / systemQty * 100) : null
+
+                                return (
+                                  <TableRow key={sku || itemIdx} sx={ps.tableRow(itemIdx)}>
+                                    <TableCell sx={{ ...ps.cellText, fontWeight: 700, fontFamily: 'monospace' }}>{sku}</TableCell>
+                                    <TableCell sx={{ ...ps.cellText, textAlign: 'right' }}>{systemQty}</TableCell>
+                                    <TableCell sx={{ textAlign: 'center' }}>
+                                      <TextField
+                                        type="number"
+                                        size="small"
+                                        value={currentVal}
+                                        onChange={(e) => updateCountedValue(locId, sku, e.target.value)}
+                                        placeholder="0"
+                                        inputProps={{ min: 0, style: { textAlign: 'center' } }}
+                                        sx={{
+                                          width: 100,
+                                          ...ps.inputSx,
+                                          '& .MuiOutlinedInput-root': {
+                                            ...ps.inputSx['& .MuiOutlinedInput-root'],
+                                            height: 36,
+                                          }
+                                        }}
+                                        disabled={!['OPEN', 'REVIEW'].includes(String(captureDetail.status || ''))}
+                                      />
+                                    </TableCell>
+                                    <TableCell sx={{ textAlign: 'right' }}>
+                                      {/* Show saved diff if available, otherwise show live diff */}
+                                      {diff !== null && diff !== undefined ? (
+                                        <Box
+                                          component="span"
+                                          sx={{
+                                            fontWeight: 800,
+                                            color: varianceColor(diff, systemQty),
+                                            bgcolor: varianceBg(diff, systemQty),
+                                            px: 1.2,
+                                            py: 0.3,
+                                            borderRadius: 1,
+                                            fontSize: 13,
+                                            fontFamily: 'monospace'
+                                          }}
+                                        >
+                                          {diff > 0 ? `+${diff}` : diff}
+                                        </Box>
+                                      ) : liveDiff !== null ? (
+                                        <Box
+                                          component="span"
+                                          sx={{
+                                            fontWeight: 800,
+                                            color: varianceColor(liveDiff, systemQty),
+                                            bgcolor: varianceBg(liveDiff, systemQty),
+                                            px: 1.2,
+                                            py: 0.3,
+                                            borderRadius: 1,
+                                            fontSize: 13,
+                                            fontFamily: 'monospace',
+                                            opacity: 0.7
+                                          }}
+                                        >
+                                          {liveDiff > 0 ? `+${liveDiff}` : liveDiff}
+                                        </Box>
+                                      ) : (
+                                        <Typography variant="caption" sx={{ color: 'text.disabled' }}>--</Typography>
+                                      )}
+                                    </TableCell>
+                                    <TableCell sx={{ textAlign: 'right' }}>
+                                      {pct !== null ? (
+                                        <Typography
+                                          variant="caption"
+                                          sx={{
+                                            fontWeight: 700,
+                                            color: varianceColor(activeDiff, systemQty),
+                                            opacity: diff !== null && diff !== undefined ? 1 : 0.7,
+                                          }}
+                                        >
+                                          {pct.toFixed(1)}%
+                                        </Typography>
+                                      ) : (
+                                        <Typography variant="caption" sx={{ color: 'text.disabled' }}>--</Typography>
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                )
+                              })}
+                            </TableBody>
+                          </Table>
                         </Box>
-                      </Box>
-                    )}
 
-                    {/* Overall accuracy */}
-                    <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <Chip
-                        label={`Precision: ${varianceSummary.accuracy.toFixed(1)}%`}
-                        sx={ps.metricChip(varianceSummary.accuracy >= 95 ? 'ok' : varianceSummary.accuracy >= 85 ? 'warn' : 'bad')}
-                      />
-                      {varianceSummary.totalVariance > 0 && (
-                        <Chip
-                          label={`Varianza total: ${varianceSummary.totalVariance} uds`}
-                          sx={ps.metricChip('bad')}
-                        />
-                      )}
-                    </Box>
-                  </Paper>
-                )}
-
-                {/* ── Tab 0: Captura (all locations with inputs) ── */}
-                {captureTab === 0 && (
-                  <Stack spacing={3}>
-                    {(captureDetail.lines || []).length === 0 && (
-                      <Alert severity="info">Este conteo no tiene lineas/ubicaciones generadas.</Alert>
-                    )}
-                    {(captureDetail.lines || []).map((line, lineIdx) => renderLocationCard(line, lineIdx, true))}
-                  </Stack>
-                )}
-
-                {/* ── Tab 1: Diferencias (only locations with variances, sorted) ── */}
-                {captureTab === 1 && (
-                  <Stack spacing={3}>
-                    {varianceLines.length === 0 ? (
-                      <Alert severity="success" sx={{ fontSize: 13 }}>
-                        No hay diferencias. Todos los conteos registrados coinciden con el sistema.
-                      </Alert>
-                    ) : (
-                      <>
-                        <Alert severity="warning" sx={{ fontSize: 13 }}>
-                          Mostrando <b>{varianceLines.length}</b> ubicacion{varianceLines.length !== 1 ? 'es' : ''} con diferencias, ordenadas por mayor varianza.
-                        </Alert>
-                        {varianceLines.map((line, lineIdx) => renderLocationCard(line, lineIdx, false))}
-                      </>
-                    )}
-                  </Stack>
-                )}
-              </Box>
-            </Box>
+                        {/* Save button per location */}
+                        {['OPEN', 'REVIEW'].includes(String(captureDetail.status || '')) && (
+                          <Box sx={{ px: 2, py: 1.5, display: 'flex', justifyContent: 'flex-end' }}>
+                            <Button
+                              variant="contained"
+                              size="small"
+                              onClick={() => saveLocationCount(safeId(captureDetail), locId)}
+                              disabled={isSaving}
+                              sx={{ borderRadius: 2, fontWeight: 700 }}
+                            >
+                              {isSaving ? <CircularProgress size={16} sx={{ mr: 1 }} /> : null}
+                              {isSaving ? 'Guardando...' : 'Guardar conteo'}
+                            </Button>
+                          </Box>
+                        )}
+                      </Paper>
+                    )
+                  })}
+                </>
+              )}
+            </Stack>
           )}
         </DialogContent>
 
         <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
-          {/* Workflow buttons inside capture dialog */}
+          {/* Workflow buttons: OPEN -> REVIEW -> APPROVED */}
           {captureDetail && can && String(captureDetail.status || '') === 'OPEN' && (
             <Button
               variant="contained"
               color="primary"
               startIcon={busyId === `${safeId(captureDetail)}:REVIEW` ? <CircularProgress size={16} /> : <RateReviewIcon />}
               onClick={sendToReviewFromCapture}
-              disabled={!!busyId}
+              disabled={busyId === `${safeId(captureDetail)}:REVIEW`}
               sx={{ borderRadius: 2, fontWeight: 900, px: 3 }}
             >
               Enviar a revision
             </Button>
           )}
-          {captureDetail && can && String(captureDetail.status || '') === 'REVIEW' && (
+          {captureDetail && can && ['OPEN', 'REVIEW'].includes(String(captureDetail.status || '')) && (
             <Button
               variant="contained"
               color="success"
               startIcon={busyId === `${safeId(captureDetail)}:APPROVED` ? <CircularProgress size={16} /> : <CheckCircleIcon />}
               onClick={approveFromCapture}
-              disabled={!!busyId}
+              disabled={busyId === `${safeId(captureDetail)}:APPROVED`}
               sx={{ borderRadius: 2, fontWeight: 900, px: 3 }}
             >
               Aprobar conteo
-            </Button>
-          )}
-          {captureDetail && can && String(captureDetail.status || '') === 'APPROVED' && (
-            <Button
-              variant="contained"
-              color="warning"
-              startIcon={busyId === `${safeId(captureDetail)}:CLOSED` ? <CircularProgress size={16} /> : <DoneIcon />}
-              onClick={closeFromCapture}
-              disabled={!!busyId}
-              sx={{ borderRadius: 2, fontWeight: 900, px: 3 }}
-            >
-              Cerrar conteo
             </Button>
           )}
           <Button variant="outlined" onClick={closeCapture}>Cerrar</Button>

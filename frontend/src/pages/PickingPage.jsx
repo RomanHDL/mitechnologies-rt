@@ -27,13 +27,11 @@ import Tabs from '@mui/material/Tabs'
 import Tab from '@mui/material/Tab'
 import CircularProgress from '@mui/material/CircularProgress'
 import Grid from '@mui/material/Grid'
-import LinearProgress from '@mui/material/LinearProgress'
 import Fade from '@mui/material/Fade'
 import Collapse from '@mui/material/Collapse'
 
 import ListAltIcon from '@mui/icons-material/ListAlt'
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner'
-import InfoIcon from '@mui/icons-material/Info'
 import DoneIcon from '@mui/icons-material/Done'
 import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck'
 import AssignmentIcon from '@mui/icons-material/Assignment'
@@ -42,9 +40,8 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import PersonIcon from '@mui/icons-material/Person'
 import ReportProblemIcon from '@mui/icons-material/ReportProblem'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
-import VerifiedIcon from '@mui/icons-material/Verified'
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUser'
 
 import dayjs from 'dayjs'
 
@@ -60,6 +57,8 @@ export default function PickingPage() {
   const { token, user } = useAuth()
   const ps = usePageStyles()
   const client = useMemo(() => api(token), [token])
+
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERVISOR'
 
   const [tab, setTab] = useState(0)
 
@@ -96,17 +95,15 @@ export default function PickingPage() {
   const [shortPickErr, setShortPickErr] = useState('')
   const [shortPickSubmitting, setShortPickSubmitting] = useState(false)
 
-  // Completion summary
+  // Completion summary dialog
   const [showSummary, setShowSummary] = useState(false)
-
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERVISOR'
 
   // Row color by status
   const pickRowSx = (idx, status) => {
     const base = ps.tableRow(idx)
     const s = (status || '').toUpperCase()
     if (s === 'PICKED' || s === 'COMPLETADA' || s === 'CONFIRMADO') return { ...base, bgcolor: ps.isDark ? 'rgba(46,125,50,.08)' : 'rgba(46,125,50,.04)' }
-    if (s === 'SHORT' || s === 'CANCELADA') return { ...base, bgcolor: ps.isDark ? 'rgba(245,158,11,.08)' : 'rgba(245,158,11,.04)' }
+    if (s === 'SHORT' || s === 'CANCELADA') return { ...base, bgcolor: ps.isDark ? 'rgba(245,158,11,.10)' : 'rgba(245,158,11,.06)' }
     if (s === 'ASSIGNED' || s === 'ASIGNADA') return { ...base, bgcolor: ps.isDark ? 'rgba(21,101,192,.08)' : 'rgba(21,101,192,.04)' }
     return base
   }
@@ -134,7 +131,7 @@ export default function PickingPage() {
     } catch (e) { console.error('Error loading pick list:', e) }
   }
 
-  useEffect(() => { loadOrders(); loadMyPicks() }, [token])
+  useEffect(() => { loadOrders(); loadMyPicks() }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const generatePickList = async (orderId) => {
     setGenerating(true)
@@ -150,37 +147,33 @@ export default function PickingPage() {
   // ── KPI calculations ──
   const kpiData = useMemo(() => {
     const allPicks = myPicks || []
-    const todayStr = dayjs().format('YYYY-MM-DD')
 
     const pendientes = allPicks.filter(p => (p.status || '') === 'PENDIENTE' || (p.status || '') === 'ASIGNADA').length
-    const completadosHoy = allPicks.filter(p =>
-      ((p.status || '') === 'COMPLETADA' || (p.status || '') === 'CONFIRMADO') &&
-      p.updatedAt && dayjs(p.updatedAt).format('YYYY-MM-DD') === todayStr
-    ).length
-    const asignados = allPicks.filter(p =>
-      (p.status || '') === 'ASIGNADA' || (p.status || '') === 'PENDIENTE'
+    const completados = allPicks.filter(p =>
+      (p.status || '') === 'COMPLETADA' || (p.status || '') === 'CONFIRMADO'
     ).length
     const shortPicks = allPicks.filter(p => (p.status || '') === 'SHORT' || (p.status || '') === 'CANCELADA').length
 
-    return { pendientes, completadosHoy, asignados, shortPicks }
+    return { total: allPicks.length, pendientes, completados, shortPicks }
   }, [myPicks])
 
   // ── Progress per order in pick list ──
   const pickListProgress = useMemo(() => {
-    if (!pickList.length) return { completed: 0, total: 0, pct: 0 }
+    if (!pickList.length) return { completed: 0, total: 0, shorts: 0, pct: 0 }
     const completed = pickList.filter(p => (p.status || '') === 'COMPLETADA' || (p.status || '') === 'CONFIRMADO').length
+    const shorts = pickList.filter(p => (p.status || '') === 'SHORT' || (p.status || '') === 'CANCELADA').length
     const total = pickList.length
-    return { completed, total, pct: total > 0 ? Math.round((completed / total) * 100) : 0 }
+    return { completed, shorts, total, pct: total > 0 ? Math.round((completed / total) * 100) : 0 }
   }, [pickList])
 
-  // Completion summary for pick list
+  // ── Completion summary data ──
   const completionSummary = useMemo(() => {
     if (!pickList.length) return null
     const picked = pickList.filter(p => { const s = (p.status || ''); return s === 'PICKED' || s === 'COMPLETADA' || s === 'CONFIRMADO' })
     const shorts = pickList.filter(p => { const s = (p.status || ''); return s === 'SHORT' || s === 'CANCELADA' })
     const pending = pickList.length - picked.length - shorts.length
-    const totalQtyReq = pickList.reduce((s, p) => s + (p.qtyRequested || p.qty || 0), 0)
-    const totalQtyPicked = picked.reduce((s, p) => s + (p.qtyPicked || p.qty || 0), 0)
+    const totalQtyReq = pickList.reduce((acc, p) => acc + (p.qtyRequested || p.qty || 0), 0)
+    const totalQtyPicked = picked.reduce((acc, p) => acc + (p.qtyPicked || p.qty || 0), 0)
     const accuracy = totalQtyReq > 0 ? Math.round((totalQtyPicked / totalQtyReq) * 100) : 0
     const allDone = pending === 0
     return { picked: picked.length, shorts: shorts.length, pending, totalQtyReq, totalQtyPicked, accuracy, allDone }
@@ -189,13 +182,13 @@ export default function PickingPage() {
   // Auto-show summary when all picks done
   useEffect(() => {
     if (completionSummary?.allDone && pickList.length > 0) setShowSummary(true)
-  }, [completionSummary?.allDone, pickList.length])
+  }, [completionSummary?.allDone, pickList.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Orders filtering
   const filteredOrders = useMemo(() => {
-    let list = orders
+    var list = orders
     if (orderQ) {
-      const qq = orderQ.toLowerCase()
+      var qq = orderQ.toLowerCase()
       list = list.filter(r =>
         (r.orderNumber || '').toLowerCase().includes(qq) ||
         (r.destinationType || '').toLowerCase().includes(qq) ||
@@ -207,21 +200,21 @@ export default function PickingPage() {
 
   const orderTotalPages = Math.max(1, Math.ceil(filteredOrders.length / orderPageSize))
   const paginatedOrders = useMemo(() => {
-    const start = (orderPage - 1) * orderPageSize
+    var start = (orderPage - 1) * orderPageSize
     return filteredOrders.slice(start, start + orderPageSize)
   }, [filteredOrders, orderPage, orderTotalPages])
 
   // My picks pagination
   const myPicksTotalPages = Math.max(1, Math.ceil(myPicks.length / orderPageSize))
   const paginatedMyPicks = useMemo(() => {
-    const start = (myPicksPage - 1) * orderPageSize
+    var start = (myPicksPage - 1) * orderPageSize
     return myPicks.slice(start, start + orderPageSize)
   }, [myPicks, myPicksPage, myPicksTotalPages])
 
   // Pick list pagination
   const pickListTotalPages = Math.max(1, Math.ceil(pickList.length / orderPageSize))
   const paginatedPickList = useMemo(() => {
-    const start = (pickListPage - 1) * orderPageSize
+    var start = (pickListPage - 1) * orderPageSize
     return pickList.slice(start, start + orderPageSize)
   }, [pickList, pickListPage, pickListTotalPages])
 
@@ -236,10 +229,10 @@ export default function PickingPage() {
 
   // Find next pending pick for auto-advance
   const findNextPendingPick = useCallback((currentPickId) => {
-    const source = tab === 1 ? myPicks : pickList
-    const currentIdx = source.findIndex(p => (p.id || p._id) === currentPickId)
-    for (let i = currentIdx + 1; i < source.length; i++) {
-      const s = source[i].status || ''
+    var source = tab === 1 ? myPicks : pickList
+    var currentIdx = source.findIndex(p => (p.id || p._id) === currentPickId)
+    for (var i = currentIdx + 1; i < source.length; i++) {
+      var s = source[i].status || ''
       if (s !== 'COMPLETADA' && s !== 'CONFIRMADO' && s !== 'CANCELADA' && s !== 'SHORT') {
         return source[i]
       }
@@ -255,18 +248,15 @@ export default function PickingPage() {
     try {
       await client.patch('/api/picking/' + (confirmPick.id || confirmPick._id) + '/confirm', { scannedCode: scanCode })
 
-      // Show success animation
       setConfirmSuccess(true)
 
-      // Wait for animation, then auto-advance or close
       setTimeout(async () => {
-        const nextPick = findNextPendingPick(confirmPick.id || confirmPick._id)
+        var nextPick = findNextPendingPick(confirmPick.id || confirmPick._id)
 
         if (pickOrderId) await loadPickList(pickOrderId)
         await loadMyPicks()
 
         if (nextPick) {
-          // Auto-advance to next pick
           setConfirmPick(nextPick)
           setScanCode('')
           setConfirmErr('')
@@ -283,17 +273,40 @@ export default function PickingPage() {
     }
   }
 
-  // Manual confirm (admin/supervisor only - no QR required)
-  const handleManualConfirm = async (pick) => {
-    if (!pick) return
+  // Manual confirmation without QR scan (ADMIN/SUPERVISOR only)
+  const handleManualConfirm = async () => {
+    if (!confirmPick) return
+    setConfirmErr('')
+    setConfirming(true)
     try {
-      await client.patch('/api/picking/' + (pick.id || pick._id) + '/confirm', {
-        scannedCode: pick.palletCode || pick.pallet?.code || 'MANUAL',
-        qtyPicked: pick.qtyRequested || pick.qty || 0,
+      await client.patch('/api/picking/' + (confirmPick.id || confirmPick._id) + '/confirm', {
+        scannedCode: '__MANUAL_CONFIRM__',
+        qtyPicked: confirmPick.qty || 0,
       })
-      if (pickOrderId) await loadPickList(pickOrderId)
-      await loadMyPicks()
-    } catch (e) { console.error('Manual confirm error:', e) }
+
+      setConfirmSuccess(true)
+
+      setTimeout(async () => {
+        var nextPick = findNextPendingPick(confirmPick.id || confirmPick._id)
+
+        if (pickOrderId) await loadPickList(pickOrderId)
+        await loadMyPicks()
+
+        if (nextPick) {
+          setConfirmPick(nextPick)
+          setScanCode('')
+          setConfirmErr('')
+          setConfirmSuccess(false)
+        } else {
+          setOpenConfirm(false)
+          setConfirmSuccess(false)
+        }
+        setConfirming(false)
+      }, 1200)
+    } catch (e) {
+      setConfirmErr(e?.response?.data?.message || 'Error al confirmar manualmente')
+      setConfirming(false)
+    }
   }
 
   // ── Short pick reporting ──
@@ -324,9 +337,9 @@ export default function PickingPage() {
   }
 
   // ── Priority badge renderer ──
-  const PriorityBadge = ({ priority }) => {
-    const p = (priority || 'NORMAL').toUpperCase()
-    const c = PRIORITY_COLORS[p] || PRIORITY_COLORS.NORMAL
+  var PriorityBadge = function(props) {
+    var p = (props.priority || 'NORMAL').toUpperCase()
+    var c = PRIORITY_COLORS[p] || PRIORITY_COLORS.NORMAL
     return (
       <Chip
         size="small"
@@ -343,12 +356,13 @@ export default function PickingPage() {
     )
   }
 
-  // ── Order progress bar ──
-  const OrderProgressBar = ({ picks }) => {
+  // ── Order progress bar with percentage ──
+  var OrderProgressBar = function(props) {
+    var picks = props.picks
     if (!picks || !picks.length) return null
-    const completed = picks.filter(p => (p.status || '') === 'COMPLETADA' || (p.status || '') === 'CONFIRMADO').length
-    const total = picks.length
-    const pct = total > 0 ? Math.round((completed / total) * 100) : 0
+    var completed = picks.filter(function(p) { var s = p.status || ''; return s === 'COMPLETADA' || s === 'CONFIRMADO' }).length
+    var total = picks.length
+    var pct = total > 0 ? Math.round((completed / total) * 100) : 0
     return (
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 120 }}>
         <Box sx={{ flex: 1, ...ps.progressBar }}>
@@ -361,12 +375,12 @@ export default function PickingPage() {
     )
   }
 
-  const Pagination = function(props) {
+  var Pagination = function(props) {
     return (
       <Stack direction="row" spacing={2} alignItems="center" justifyContent="center" sx={{ py: 2 }}>
-        <Button disabled={props.page === 1} onClick={() => props.setPage(function(p) { return Math.max(1, p - 1) })}>Anterior</Button>
+        <Button disabled={props.page === 1} onClick={function() { props.setPage(function(p) { return Math.max(1, p - 1) }) }}>Anterior</Button>
         <Typography sx={ps.cellText}>{'Pagina ' + props.page + ' de ' + props.total}</Typography>
-        <Button disabled={props.page >= props.total} onClick={() => props.setPage(function(p) { return Math.min(props.total, p + 1) })}>Siguiente</Button>
+        <Button disabled={props.page >= props.total} onClick={function() { props.setPage(function(p) { return Math.min(props.total, p + 1) }) }}>Siguiente</Button>
       </Stack>
     )
   }
@@ -383,7 +397,37 @@ export default function PickingPage() {
       {/* ── KPI Summary Cards ── */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={6} sm={3}>
-          <Paper elevation={0} sx={ps.kpiCard('amber')} onClick={() => setTab(1)}>
+          <Paper elevation={0} sx={ps.kpiCard('blue')} onClick={function() { setTab(1) }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <PersonIcon sx={{ color: ps.isDark ? '#64B5F6' : '#1565C0', fontSize: 28 }} />
+              <Box>
+                <Typography sx={{ fontSize: 22, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>
+                  {kpiData.total}
+                </Typography>
+                <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', mt: 0.3 }}>
+                  Total Asignados
+                </Typography>
+              </Box>
+            </Stack>
+          </Paper>
+        </Grid>
+        <Grid item xs={6} sm={3}>
+          <Paper elevation={0} sx={ps.kpiCard('green')} onClick={function() { setTab(1) }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <CheckCircleOutlineIcon sx={{ color: ps.isDark ? '#86EFAC' : '#2E7D32', fontSize: 28 }} />
+              <Box>
+                <Typography sx={{ fontSize: 22, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>
+                  {kpiData.completados}
+                </Typography>
+                <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', mt: 0.3 }}>
+                  Completados
+                </Typography>
+              </Box>
+            </Stack>
+          </Paper>
+        </Grid>
+        <Grid item xs={6} sm={3}>
+          <Paper elevation={0} sx={ps.kpiCard('amber')} onClick={function() { setTab(1) }}>
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <PendingActionsIcon sx={{ color: ps.isDark ? '#FCD34D' : '#E65100', fontSize: 28 }} />
               <Box>
@@ -391,44 +435,14 @@ export default function PickingPage() {
                   {kpiData.pendientes}
                 </Typography>
                 <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', mt: 0.3 }}>
-                  Picks Pendientes
+                  Pendientes
                 </Typography>
               </Box>
             </Stack>
           </Paper>
         </Grid>
         <Grid item xs={6} sm={3}>
-          <Paper elevation={0} sx={ps.kpiCard('green')} onClick={() => setTab(1)}>
-            <Stack direction="row" alignItems="center" spacing={1.5}>
-              <CheckCircleOutlineIcon sx={{ color: ps.isDark ? '#86EFAC' : '#2E7D32', fontSize: 28 }} />
-              <Box>
-                <Typography sx={{ fontSize: 22, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>
-                  {kpiData.completadosHoy}
-                </Typography>
-                <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', mt: 0.3 }}>
-                  Completados Hoy
-                </Typography>
-              </Box>
-            </Stack>
-          </Paper>
-        </Grid>
-        <Grid item xs={6} sm={3}>
-          <Paper elevation={0} sx={ps.kpiCard('blue')} onClick={() => setTab(1)}>
-            <Stack direction="row" alignItems="center" spacing={1.5}>
-              <PersonIcon sx={{ color: ps.isDark ? '#64B5F6' : '#1565C0', fontSize: 28 }} />
-              <Box>
-                <Typography sx={{ fontSize: 22, fontWeight: 800, color: 'text.primary', lineHeight: 1.1 }}>
-                  {kpiData.asignados}
-                </Typography>
-                <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary', mt: 0.3 }}>
-                  Asignados a Mi
-                </Typography>
-              </Box>
-            </Stack>
-          </Paper>
-        </Grid>
-        <Grid item xs={6} sm={3}>
-          <Paper elevation={0} sx={ps.kpiCard('red')} onClick={() => setTab(1)}>
+          <Paper elevation={0} sx={ps.kpiCard('red')} onClick={function() { setTab(1) }}>
             <Stack direction="row" alignItems="center" spacing={1.5}>
               <ReportProblemIcon sx={{ color: ps.isDark ? '#FCA5A5' : '#C62828', fontSize: 28 }} />
               <Box>
@@ -444,10 +458,10 @@ export default function PickingPage() {
         </Grid>
       </Grid>
 
-      {genErr && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setGenErr('')}>{genErr}</Alert>}
+      {genErr && <Alert severity="error" sx={{ mb: 2 }} onClose={function() { setGenErr('') }}>{genErr}</Alert>}
 
       <Paper elevation={1} sx={{ ...ps.card, mb: 2 }}>
-        <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <Tabs value={tab} onChange={function(e, v) { setTab(v) }} sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tab label="Ordenes" icon={<AssignmentIcon />} iconPosition="start" />
           <Tab label="Mis Picks" icon={<PlaylistAddCheckIcon />} iconPosition="start" />
           <Tab label="Lista de Picking" icon={<ListAltIcon />} iconPosition="start" disabled={!pickOrderId} />
@@ -458,7 +472,7 @@ export default function PickingPage() {
       {tab === 0 && (
         <Box>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 2 }}>
-            <TextField label="Buscar orden, destino" value={orderQ} onChange={e => setOrderQ(e.target.value)} sx={{ ...ps.inputSx, minWidth: 260 }} />
+            <TextField label="Buscar orden, destino" value={orderQ} onChange={function(e) { setOrderQ(e.target.value) }} sx={{ ...ps.inputSx, minWidth: 260 }} />
           </Stack>
           <Paper elevation={1} sx={{ ...ps.card, p: 0, overflowX: 'auto' }}>
             <Table size="small" sx={{ minWidth: 700 }}>
@@ -472,8 +486,8 @@ export default function PickingPage() {
                 <TableCell sx={{ textAlign: 'center' }}>Acciones</TableCell>
               </TableRow></TableHead>
               <TableBody>
-                {paginatedOrders.map((r, idx) => {
-                  const id = r.id || r._id
+                {paginatedOrders.map(function(r, idx) {
+                  var id = r.id || r._id
                   return (
                     <TableRow key={id} sx={ps.tableRow(idx)}>
                       <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace' }}>{r.orderNumber || id}</TableCell>
@@ -492,7 +506,7 @@ export default function PickingPage() {
                             <IconButton
                               size="small"
                               sx={ps.actionBtn('primary')}
-                              onClick={() => generatePickList(id)}
+                              onClick={function() { generatePickList(id) }}
                               disabled={generating}
                             >
                               {generating ? <CircularProgress size={18} /> : <ListAltIcon fontSize="small" />}
@@ -500,7 +514,7 @@ export default function PickingPage() {
                           </span>
                         </Tooltip>
                         <Tooltip title="Ver lista de picking">
-                          <IconButton size="small" sx={ps.actionBtn('success')} onClick={() => loadPickList(id)}><PlaylistAddCheckIcon fontSize="small" /></IconButton>
+                          <IconButton size="small" sx={ps.actionBtn('success')} onClick={function() { loadPickList(id) }}><PlaylistAddCheckIcon fontSize="small" /></IconButton>
                         </Tooltip>
                       </TableCell>
                     </TableRow>
@@ -517,41 +531,9 @@ export default function PickingPage() {
       {/* Tab 1: My Picks */}
       {tab === 1 && (
         <Box>
-          {/* KPI strip for Mis Picks */}
-          <Grid container spacing={1.5} sx={{ mb: 2 }}>
-            {[
-              { label: 'Total Asignados', value: kpiData.asignados + kpiData.completadosHoy + kpiData.shortPicks, accent: 'blue', icon: <AssignmentIcon sx={{ fontSize: 20 }} /> },
-              { label: 'Completados', value: kpiData.completadosHoy, accent: 'green', icon: <CheckCircleOutlineIcon sx={{ fontSize: 20 }} /> },
-              { label: 'Pendientes', value: kpiData.pendientes, accent: 'amber', icon: <PendingActionsIcon sx={{ fontSize: 20 }} /> },
-              { label: 'Short Picks', value: kpiData.shortPicks, accent: 'red', icon: <ReportProblemIcon sx={{ fontSize: 20 }} /> },
-            ].map(function(k) {
-              const accentColors = {
-                blue: { color: ps.isDark ? '#64B5F6' : '#1565C0', bg: ps.isDark ? 'rgba(66,165,245,.08)' : 'rgba(21,101,192,.04)', border: ps.isDark ? 'rgba(66,165,245,.18)' : 'rgba(21,101,192,.12)' },
-                green: { color: ps.isDark ? '#86EFAC' : '#2E7D32', bg: ps.isDark ? 'rgba(34,197,94,.08)' : 'rgba(46,125,50,.04)', border: ps.isDark ? 'rgba(34,197,94,.18)' : 'rgba(46,125,50,.12)' },
-                amber: { color: ps.isDark ? '#FCD34D' : '#E65100', bg: ps.isDark ? 'rgba(245,158,11,.08)' : 'rgba(245,158,11,.04)', border: ps.isDark ? 'rgba(245,158,11,.18)' : 'rgba(245,158,11,.12)' },
-                red: { color: ps.isDark ? '#FCA5A5' : '#C62828', bg: ps.isDark ? 'rgba(239,68,68,.08)' : 'rgba(198,40,40,.04)', border: ps.isDark ? 'rgba(239,68,68,.18)' : 'rgba(198,40,40,.12)' },
-              }
-              const ac = accentColors[k.accent] || accentColors.blue
-              return (
-                <Grid item xs={6} sm={3} key={k.label}>
-                  <Paper elevation={0} sx={{ p: 1.5, borderRadius: 2, bgcolor: ac.bg, border: '1px solid ' + ac.border }}>
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <Box sx={{ color: ac.color }}>{k.icon}</Box>
-                      <Box>
-                        <Typography sx={{ fontSize: 20, fontWeight: 800, color: ac.color, lineHeight: 1.1 }}>{k.value}</Typography>
-                        <Typography sx={{ fontSize: 10, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>{k.label}</Typography>
-                      </Box>
-                    </Stack>
-                  </Paper>
-                </Grid>
-              )
-            })}
-          </Grid>
-
           <Paper elevation={1} sx={{ ...ps.card, p: 0, overflowX: 'auto' }}>
-            <Table size="small" sx={{ minWidth: 750 }}>
+            <Table size="small" sx={{ minWidth: 700 }}>
               <TableHead><TableRow sx={ps.tableHeaderRow}>
-                <TableCell sx={{ width: 50, textAlign: 'center' }}>#</TableCell>
                 <TableCell>Orden</TableCell>
                 <TableCell>SKU</TableCell>
                 <TableCell>Qty</TableCell>
@@ -561,23 +543,12 @@ export default function PickingPage() {
                 <TableCell sx={{ textAlign: 'center' }}>Acciones</TableCell>
               </TableRow></TableHead>
               <TableBody>
-                {paginatedMyPicks.map((r, idx) => {
-                  const id = r.id || r._id
-                  const s = r.status || ''
-                  const isConfirmed = s === 'CONFIRMADO' || s === 'COMPLETADA' || s === 'PICKED'
-                  const isShort = s === 'SHORT' || s === 'CANCELADA'
-                  const seq = r.sequence || (idx + 1 + (myPicksPage - 1) * orderPageSize)
-                  const isNextPick = !isConfirmed && !isShort && idx === paginatedMyPicks.findIndex(function(p) {
-                    var ps2 = p.status || ''; return ps2 !== 'CONFIRMADO' && ps2 !== 'COMPLETADA' && ps2 !== 'PICKED' && ps2 !== 'SHORT' && ps2 !== 'CANCELADA'
-                  })
+                {paginatedMyPicks.map(function(r, idx) {
+                  var id = r.id || r._id
+                  var isConfirmed = (r.status || '') === 'CONFIRMADO' || (r.status || '') === 'COMPLETADA'
+                  var isShort = (r.status || '') === 'SHORT' || (r.status || '') === 'CANCELADA'
                   return (
-                    <TableRow key={id} sx={pickRowSx(idx, s)}>
-                      <TableCell sx={{ textAlign: 'center' }}>
-                        <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.3}>
-                          <Typography sx={{ fontWeight: 800, fontSize: 14, color: isNextPick ? (ps.isDark ? '#64B5F6' : '#1565C0') : 'text.secondary' }}>{seq}</Typography>
-                          {isNextPick && <ArrowForwardIcon sx={{ fontSize: 14, color: ps.isDark ? '#64B5F6' : '#1565C0' }} />}
-                        </Stack>
-                      </TableCell>
+                    <TableRow key={id} sx={pickRowSx(idx, r.status)}>
                       <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace' }}>{r.orderNumber || '-'}</TableCell>
                       <TableCell sx={ps.cellText}>{r.sku || '-'}</TableCell>
                       <TableCell sx={ps.cellText}>{r.qty || 0}</TableCell>
@@ -590,15 +561,10 @@ export default function PickingPage() {
                         {!isConfirmed && !isShort && (
                           <>
                             <Tooltip title="Confirmar con escaneo QR">
-                              <IconButton size="small" sx={ps.actionBtn('success')} onClick={() => openConfirmDialog(r)}><QrCodeScannerIcon fontSize="small" /></IconButton>
+                              <IconButton size="small" sx={ps.actionBtn('success')} onClick={function() { openConfirmDialog(r) }}><QrCodeScannerIcon fontSize="small" /></IconButton>
                             </Tooltip>
-                            {isAdmin && (
-                              <Tooltip title="Confirmar sin escaneo">
-                                <IconButton size="small" sx={{ ...ps.actionBtn('primary'), ml: 0.5 }} onClick={() => handleManualConfirm(r)}><VerifiedIcon fontSize="small" /></IconButton>
-                              </Tooltip>
-                            )}
                             <Tooltip title="Reportar Short Pick">
-                              <IconButton size="small" sx={{ ...ps.actionBtn('warning'), ml: 0.5 }} onClick={() => openShortPickDialog(r)}>
+                              <IconButton size="small" sx={{ ...ps.actionBtn('warning'), ml: 0.5 }} onClick={function() { openShortPickDialog(r) }}>
                                 <WarningAmberIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
@@ -608,7 +574,7 @@ export default function PickingPage() {
                     </TableRow>
                   )
                 })}
-                {!paginatedMyPicks.length && (<TableRow><TableCell colSpan={8}><Typography sx={ps.emptyText}>Sin picks asignados.</Typography></TableCell></TableRow>)}
+                {!paginatedMyPicks.length && (<TableRow><TableCell colSpan={7}><Typography sx={ps.emptyText}>Sin picks asignados.</Typography></TableCell></TableRow>)}
               </TableBody>
             </Table>
             <Pagination page={myPicksPage} setPage={setMyPicksPage} total={myPicksTotalPages} />
@@ -634,9 +600,9 @@ export default function PickingPage() {
             </Stack>
           </Stack>
           <Paper elevation={1} sx={{ ...ps.card, p: 0, overflowX: 'auto' }}>
-            <Table size="small" sx={{ minWidth: 700 }}>
+            <Table size="small" sx={{ minWidth: 800 }}>
               <TableHead><TableRow sx={ps.tableHeaderRow}>
-                <TableCell sx={{ width: 50, textAlign: 'center' }}>#</TableCell>
+                <TableCell sx={{ width: 50 }}>#</TableCell>
                 <TableCell>SKU</TableCell>
                 <TableCell>Qty</TableCell>
                 <TableCell>Ubicacion</TableCell>
@@ -646,51 +612,73 @@ export default function PickingPage() {
                 <TableCell sx={{ textAlign: 'center' }}>Acciones</TableCell>
               </TableRow></TableHead>
               <TableBody>
-                {paginatedPickList.map((r, idx) => {
-                  const id = r.id || r._id
-                  const s = r.status || ''
-                  const isConfirmed = s === 'CONFIRMADO' || s === 'COMPLETADA' || s === 'PICKED'
-                  const isShort = s === 'SHORT' || s === 'CANCELADA'
-                  const seq = r.sequence || (idx + 1 + (pickListPage - 1) * orderPageSize)
-                  const isNextPick = !isConfirmed && !isShort && idx === paginatedPickList.findIndex(p => {
-                    const ps2 = p.status || ''; return ps2 !== 'CONFIRMADO' && ps2 !== 'COMPLETADA' && ps2 !== 'PICKED' && ps2 !== 'SHORT' && ps2 !== 'CANCELADA'
-                  })
+                {paginatedPickList.map(function(r, idx) {
+                  var id = r.id || r._id
+                  var isConfirmed = (r.status || '') === 'CONFIRMADO' || (r.status || '') === 'COMPLETADA'
+                  var isShort = (r.status || '') === 'SHORT' || (r.status || '') === 'CANCELADA'
+                  var seqNumber = r.sequence != null ? r.sequence : ((pickListPage - 1) * orderPageSize + idx + 1)
+                  var isLastInPage = idx === paginatedPickList.length - 1
                   return (
-                    <TableRow key={id} sx={pickRowSx(idx, s)}>
-                      <TableCell sx={{ textAlign: 'center' }}>
-                        <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.3}>
-                          <Typography sx={{ fontWeight: 800, fontSize: 14, color: isNextPick ? (ps.isDark ? '#64B5F6' : '#1565C0') : 'text.secondary' }}>{seq}</Typography>
-                          {isNextPick && <ArrowForwardIcon sx={{ fontSize: 14, color: ps.isDark ? '#64B5F6' : '#1565C0' }} />}
-                        </Stack>
-                      </TableCell>
-                      <TableCell sx={ps.cellText}>{r.sku || '-'}</TableCell>
-                      <TableCell sx={ps.cellText}>{r.qtyRequested || r.qty || 0}</TableCell>
-                      <TableCell sx={ps.cellText}>{r.location?.code || r.location || '-'}</TableCell>
-                      <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace' }}>{r.pallet?.code || r.palletCode || '-'}</TableCell>
-                      <TableCell sx={ps.cellTextSecondary}>{r.assignedTo?.fullName || r.assignedTo?.email || '-'}</TableCell>
-                      <TableCell sx={ps.cellText}>
-                        <Chip size="small" label={r.status || 'PENDIENTE'} sx={ps.metricChip(isConfirmed ? 'ok' : isShort ? 'bad' : 'warn')} />
-                      </TableCell>
-                      <TableCell sx={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        {!isConfirmed && !isShort && (
-                          <>
-                            <Tooltip title="Confirmar con escaneo QR">
-                              <IconButton size="small" sx={ps.actionBtn('success')} onClick={() => openConfirmDialog(r)}><QrCodeScannerIcon fontSize="small" /></IconButton>
-                            </Tooltip>
-                            {isAdmin && (
-                              <Tooltip title="Confirmar sin escaneo">
-                                <IconButton size="small" sx={{ ...ps.actionBtn('primary'), ml: 0.5 }} onClick={() => handleManualConfirm(r)}><VerifiedIcon fontSize="small" /></IconButton>
+                    <React.Fragment key={id}>
+                      <TableRow sx={pickRowSx(idx, r.status)}>
+                        {/* Sequence number */}
+                        <TableCell sx={{ textAlign: 'center' }}>
+                          <Box sx={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 30,
+                            height: 30,
+                            borderRadius: '50%',
+                            bgcolor: isConfirmed
+                              ? (ps.isDark ? 'rgba(34,197,94,.20)' : 'rgba(46,125,50,.12)')
+                              : isShort
+                              ? (ps.isDark ? 'rgba(245,158,11,.20)' : 'rgba(245,158,11,.12)')
+                              : (ps.isDark ? 'rgba(66,165,245,.20)' : 'rgba(21,101,192,.10)'),
+                            color: isConfirmed
+                              ? (ps.isDark ? '#86EFAC' : '#2E7D32')
+                              : isShort
+                              ? (ps.isDark ? '#FCD34D' : '#E65100')
+                              : (ps.isDark ? '#64B5F6' : '#1565C0'),
+                            fontWeight: 800,
+                            fontSize: 13,
+                          }}>
+                            {seqNumber}
+                          </Box>
+                        </TableCell>
+                        <TableCell sx={ps.cellText}>{r.sku || '-'}</TableCell>
+                        <TableCell sx={ps.cellText}>{r.qty || 0}</TableCell>
+                        <TableCell sx={ps.cellText}>{r.location || '-'}</TableCell>
+                        <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace' }}>{r.palletCode || '-'}</TableCell>
+                        <TableCell sx={ps.cellTextSecondary}>{r.assignedTo?.email || '-'}</TableCell>
+                        <TableCell sx={ps.cellText}>
+                          <Chip size="small" label={r.status || 'PENDIENTE'} sx={ps.metricChip(isConfirmed ? 'ok' : isShort ? 'bad' : 'warn')} />
+                        </TableCell>
+                        <TableCell sx={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          {!isConfirmed && !isShort && (
+                            <>
+                              <Tooltip title="Confirmar con escaneo QR">
+                                <IconButton size="small" sx={ps.actionBtn('success')} onClick={function() { openConfirmDialog(r) }}><QrCodeScannerIcon fontSize="small" /></IconButton>
                               </Tooltip>
-                            )}
-                            <Tooltip title="Reportar Short Pick">
-                              <IconButton size="small" sx={{ ...ps.actionBtn('warning'), ml: 0.5 }} onClick={() => openShortPickDialog(r)}>
-                                <WarningAmberIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          </>
-                        )}
-                      </TableCell>
-                    </TableRow>
+                              <Tooltip title="Reportar Short Pick">
+                                <IconButton size="small" sx={{ ...ps.actionBtn('warning'), ml: 0.5 }} onClick={function() { openShortPickDialog(r) }}>
+                                  <WarningAmberIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                      {/* Arrow indicator between picks */}
+                      {!isLastInPage && (
+                        <TableRow sx={{ '& td': { py: 0, border: 0 } }}>
+                          <TableCell sx={{ textAlign: 'center' }}>
+                            <ArrowDownwardIcon sx={{ fontSize: 16, color: 'text.disabled', my: -0.5 }} />
+                          </TableCell>
+                          <TableCell colSpan={7} />
+                        </TableRow>
+                      )}
+                    </React.Fragment>
                   )
                 })}
                 {!paginatedPickList.length && (<TableRow><TableCell colSpan={8}><Typography sx={ps.emptyText}>Sin items en lista de picking.</Typography></TableCell></TableRow>)}
@@ -701,50 +689,8 @@ export default function PickingPage() {
         </Box>
       )}
 
-      {/* Completion Summary dialog */}
-      <Dialog open={showSummary} onClose={() => setShowSummary(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ ...ps.pageTitle, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <CheckCircleOutlineIcon sx={{ color: ps.isDark ? '#86EFAC' : '#2E7D32' }} />
-          Picking Completado
-        </DialogTitle>
-        <DialogContent dividers>
-          {completionSummary && (
-            <Stack spacing={2} sx={{ pt: 1 }}>
-              <Box sx={{ textAlign: 'center', py: 1 }}>
-                <Typography sx={{ fontSize: 48, fontWeight: 900, color: ps.isDark ? '#86EFAC' : '#2E7D32', lineHeight: 1 }}>{completionSummary.accuracy}%</Typography>
-                <Typography sx={{ fontSize: 13, color: 'text.secondary', fontWeight: 600 }}>Precisión</Typography>
-              </Box>
-              <Stack direction="row" spacing={2} justifyContent="center">
-                <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, textAlign: 'center', flex: 1 }}>
-                  <Typography sx={{ fontSize: 20, fontWeight: 800, color: ps.isDark ? '#86EFAC' : '#2E7D32' }}>{completionSummary.picked}</Typography>
-                  <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>Completados</Typography>
-                </Paper>
-                <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, textAlign: 'center', flex: 1 }}>
-                  <Typography sx={{ fontSize: 20, fontWeight: 800, color: ps.isDark ? '#FCA5A5' : '#C62828' }}>{completionSummary.shorts}</Typography>
-                  <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>Short Picks</Typography>
-                </Paper>
-              </Stack>
-              <Stack direction="row" spacing={2} justifyContent="center">
-                <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, textAlign: 'center', flex: 1 }}>
-                  <Typography sx={{ fontSize: 20, fontWeight: 800 }}>{completionSummary.totalQtyPicked}</Typography>
-                  <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>Pzas Pickeadas</Typography>
-                </Paper>
-                <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, textAlign: 'center', flex: 1 }}>
-                  <Typography sx={{ fontSize: 20, fontWeight: 800 }}>{completionSummary.totalQtyReq}</Typography>
-                  <Typography sx={{ fontSize: 11, color: 'text.secondary' }}>Pzas Solicitadas</Typography>
-                </Paper>
-              </Stack>
-            </Stack>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowSummary(false)}>Cerrar</Button>
-          <Button variant="contained" onClick={() => { setShowSummary(false); setTab(0) }}>Volver a Órdenes</Button>
-        </DialogActions>
-      </Dialog>
-
       {/* QR Confirm dialog with success animation */}
-      <Dialog open={openConfirm} onClose={() => { if (!confirming) setOpenConfirm(false) }} maxWidth="xs" fullWidth>
+      <Dialog open={openConfirm} onClose={function() { if (!confirming) setOpenConfirm(false) }} maxWidth="xs" fullWidth>
         <DialogTitle sx={ps.pageTitle}>Confirmar Pick con QR</DialogTitle>
         <DialogContent dividers>
           {confirmErr && <Alert severity="error" sx={{ mb: 2 }}>{confirmErr}</Alert>}
@@ -790,7 +736,7 @@ export default function PickingPage() {
                 <TextField
                   label="Escanear o ingresar codigo QR"
                   value={scanCode}
-                  onChange={e => setScanCode(e.target.value)}
+                  onChange={function(e) { setScanCode(e.target.value) }}
                   sx={ps.inputSx}
                   fullWidth
                   autoFocus
@@ -801,7 +747,19 @@ export default function PickingPage() {
           </Collapse>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenConfirm(false)} disabled={confirming}>Cancelar</Button>
+          <Button onClick={function() { setOpenConfirm(false) }} disabled={confirming}>Cancelar</Button>
+          {isAdmin && (
+            <Button
+              variant="outlined"
+              color="warning"
+              startIcon={<VerifiedUserIcon />}
+              onClick={handleManualConfirm}
+              disabled={confirming || confirmSuccess}
+              sx={{ textTransform: 'none' }}
+            >
+              Confirmar Sin Escaneo
+            </Button>
+          )}
           <Button
             variant="contained"
             startIcon={confirming ? <CircularProgress size={16} color="inherit" /> : <DoneIcon />}
@@ -814,7 +772,7 @@ export default function PickingPage() {
       </Dialog>
 
       {/* Short Pick Report dialog */}
-      <Dialog open={openShortPick} onClose={() => { if (!shortPickSubmitting) setOpenShortPick(false) }} maxWidth="xs" fullWidth>
+      <Dialog open={openShortPick} onClose={function() { if (!shortPickSubmitting) setOpenShortPick(false) }} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ ...ps.pageTitle, display: 'flex', alignItems: 'center', gap: 1 }}>
           <WarningAmberIcon sx={{ color: ps.isDark ? '#FCD34D' : '#E65100' }} />
           Reportar Short Pick
@@ -834,7 +792,7 @@ export default function PickingPage() {
                 select
                 label="Razon del short pick"
                 value={shortPickReason}
-                onChange={e => setShortPickReason(e.target.value)}
+                onChange={function(e) { setShortPickReason(e.target.value) }}
                 sx={ps.inputSx}
                 fullWidth
               >
@@ -849,7 +807,7 @@ export default function PickingPage() {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenShortPick(false)} disabled={shortPickSubmitting}>Cancelar</Button>
+          <Button onClick={function() { setOpenShortPick(false) }} disabled={shortPickSubmitting}>Cancelar</Button>
           <Button
             variant="contained"
             color="warning"
@@ -859,6 +817,61 @@ export default function PickingPage() {
           >
             Reportar Short Pick
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Completion Summary Dialog */}
+      <Dialog open={showSummary} onClose={function() { setShowSummary(false) }} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ ...ps.pageTitle, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <CheckCircleOutlineIcon sx={{ color: ps.isDark ? '#86EFAC' : '#2E7D32' }} />
+          Orden Completada
+        </DialogTitle>
+        <DialogContent dividers>
+          {completionSummary && (
+            <Stack spacing={2.5} sx={{ pt: 1 }}>
+              <Alert severity="success" sx={{ fontWeight: 600 }}>
+                Todos los picks de esta orden han sido procesados.
+              </Alert>
+              <Stack direction="row" spacing={2} justifyContent="center">
+                <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2, flex: 1 }}>
+                  <Typography sx={{ fontSize: 28, fontWeight: 800, color: ps.isDark ? '#86EFAC' : '#2E7D32' }}>
+                    {completionSummary.picked}
+                  </Typography>
+                  <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary' }}>
+                    Picks Completados
+                  </Typography>
+                </Paper>
+                <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2, flex: 1 }}>
+                  <Typography sx={{ fontSize: 28, fontWeight: 800, color: ps.isDark ? '#FCD34D' : '#E65100' }}>
+                    {completionSummary.shorts}
+                  </Typography>
+                  <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'text.secondary' }}>
+                    Short Picks
+                  </Typography>
+                </Paper>
+              </Stack>
+              <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', borderRadius: 2 }}>
+                <Typography sx={{
+                  fontSize: 36,
+                  fontWeight: 800,
+                  color: completionSummary.accuracy >= 90
+                    ? (ps.isDark ? '#86EFAC' : '#2E7D32')
+                    : (ps.isDark ? '#FCD34D' : '#E65100'),
+                }}>
+                  {completionSummary.accuracy}%
+                </Typography>
+                <Typography sx={{ fontSize: 12, fontWeight: 600, color: 'text.secondary' }}>
+                  Precision (Accuracy)
+                </Typography>
+              </Paper>
+              <Typography variant="body2" sx={{ ...ps.cellTextSecondary, textAlign: 'center' }}>
+                Total procesados: {completionSummary.picked + completionSummary.shorts} de {pickList.length} picks
+              </Typography>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" onClick={function() { setShowSummary(false) }}>Cerrar</Button>
         </DialogActions>
       </Dialog>
     </Box>
