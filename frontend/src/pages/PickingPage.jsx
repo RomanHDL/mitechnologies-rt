@@ -106,7 +106,7 @@ export default function PickingPage() {
     const base = ps.tableRow(idx)
     const s = (status || '').toUpperCase()
     if (s === 'PICKED' || s === 'COMPLETADA' || s === 'CONFIRMADO') return { ...base, bgcolor: ps.isDark ? 'rgba(46,125,50,.08)' : 'rgba(46,125,50,.04)' }
-    if (s === 'SHORT' || s === 'CANCELADA') return { ...base, bgcolor: ps.isDark ? 'rgba(239,68,68,.08)' : 'rgba(239,68,68,.04)' }
+    if (s === 'SHORT' || s === 'CANCELADA') return { ...base, bgcolor: ps.isDark ? 'rgba(245,158,11,.08)' : 'rgba(245,158,11,.04)' }
     if (s === 'ASSIGNED' || s === 'ASIGNADA') return { ...base, bgcolor: ps.isDark ? 'rgba(21,101,192,.08)' : 'rgba(21,101,192,.04)' }
     return base
   }
@@ -355,7 +355,7 @@ export default function PickingPage() {
           <Box sx={ps.progressFill(pct, pct === 100 ? 'rgba(46,125,50,.65)' : 'rgba(21,101,192,.65)')} />
         </Box>
         <Typography sx={{ fontSize: 11, fontWeight: 700, color: 'text.secondary', whiteSpace: 'nowrap' }}>
-          {completed}/{total}
+          {completed}/{total} ({pct}%)
         </Typography>
       </Box>
     )
@@ -517,9 +517,41 @@ export default function PickingPage() {
       {/* Tab 1: My Picks */}
       {tab === 1 && (
         <Box>
+          {/* KPI strip for Mis Picks */}
+          <Grid container spacing={1.5} sx={{ mb: 2 }}>
+            {[
+              { label: 'Total Asignados', value: kpiData.asignados + kpiData.completadosHoy + kpiData.shortPicks, accent: 'blue', icon: <AssignmentIcon sx={{ fontSize: 20 }} /> },
+              { label: 'Completados', value: kpiData.completadosHoy, accent: 'green', icon: <CheckCircleOutlineIcon sx={{ fontSize: 20 }} /> },
+              { label: 'Pendientes', value: kpiData.pendientes, accent: 'amber', icon: <PendingActionsIcon sx={{ fontSize: 20 }} /> },
+              { label: 'Short Picks', value: kpiData.shortPicks, accent: 'red', icon: <ReportProblemIcon sx={{ fontSize: 20 }} /> },
+            ].map(function(k) {
+              const accentColors = {
+                blue: { color: ps.isDark ? '#64B5F6' : '#1565C0', bg: ps.isDark ? 'rgba(66,165,245,.08)' : 'rgba(21,101,192,.04)', border: ps.isDark ? 'rgba(66,165,245,.18)' : 'rgba(21,101,192,.12)' },
+                green: { color: ps.isDark ? '#86EFAC' : '#2E7D32', bg: ps.isDark ? 'rgba(34,197,94,.08)' : 'rgba(46,125,50,.04)', border: ps.isDark ? 'rgba(34,197,94,.18)' : 'rgba(46,125,50,.12)' },
+                amber: { color: ps.isDark ? '#FCD34D' : '#E65100', bg: ps.isDark ? 'rgba(245,158,11,.08)' : 'rgba(245,158,11,.04)', border: ps.isDark ? 'rgba(245,158,11,.18)' : 'rgba(245,158,11,.12)' },
+                red: { color: ps.isDark ? '#FCA5A5' : '#C62828', bg: ps.isDark ? 'rgba(239,68,68,.08)' : 'rgba(198,40,40,.04)', border: ps.isDark ? 'rgba(239,68,68,.18)' : 'rgba(198,40,40,.12)' },
+              }
+              const ac = accentColors[k.accent] || accentColors.blue
+              return (
+                <Grid item xs={6} sm={3} key={k.label}>
+                  <Paper elevation={0} sx={{ p: 1.5, borderRadius: 2, bgcolor: ac.bg, border: '1px solid ' + ac.border }}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Box sx={{ color: ac.color }}>{k.icon}</Box>
+                      <Box>
+                        <Typography sx={{ fontSize: 20, fontWeight: 800, color: ac.color, lineHeight: 1.1 }}>{k.value}</Typography>
+                        <Typography sx={{ fontSize: 10, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}>{k.label}</Typography>
+                      </Box>
+                    </Stack>
+                  </Paper>
+                </Grid>
+              )
+            })}
+          </Grid>
+
           <Paper elevation={1} sx={{ ...ps.card, p: 0, overflowX: 'auto' }}>
-            <Table size="small" sx={{ minWidth: 700 }}>
+            <Table size="small" sx={{ minWidth: 750 }}>
               <TableHead><TableRow sx={ps.tableHeaderRow}>
+                <TableCell sx={{ width: 50, textAlign: 'center' }}>#</TableCell>
                 <TableCell>Orden</TableCell>
                 <TableCell>SKU</TableCell>
                 <TableCell>Qty</TableCell>
@@ -534,8 +566,18 @@ export default function PickingPage() {
                   const s = r.status || ''
                   const isConfirmed = s === 'CONFIRMADO' || s === 'COMPLETADA' || s === 'PICKED'
                   const isShort = s === 'SHORT' || s === 'CANCELADA'
+                  const seq = r.sequence || (idx + 1 + (myPicksPage - 1) * orderPageSize)
+                  const isNextPick = !isConfirmed && !isShort && idx === paginatedMyPicks.findIndex(function(p) {
+                    var ps2 = p.status || ''; return ps2 !== 'CONFIRMADO' && ps2 !== 'COMPLETADA' && ps2 !== 'PICKED' && ps2 !== 'SHORT' && ps2 !== 'CANCELADA'
+                  })
                   return (
                     <TableRow key={id} sx={pickRowSx(idx, s)}>
+                      <TableCell sx={{ textAlign: 'center' }}>
+                        <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.3}>
+                          <Typography sx={{ fontWeight: 800, fontSize: 14, color: isNextPick ? (ps.isDark ? '#64B5F6' : '#1565C0') : 'text.secondary' }}>{seq}</Typography>
+                          {isNextPick && <ArrowForwardIcon sx={{ fontSize: 14, color: ps.isDark ? '#64B5F6' : '#1565C0' }} />}
+                        </Stack>
+                      </TableCell>
                       <TableCell sx={{ ...ps.cellText, fontFamily: 'monospace' }}>{r.orderNumber || '-'}</TableCell>
                       <TableCell sx={ps.cellText}>{r.sku || '-'}</TableCell>
                       <TableCell sx={ps.cellText}>{r.qty || 0}</TableCell>
@@ -550,6 +592,11 @@ export default function PickingPage() {
                             <Tooltip title="Confirmar con escaneo QR">
                               <IconButton size="small" sx={ps.actionBtn('success')} onClick={() => openConfirmDialog(r)}><QrCodeScannerIcon fontSize="small" /></IconButton>
                             </Tooltip>
+                            {isAdmin && (
+                              <Tooltip title="Confirmar sin escaneo">
+                                <IconButton size="small" sx={{ ...ps.actionBtn('primary'), ml: 0.5 }} onClick={() => handleManualConfirm(r)}><VerifiedIcon fontSize="small" /></IconButton>
+                              </Tooltip>
+                            )}
                             <Tooltip title="Reportar Short Pick">
                               <IconButton size="small" sx={{ ...ps.actionBtn('warning'), ml: 0.5 }} onClick={() => openShortPickDialog(r)}>
                                 <WarningAmberIcon fontSize="small" />
@@ -561,7 +608,7 @@ export default function PickingPage() {
                     </TableRow>
                   )
                 })}
-                {!paginatedMyPicks.length && (<TableRow><TableCell colSpan={7}><Typography sx={ps.emptyText}>Sin picks asignados.</Typography></TableCell></TableRow>)}
+                {!paginatedMyPicks.length && (<TableRow><TableCell colSpan={8}><Typography sx={ps.emptyText}>Sin picks asignados.</Typography></TableCell></TableRow>)}
               </TableBody>
             </Table>
             <Pagination page={myPicksPage} setPage={setMyPicksPage} total={myPicksTotalPages} />
