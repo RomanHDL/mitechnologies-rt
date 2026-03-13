@@ -1,10 +1,14 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 import dayjs from 'dayjs'
-import { api } from '../lib/api'
+import { api } from '../services/api'
 import { useAuth } from '../state/auth'
 import { socket } from '../lib/socket'
 import { usePageStyles } from '../ui/pageStyles'
+import {
+  AREA_CODES, ALL_RACKS, RACK_LEVELS, RACK_POSITIONS,
+  rackToArea,
+} from '../lib/constants'
 
 import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
@@ -26,10 +30,10 @@ import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import { useTheme } from '@mui/material/styles'
 
-const levels = ['A','B','C']
-const positions = Array.from({ length: 12 }, (_, i) => i + 1)
+const levels = RACK_LEVELS
+const positions = RACK_POSITIONS
 
-const AREAS = ['A1','A2','A3','A4']
+const AREAS = AREA_CODES
 
 function cellColor(state, isDark = false) {
   if (state === 'BLOQUEADO') return isDark ? '#3b0a0a' : 'rgba(239,68,68,.10)'
@@ -43,20 +47,12 @@ function cellBorder(state, isDark = false) {
   return isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(21,101,192,.15)'
 }
 
-const ALL_RACKS = Array.from({ length: 125 }, (_, i) => `F${String(i+1).padStart(3,'0')}`)
-
-/* Simple area derivation: F001-F031 → A1, F032-F062 → A2, F063-F093 → A3, F094-F125 → A4 */
-function rackArea(code) {
-  const num = parseInt(code.replace('F',''), 10)
-  if (num <= 31) return 'A1'
-  if (num <= 62) return 'A2'
-  if (num <= 93) return 'A3'
-  return 'A4'
-}
+/* ALL_RACKS y rackToArea importados de ../lib/constants */
+const rackArea = rackToArea
 
 export default function RacksPage() {
   const { token } = useAuth()
-  const client = useMemo(() => api(token), [token])
+  const client = useMemo(() => api(), [token])
   const routerLoc = useLocation()
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
@@ -226,7 +222,7 @@ export default function RacksPage() {
       const { raw, state, code } = getCell(selected.level, selected.pos)
       setSelected(prev => prev ? { ...prev, raw, state, code } : null)
     } catch (err) {
-      setActionError(err?.response?.data?.message || 'Error al cambiar estado de bloqueo.')
+      setActionError(err?.message || 'Error al cambiar estado de bloqueo.')
     } finally {
       setBlockLoading(false)
     }
@@ -252,7 +248,7 @@ export default function RacksPage() {
       setTransferOpen(false)
       await load(rackCode)
     } catch (err) {
-      setActionError(err?.response?.data?.message || 'Error al transferir pallet.')
+      setActionError(err?.message || 'Error al transferir pallet.')
     } finally {
       setTransferLoading(false)
     }

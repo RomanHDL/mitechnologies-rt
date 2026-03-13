@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useAuth } from '../state/auth'
-import { api } from '../lib/api'
+import { api } from '../services/api'
 import { usePageStyles } from '../ui/pageStyles'
 
 import Paper from '@mui/material/Paper'
@@ -346,7 +346,7 @@ function TimelineEntry({ row, idx, isLast, isSameEntity, isDark, ps, onDetail })
 export default function AuditPage() {
   const { token, user } = useAuth()
   const ps = usePageStyles()
-  const client = useMemo(() => api(token), [token])
+  const client = useMemo(() => api(), [token])
 
   const [rows, setRows] = useState([])
   const [q, setQ] = useState('')

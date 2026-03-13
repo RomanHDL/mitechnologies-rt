@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useAuth } from '../state/auth'
-import { api } from '../lib/api'
+import { api } from '../services/api'
 import { usePageStyles } from '../ui/pageStyles'
+import { MOVEMENT_TYPE_COLORS } from '../lib/constants'
 
 import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
@@ -45,13 +46,8 @@ const MEDAL_COLORS = {
   2: { border: 'rgba(205,127,50,.50)', bg: 'rgba(205,127,50,.08)', icon: '#CD7F32', label: 'Bronce' },
 }
 
-/* ── Movement type colors ── */
-const TYPE_COLORS = {
-  IN: { fill: '#43A047', label: 'Entradas' },
-  OUT: { fill: '#E53935', label: 'Salidas' },
-  TRANSFER: { fill: '#1E88E5', label: 'Transferencias' },
-  ADJUST: { fill: '#FB8C00', label: 'Ajustes' },
-}
+/* ── Movement type colors (importado de constants) ── */
+const TYPE_COLORS = MOVEMENT_TYPE_COLORS
 
 /* ── Period preset options ── */
 const PERIOD_OPTIONS = [
@@ -63,7 +59,7 @@ const PERIOD_OPTIONS = [
 export default function ProductivityPage() {
   const { token, user } = useAuth()
   const ps = usePageStyles()
-  const client = useMemo(() => api(token), [token])
+  const client = useMemo(() => api(), [token])
 
   const [operators, setOperators] = useState([])
   const [summary, setSummary] = useState(null)

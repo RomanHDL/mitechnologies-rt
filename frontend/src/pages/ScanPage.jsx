@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/auth'
-import { api } from '../lib/api'
+import { api } from '../services/api'
 import { Html5Qrcode } from 'html5-qrcode'
 import { usePageStyles } from '../ui/pageStyles'
 import dayjs from 'dayjs'
@@ -41,7 +41,7 @@ const STATUS_OPTIONS = [
 
 export default function ScanPage() {
   const { token } = useAuth()
-  const client = useMemo(() => api(token), [token])
+  const client = useMemo(() => api(), [token])
   const ps = usePageStyles()
   const navigate = useNavigate()
   const [tab, setTab] = useState(0)
@@ -114,7 +114,7 @@ export default function ScanPage() {
       setSuggest(null)
       setSuggestErr('')
     } catch (e) {
-      setSuggestErr(e?.response?.data?.message || '')
+      setSuggestErr(e?.message || '')
     }
   }, [])
 
@@ -128,7 +128,7 @@ export default function ScanPage() {
       const mainSku = (res.data?.items?.[0]?.sku) || ''
       if (mainSku) fetchSuggest(mainSku)
     } catch (e) {
-      setError(e?.response?.data?.message || 'No encontrado')
+      setError(e?.message || 'No encontrado')
     }
   }
 
@@ -224,7 +224,7 @@ export default function ScanPage() {
       await refreshPallet()
       setTimeout(() => setTransferOpen(false), 1200)
     } catch (e) {
-      setTransferError(e?.response?.data?.message || 'Error al transferir')
+      setTransferError(e?.message || 'Error al transferir')
     } finally {
       setTransferLoading(false)
     }
@@ -253,7 +253,7 @@ export default function ScanPage() {
       await refreshPallet()
       setTimeout(() => setStatusOpen(false), 1200)
     } catch (e) {
-      setStatusError(e?.response?.data?.message || 'Error al cambiar estatus')
+      setStatusError(e?.message || 'Error al cambiar estatus')
     } finally {
       setStatusLoading(false)
     }
@@ -284,7 +284,7 @@ export default function ScanPage() {
       await refreshPallet()
       setTimeout(() => setOutOpen(false), 1200)
     } catch (e) {
-      setOutError(e?.response?.data?.message || 'Error al registrar salida')
+      setOutError(e?.message || 'Error al registrar salida')
     } finally {
       setOutLoading(false)
     }
@@ -301,7 +301,7 @@ export default function ScanPage() {
       const res = await client.get('/api/movements', { params: { palletId: result._id } })
       setHistoryData(Array.isArray(res.data) ? res.data : (res.data?.data || []))
     } catch (e) {
-      setHistoryError(e?.response?.data?.message || 'Error al cargar historial')
+      setHistoryError(e?.message || 'Error al cargar historial')
     } finally {
       setHistoryLoading(false)
     }

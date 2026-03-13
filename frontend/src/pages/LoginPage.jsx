@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/auth'
-import { api } from '../lib/api'
+import { api } from '../services/api'
 import { usePageStyles } from '../ui/pageStyles'
 
 import Box from '@mui/material/Box'
@@ -32,7 +32,7 @@ export default function LoginPage() {
       login(res.data.token, res.data.user)
       nav('/')
     } catch (err) {
-      setError(err?.response?.data?.message || 'Error al iniciar sesion')
+      setError(err?.message || 'Error al iniciar sesion')
     } finally {
       setLoading(false)
     }

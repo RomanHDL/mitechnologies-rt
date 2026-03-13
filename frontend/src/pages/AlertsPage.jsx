@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../state/auth'
-import { api } from '../lib/api'
+import { api } from '../services/api'
 import { usePageStyles } from '../ui/pageStyles'
 
 import Paper from '@mui/material/Paper'
@@ -130,7 +130,7 @@ const AUTO_REFRESH_MS = 60_000
 export default function AlertsPage() {
   const { token, user } = useAuth()
   const ps = usePageStyles()
-  const client = useMemo(() => api(token), [token])
+  const client = useMemo(() => api(), [token])
 
   const [rows, setRows] = useState([])
   const [q, setQ] = useState('')

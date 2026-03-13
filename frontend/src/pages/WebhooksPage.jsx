@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../state/auth'
-import { api } from '../lib/api'
+import { api } from '../services/api'
 import { usePageStyles } from '../ui/pageStyles'
 
 import Paper from '@mui/material/Paper'
@@ -91,7 +91,7 @@ var DELIVERY_LABEL = { ok: 'Exitoso', error: 'Error', never: 'Sin envios' }
 export default function WebhooksPage() {
   const { token, user } = useAuth()
   const ps = usePageStyles()
-  const client = useMemo(() => api(token), [token])
+  const client = useMemo(() => api(), [token])
 
   const [rows, setRows] = useState([])
   const [q, setQ] = useState('')
@@ -220,7 +220,7 @@ export default function WebhooksPage() {
       }
       setOpenDialog(false)
       await load()
-    } catch (e) { setDialogErr(e?.response?.data?.message || 'Error al guardar') }
+    } catch (e) { setDialogErr(e?.message || 'Error al guardar') }
   }
 
   // Test webhook
@@ -243,7 +243,7 @@ export default function WebhooksPage() {
       var elapsed2 = Date.now() - startTime
       setTestResult({
         success: false,
-        message: e?.response?.data?.message || 'Error al probar webhook',
+        message: e?.message || 'Error al probar webhook',
         status: e?.response?.status || null,
         error: e?.response?.data?.error || null,
         responseTime: elapsed2,

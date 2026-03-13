@@ -63,7 +63,7 @@ export default function AdminUsers() {
       const { data } = await adminGetUsers(q);
       setUsers(data.users || []);
     } catch (e) {
-      setErr(e?.response?.data?.message || "Error cargando usuarios");
+      setErr(e?.message || "Error cargando usuarios");
     } finally {
       setLoading(false);
     }
@@ -86,7 +86,7 @@ export default function AdminUsers() {
       });
       await loadUsers("");
     } catch (e2) {
-      setErr(e2?.response?.data?.message || "Error creando usuario");
+      setErr(e2?.message || "Error creando usuario");
     } finally {
       setLoading(false);
     }
@@ -98,7 +98,7 @@ export default function AdminUsers() {
       await adminToggleUser(id);
       await loadUsers(canSearch ? search : "");
     } catch (e) {
-      setErr(e?.response?.data?.message || "Error");
+      setErr(e?.message || "Error");
     } finally {
       setLoading(false);
     }
@@ -112,7 +112,7 @@ export default function AdminUsers() {
       await adminResetPassword(id, newPassword);
       setMsg("Contrasena actualizada");
     } catch (e) {
-      setErr(e?.response?.data?.message || "Error");
+      setErr(e?.message || "Error");
     } finally {
       setLoading(false);
     }
@@ -126,7 +126,7 @@ export default function AdminUsers() {
       setMsg("PIN actualizado");
       await loadUsers(canSearch ? search : "");
     } catch (e) {
-      setErr(e?.response?.data?.message || "Error");
+      setErr(e?.message || "Error");
     } finally {
       setLoading(false);
     }

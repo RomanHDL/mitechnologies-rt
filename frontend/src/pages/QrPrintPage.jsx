@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../state/auth'
-import { api } from '../lib/api'
+import { api } from '../services/api'
 import { usePageStyles } from '../ui/pageStyles'
 
 import Paper from '@mui/material/Paper'
@@ -61,7 +61,7 @@ const LABEL_SIZES = [
 export default function QrPrintPage() {
   const { token, user } = useAuth()
   const ps = usePageStyles()
-  const client = useMemo(() => api(token), [token])
+  const client = useMemo(() => api(), [token])
 
   const [rows, setRows] = useState([])
   const [q, setQ] = useState('')
@@ -168,7 +168,7 @@ export default function QrPrintPage() {
       setShowPreview(true)
     } catch (e) {
       console.error('Error generating QR:', e)
-      setGenResult({ error: e?.response?.data?.message || 'Error al generar QR' })
+      setGenResult({ error: e?.message || 'Error al generar QR' })
     } finally { setGenerating(false) }
   }
 

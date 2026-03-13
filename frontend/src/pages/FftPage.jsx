@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { api } from '../lib/api'
+import { api } from '../services/api'
 import { useAuth } from '../state/auth'
 import { socket } from '../lib/socket'
 import { useTheme } from '@mui/material/styles'
 import { usePageStyles } from '../ui/pageStyles'
+import { AREAS_FFT, SUBAREAS_BY_AREA_FFT } from '../lib/constants'
 import dayjs from 'dayjs'
 
 import Paper from '@mui/material/Paper'
@@ -44,24 +45,9 @@ function cellBorder(state, isDark = false) {
   return isDark ? '1px solid rgba(255,255,255,.08)' : '1px solid rgba(21,101,192,.15)'
 }
 
-// Mapeo UI Profesional (NO rompe DB)
-// DB: A1..A4
-// UI: Incoming/Sorting/FFT/OpenCell
-const AREAS = [
-  { db: 'A1', label: 'Incoming' },
-  { db: 'A2', label: 'Sorting' },
-  { db: 'A3', label: 'FFT' },
-  { db: 'A4', label: 'OpenCell' },
-]
-
-// Sub-areas (ejemplo profesional).
-// Aqui puedes ajustar nombres exactos sin tocar BD: solo cambia strings.
-const SUBAREAS_BY_AREA = {
-  A1: ['Recepcion', 'Calidad', 'Staging'],
-  A2: ['Clasificacion', 'Re-etiquetado', 'Rework'],
-  A3: ['Accesorios', 'Picking', 'Empaque'],
-  A4: ['OpenCell', 'Buffer', 'Auditoria'],
-}
+// Mapeo UI Profesional (NO rompe DB) - importado de constants
+const AREAS = AREAS_FFT
+const SUBAREAS_BY_AREA = SUBAREAS_BY_AREA_FFT
 
 function isFftAccesorios(areaDb, subarea) {
   return areaDb === 'A3' && String(subarea || '').toLowerCase() === 'accesorios'
@@ -83,7 +69,7 @@ function fmtDate(raw) {
 
 export default function FftPage() {
   const { token } = useAuth()
-  const client = useMemo(() => api(token), [token])
+  const client = useMemo(() => api(), [token])
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
   const ps = usePageStyles()

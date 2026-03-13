@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../state/auth'
-import { api } from '../lib/api'
+import { api } from '../services/api'
 import { usePageStyles } from '../ui/pageStyles'
 
 import Paper from '@mui/material/Paper'
@@ -106,7 +106,7 @@ function discrepancyLabel(expected, received) {
 export default function InboundPage() {
   const { token, user } = useAuth()
   const ps = usePageStyles()
-  const client = useMemo(() => api(token), [token])
+  const client = useMemo(() => api(), [token])
 
   const [rows, setRows] = useState([])
   const [q, setQ] = useState('')
@@ -223,7 +223,7 @@ export default function InboundPage() {
       setOpenCreate(false); setSupplier(''); setPoNumber(''); setNotes('')
       setLines([{ sku: '', description: '', qtyExpected: 1 }])
       await load()
-    } catch (e) { setCreateErr(e?.response?.data?.message || 'Error al crear') }
+    } catch (e) { setCreateErr(e?.message || 'Error al crear') }
   }
 
   const changeStatus = async (id, newStatus) => {
@@ -251,7 +251,7 @@ export default function InboundPage() {
         note: receiveNote,
       })
       setOpenReceive(false); await load()
-    } catch (e) { setReceiveErr(e?.response?.data?.message || 'Error al recibir') }
+    } catch (e) { setReceiveErr(e?.message || 'Error al recibir') }
   }
 
   const openDetail = (r) => {
@@ -274,7 +274,7 @@ export default function InboundPage() {
       const data = res.data
       setPutawaySuggestions(Array.isArray(data) ? data : (data?.suggestions || data?.locations || [data]).filter(Boolean))
     } catch (e) {
-      setPutawayErr(e?.response?.data?.message || 'Error al obtener sugerencia de ubicacion')
+      setPutawayErr(e?.message || 'Error al obtener sugerencia de ubicacion')
     } finally {
       setPutawayLoading(false)
     }

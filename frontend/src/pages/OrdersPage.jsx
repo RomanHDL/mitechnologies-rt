@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../state/auth'
-import { api } from '../lib/api'
+import { api } from '../services/api'
 import { usePageStyles } from '../ui/pageStyles'
 import dayjs from 'dayjs'
 
@@ -91,7 +91,7 @@ export default function OrdersPage() {
     user?.role === 'SUPERVISOR' ||
     ['Supervisor', 'Coordinador', 'Gerente'].includes((user?.position || '').trim())
 
-  const client = useMemo(() => api(token), [token])
+  const client = useMemo(() => api(), [token])
 
   const [rows, setRows] = useState([])
   const [q, setQ] = useState('')
@@ -179,7 +179,7 @@ export default function OrdersPage() {
       setNotes('')
       await load()
     } catch (e) {
-      setErr(e?.response?.data?.message || 'Error')
+      setErr(e?.message || 'Error')
     }
   }
 
@@ -269,7 +269,7 @@ export default function OrdersPage() {
       await load()
     } catch (e) {
       // silently fail or could show snackbar
-      console.error('Error generando picking:', e?.response?.data?.message || e.message)
+      console.error('Error generando picking:', e?.message || e.message)
     } finally {
       setGeneratingPicking(null)
     }
@@ -349,7 +349,7 @@ export default function OrdersPage() {
       setPalletsSelected(prev => [...prev, p])
       setPalletCode('')
     } catch (e) {
-      setFulfillErr(e?.response?.data?.message || 'No encontrado')
+      setFulfillErr(e?.message || 'No encontrado')
     }
   }
 
@@ -377,7 +377,7 @@ export default function OrdersPage() {
       setOpenFulfill(false)
       await load()
     } catch (e) {
-      setFulfillErr(e?.response?.data?.message || 'Error al surtir')
+      setFulfillErr(e?.message || 'Error al surtir')
     } finally {
       setFulfilling(false)
     }

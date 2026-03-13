@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useAuth } from '../state/auth'
-import { api } from '../lib/api'
+import { api } from '../services/api'
 import { usePageStyles } from '../ui/pageStyles'
 import { useNavigate } from 'react-router-dom'
 
@@ -189,7 +189,7 @@ function KpiCard({ label, value, sub, accent, icon, onClick, isDark }) {
 export default function LocationsPage() {
   const { token, user } = useAuth()
   const canEdit = ['ADMIN', 'SUPERVISOR'].includes(user?.role)
-  const client = useMemo(() => api(token), [token])
+  const client = useMemo(() => api(), [token])
   const navigate = useNavigate()
 
   const theme = useTheme()

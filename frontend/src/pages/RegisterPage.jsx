@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api } from '../lib/api'
+import { api } from '../services/api'
 import { usePageStyles } from '../ui/pageStyles'
 
 import Box from '@mui/material/Box'
@@ -33,7 +33,7 @@ export default function RegisterPage() {
       setOk('Cuenta creada. Ahora inicia sesion.')
       setTimeout(() => nav('/login'), 700)
     } catch (err) {
-      setError(err?.response?.data?.message || 'No se pudo crear la cuenta')
+      setError(err?.message || 'No se pudo crear la cuenta')
     } finally {
       setLoading(false)
     }

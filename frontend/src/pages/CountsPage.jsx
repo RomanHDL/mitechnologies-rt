@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useAuth } from '../state/auth'
-import { api } from '../lib/api'
+import { api } from '../services/api'
 import { usePageStyles } from '../ui/pageStyles'
 import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
@@ -64,7 +64,7 @@ export default function CountsPage() {
   const role = String(user?.role || '').toUpperCase()
   const can = ['ADMIN', 'SUPERVISOR'].includes(role)
 
-  const client = useMemo(() => api(token), [token])
+  const client = useMemo(() => api(), [token])
   const ps = usePageStyles()
 
   const [rows, setRows] = useState([])
@@ -115,7 +115,7 @@ export default function CountsPage() {
       setRows(Array.isArray(res.data) ? res.data : [])
       setPage(1)
     } catch (e) {
-      setErr(e?.response?.data?.message || e?.message || 'Error cargando conteos')
+      setErr(e?.message || 'Error cargando conteos')
     } finally {
       setLoading(false)
     }
@@ -149,7 +149,7 @@ export default function CountsPage() {
       setOkMsg('Conteo creado exitosamente')
       await load()
     } catch (e) {
-      setErr(e?.response?.data?.message || e?.message || 'Error creando conteo')
+      setErr(e?.message || 'Error creando conteo')
     } finally {
       setLoading(false)
     }
@@ -240,7 +240,7 @@ export default function CountsPage() {
       setOkMsg(`Status actualizado a ${statusLabel(nextStatus)}`)
       await load()
     } catch (e) {
-      setErr(e?.response?.data?.message || e?.message || 'Error actualizando status')
+      setErr(e?.message || 'Error actualizando status')
     } finally {
       setBusyId('')
     }
@@ -267,7 +267,7 @@ export default function CountsPage() {
         setOkMsg('Conteo aprobado exitosamente')
         await load()
       } catch (e2) {
-        setErr(e2?.response?.data?.message || e?.response?.data?.message || e?.message || 'Error aprobando conteo')
+        setErr(e2?.message || e?.message || 'Error aprobando conteo')
       }
     } finally {
       setBusyId('')
@@ -303,7 +303,7 @@ export default function CountsPage() {
       })
       setCountedValues(initial)
     } catch (e) {
-      setCaptureErr(e?.response?.data?.message || e?.message || 'Error cargando detalle del conteo')
+      setCaptureErr(e?.message || 'Error cargando detalle del conteo')
     } finally {
       setCaptureLoading(false)
     }
@@ -359,7 +359,7 @@ export default function CountsPage() {
       // Reload detail to get updated differences
       await loadCountDetail(countId)
     } catch (e) {
-      setCaptureErr(e?.response?.data?.message || e?.message || 'Error guardando conteo')
+      setCaptureErr(e?.message || 'Error guardando conteo')
     } finally {
       setSavingLocation('')
     }

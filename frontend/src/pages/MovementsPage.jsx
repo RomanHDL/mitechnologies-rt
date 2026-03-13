@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { useAuth } from '../state/auth'
-import { api } from '../lib/api'
+import { api } from '../services/api'
 import { usePageStyles } from '../ui/pageStyles'
 import Paper from '@mui/material/Paper'
 import Typography from '@mui/material/Typography'
@@ -61,7 +61,7 @@ export default function MovementsPage() {
 
   useEffect(() => {
     (async () => {
-      const res = await api(token).get('/api/movements')
+      const res = await api().get('/api/movements')
       setRows(res.data)
     })()
   }, [token])

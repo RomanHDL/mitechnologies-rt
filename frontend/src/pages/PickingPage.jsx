@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useAuth } from '../state/auth'
-import { api } from '../lib/api'
+import { api } from '../services/api'
 import { usePageStyles } from '../ui/pageStyles'
 
 import Paper from '@mui/material/Paper'
@@ -56,7 +56,7 @@ const PRIORITY_COLORS = {
 export default function PickingPage() {
   const { token, user } = useAuth()
   const ps = usePageStyles()
-  const client = useMemo(() => api(token), [token])
+  const client = useMemo(() => api(), [token])
 
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERVISOR'
 
@@ -140,7 +140,7 @@ export default function PickingPage() {
       await client.post('/api/picking/generate/' + orderId)
       await loadPickList(orderId)
     } catch (e) {
-      setGenErr(e?.response?.data?.message || 'Error al generar lista de picking')
+      setGenErr(e?.message || 'Error al generar lista de picking')
     } finally { setGenerating(false) }
   }
 
@@ -268,7 +268,7 @@ export default function PickingPage() {
         setConfirming(false)
       }, 1200)
     } catch (e) {
-      setConfirmErr(e?.response?.data?.message || 'Error al confirmar')
+      setConfirmErr(e?.message || 'Error al confirmar')
       setConfirming(false)
     }
   }
@@ -304,7 +304,7 @@ export default function PickingPage() {
         setConfirming(false)
       }, 1200)
     } catch (e) {
-      setConfirmErr(e?.response?.data?.message || 'Error al confirmar manualmente')
+      setConfirmErr(e?.message || 'Error al confirmar manualmente')
       setConfirming(false)
     }
   }
@@ -332,7 +332,7 @@ export default function PickingPage() {
       if (pickOrderId) await loadPickList(pickOrderId)
       await loadMyPicks()
     } catch (e) {
-      setShortPickErr(e?.response?.data?.message || 'Error al reportar short pick')
+      setShortPickErr(e?.message || 'Error al reportar short pick')
     } finally { setShortPickSubmitting(false) }
   }
 

@@ -15,10 +15,18 @@ function withParams(path, params) {
     return url.pathname + (url.search ? url.search : "");
 }
 
+function resolveBase() {
+    const explicit = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
+    if (explicit) return explicit;
+    // Fallback: production URL when not on localhost, otherwise local dev server
+    if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
+        return "https://mitechnologies-rt-production.up.railway.app";
+    }
+    return "http://localhost:5000";
+}
+
 export async function apiFetch(path, options = {}) {
-    const base =
-        import.meta.env.VITE_API_URL;
-    if (!base) throw new Error("Missing VITE_API_URL");
+    const base = resolveBase();
 
     const token = getToken();
     const baseClean = String(base).replace(/\/+$/, "");
@@ -55,9 +63,7 @@ export async function apiFetch(path, options = {}) {
 
 // ✅ NUEVO: subir archivos (Excel) por multipart/form-data
 export async function apiUpload(path, fileOrFormData, extraFields = {}) {
-    const base =
-        import.meta.env.VITE_API_URL;
-    if (!base) throw new Error("Missing VITE_API_URL");
+    const base = resolveBase();
 
     const token = getToken();
     const baseClean = String(base).replace(/\/+$/, "");

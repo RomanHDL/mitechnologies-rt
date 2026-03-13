@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useAuth } from '../state/auth'
-import { api } from '../lib/api'
+import { api } from '../services/api'
 import { usePageStyles } from '../ui/pageStyles'
 
 import Paper from '@mui/material/Paper'
@@ -171,7 +171,7 @@ function typeChipSx(type, isDark) {
 export default function TasksPage() {
   const { token, user } = useAuth()
   const ps = usePageStyles()
-  const client = useMemo(() => api(token), [token])
+  const client = useMemo(() => api(), [token])
 
   const isAdminOrSupervisor = user?.role === 'ADMIN' || user?.role === 'SUPERVISOR'
 
@@ -294,7 +294,7 @@ export default function TasksPage() {
       setTaskPalletId(''); setTaskLocationId(''); setTaskTargetLocationId('')
       setTaskType('PICK'); setTaskPriority('NORMAL')
       await load()
-    } catch (e) { setCreateErr(e?.response?.data?.message || 'Error al crear') }
+    } catch (e) { setCreateErr(e?.message || 'Error al crear') }
   }
 
   /* ── Assign task ── */
@@ -313,7 +313,7 @@ export default function TasksPage() {
       await client.patch('/api/tasks/' + (assignTask.id || assignTask._id) + '/assign', { assignedToId: assignUserId })
       setOpenAssign(false)
       await load()
-    } catch (e) { setAssignErr(e?.response?.data?.message || 'Error al asignar') }
+    } catch (e) { setAssignErr(e?.message || 'Error al asignar') }
   }
 
   /* ── Start task ── */

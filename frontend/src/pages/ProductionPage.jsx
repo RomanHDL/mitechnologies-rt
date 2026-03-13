@@ -1,7 +1,7 @@
 // ProductionPage.jsx
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useAuth } from '../state/auth'
-import { api } from '../lib/api'
+import { api } from '../services/api'
 import { usePageStyles } from '../ui/pageStyles'
 import dayjs from 'dayjs'
 
@@ -137,13 +137,13 @@ export default function ProductionPage() {
 
   // ── Data loading ──
   const load = async () => {
-    const res = await api(token).get('/api/production')
+    const res = await api().get('/api/production')
     setRows(Array.isArray(res.data) ? res.data : [])
   }
 
   const loadDash = async (iso) => {
     try {
-      const res = await api(token).get(`/api/pallet-dashboard?day=${iso}`)
+      const res = await api().get(`/api/pallet-dashboard?day=${iso}`)
       setDash(res.data)
     } catch (e) {
       setDash({ resumen: { total: 0, pendientes: 0, procesados: 0 }, rows: [] })
@@ -151,7 +151,7 @@ export default function ProductionPage() {
   }
 
   const setDashStatus = async (id, status) => {
-    await api(token).patch(`/api/pallet-dashboard/${id}/status`, { status })
+    await api().patch(`/api/pallet-dashboard/${id}/status`, { status })
     await loadDash(dashDayISO)
   }
 
@@ -177,7 +177,7 @@ export default function ProductionPage() {
   const searchSku = useCallback(async (query) => {
     if (!query || query.length < 2) { setSkuSuggestions([]); return }
     try {
-      const res = await api(token).get(`/api/products?q=${encodeURIComponent(query)}`)
+      const res = await api().get(`/api/products?q=${encodeURIComponent(query)}`)
       setSkuSuggestions(Array.isArray(res.data) ? res.data.slice(0, 8) : [])
     } catch { setSkuSuggestions([]) }
   }, [token])
@@ -212,7 +212,7 @@ export default function ProductionPage() {
   const handleCreateSubmit = async () => {
     const validItems = createItems.filter(i => i.sku && Number(i.qty) > 0)
     if (!validItems.length) return
-    await api(token).post('/api/production', {
+    await api().post('/api/production', {
       area: createArea,
       subarea: createSubarea,
       items: validItems.map(i => ({ sku: i.sku, qty: Number(i.qty) })),
@@ -234,7 +234,7 @@ export default function ProductionPage() {
 
   // ── Status change actions ──
   const changeStatus = async (id, newStatus) => {
-    await api(token).patch(`/api/production/${id}/status`, { status: newStatus })
+    await api().patch(`/api/production/${id}/status`, { status: newStatus })
     await load()
   }
 

@@ -1,8 +1,12 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/auth'
-import { api } from '../lib/api'
+import { api } from '../services/api'
 import { usePageStyles } from '../ui/pageStyles'
+import {
+  AREA_CODES, PALLET_STATUS_MAP, ADMIN_ROLES,
+  palletStatusLabel,
+} from '../lib/constants'
 import * as XLSX from 'xlsx'
 
 import Paper from '@mui/material/Paper'
@@ -129,17 +133,11 @@ function statusUI(status) {
   }
 }
 
-/** Backend status label + color mapping */
-const BACKEND_STATUS_MAP = {
-  IN_STOCK:   { label: 'En Stock',     color: 'success' },
-  QUARANTINE: { label: 'Cuarentena',   color: 'warning' },
-  DAMAGED:    { label: 'Dañada',       color: 'error'   },
-  RETURNED:   { label: 'Devuelta',     color: 'info'    },
-  OUT:        { label: 'Salida',       color: 'default'  },
-}
+/** Backend status label + color mapping (importado de constants) */
+const BACKEND_STATUS_MAP = PALLET_STATUS_MAP
 
 function backendStatusLabel(s) {
-  return BACKEND_STATUS_MAP[s]?.label || s || '—'
+  return palletStatusLabel(s)
 }
 
 function getAreaFromLocationCode(locCode) {
@@ -270,9 +268,9 @@ export default function InventoryPage() {
   const [adjustDlgItems, setAdjustDlgItems] = useState([])
   const [adjustDlgLoading, setAdjustDlgLoading] = useState(false)
 
-  const client = useMemo(() => api(token), [token])
+  const client = useMemo(() => api(), [token])
 
-  const canAdmin = ['ADMIN', 'SUPERVISOR'].includes(user?.role)
+  const canAdmin = ADMIN_ROLES.includes(user?.role)
 
   /* ─── Data loading ─── */
   const load = async () => {
@@ -299,7 +297,7 @@ export default function InventoryPage() {
       const res = await client.get('/api/movements/no-move', { params: { days, limit: 500 } })
       setNoMoveList(Array.isArray(res.data) ? res.data : [])
     } catch (e) {
-      setNoMoveErr(e?.response?.data?.message || e?.message || 'Error cargando "sin movimiento"')
+      setNoMoveErr(e?.message || 'Error cargando "sin movimiento"')
       setNoMoveList([])
     } finally {
       setNoMoveLoading(false)
@@ -540,7 +538,7 @@ export default function InventoryPage() {
       const res = await client.get(`/api/movements`, { params: { palletId: pallet._id, limit: 200 } })
       setMovRows(Array.isArray(res.data) ? res.data : [])
     } catch (e) {
-      setMovErr(e?.response?.data?.message || e?.message || 'No se pudieron cargar movimientos')
+      setMovErr(e?.message || 'No se pudieron cargar movimientos')
     } finally {
       setMovLoading(false)
     }
@@ -559,7 +557,7 @@ export default function InventoryPage() {
       const res = await client.get('/api/movements', { params: { sku, limit: 500 } })
       setMovRows(Array.isArray(res.data) ? res.data : [])
     } catch (e) {
-      setMovErr(e?.response?.data?.message || e?.message || 'No se pudieron cargar movimientos por SKU')
+      setMovErr(e?.message || 'No se pudieron cargar movimientos por SKU')
     } finally {
       setMovLoading(false)
     }
@@ -592,7 +590,7 @@ export default function InventoryPage() {
       setStatusDlgOpen(false)
       load() // reload data
     } catch (e) {
-      setSnack(e?.response?.data?.message || e?.message || 'Error al cambiar status')
+      setSnack(e?.message || 'Error al cambiar status')
     } finally {
       setStatusDlgLoading(false)
     }
@@ -632,7 +630,7 @@ export default function InventoryPage() {
       setAdjustDlgOpen(false)
       load()
     } catch (e) {
-      setSnack(e?.response?.data?.message || e?.message || 'Error al ajustar inventario')
+      setSnack(e?.message || 'Error al ajustar inventario')
     } finally {
       setAdjustDlgLoading(false)
     }
@@ -807,11 +805,7 @@ export default function InventoryPage() {
             sx={{ minWidth: 180, ...ps.inputSx }}
           >
             <MenuItem value="">Todos</MenuItem>
-            <MenuItem value="IN_STOCK">En Stock</MenuItem>
-            <MenuItem value="QUARANTINE">Cuarentena</MenuItem>
-            <MenuItem value="DAMAGED">Dañada</MenuItem>
-            <MenuItem value="RETURNED">Devuelta</MenuItem>
-            <MenuItem value="OUT">Salida</MenuItem>
+            {Object.entries(PALLET_STATUS_MAP).map(([k, v]) => <MenuItem key={k} value={k}>{v.label}</MenuItem>)}
           </TextField>
 
           <TextField
@@ -837,10 +831,7 @@ export default function InventoryPage() {
             sx={{ minWidth: 160, ...ps.inputSx }}
           >
             <MenuItem value="">Todas</MenuItem>
-            <MenuItem value="A1">A1</MenuItem>
-            <MenuItem value="A2">A2</MenuItem>
-            <MenuItem value="A3">A3</MenuItem>
-            <MenuItem value="A4">A4</MenuItem>
+            {AREA_CODES.map(a => <MenuItem key={a} value={a}>{a}</MenuItem>)}
             <MenuItem value="B2">B2</MenuItem>
             <MenuItem value="C3">C3</MenuItem>
           </TextField>
@@ -1289,11 +1280,7 @@ export default function InventoryPage() {
                 onChange={(e) => setStatusDlgValue(e.target.value)}
                 sx={{ mb: 2, ...ps.inputSx }}
               >
-                <MenuItem value="IN_STOCK">En Stock</MenuItem>
-                <MenuItem value="QUARANTINE">Cuarentena</MenuItem>
-                <MenuItem value="DAMAGED">Dañada</MenuItem>
-                <MenuItem value="RETURNED">Devuelta</MenuItem>
-                <MenuItem value="OUT">Salida</MenuItem>
+                {Object.entries(PALLET_STATUS_MAP).map(([k, v]) => <MenuItem key={k} value={k}>{v.label}</MenuItem>)}
               </TextField>
 
               <TextField
@@ -1566,7 +1553,7 @@ export default function InventoryPage() {
                                   setMovErr('')
                                   client.get('/api/movements', { params: { palletId: x.palletId, limit: 200 } })
                                     .then(r => setMovRows(Array.isArray(r.data) ? r.data : []))
-                                    .catch(e => setMovErr(e?.response?.data?.message || e?.message || 'No se pudieron cargar movimientos'))
+                                    .catch(e => setMovErr(e?.message || 'No se pudieron cargar movimientos'))
                                     .finally(() => setMovLoading(false))
                                 }
                               }}

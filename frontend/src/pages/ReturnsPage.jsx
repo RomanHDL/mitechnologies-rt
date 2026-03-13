@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../state/auth'
-import { api } from '../lib/api'
+import { api } from '../services/api'
 import { usePageStyles } from '../ui/pageStyles'
 import * as XLSX from 'xlsx'
 
@@ -317,7 +317,7 @@ function TrazabilidadTimeline({ history }) {
 export default function ReturnsPage() {
   const { token, user } = useAuth()
   const ps = usePageStyles()
-  const client = useMemo(() => api(token), [token])
+  const client = useMemo(() => api(), [token])
 
   const [rows, setRows] = useState([])
   const [q, setQ] = useState('')
@@ -408,7 +408,7 @@ export default function ReturnsPage() {
       setRmaOrderRef(''); setRmaNotes(''); setRmaReason('DEFECTIVE')
       setRmaLines([{ sku: '', qty: 1 }])
       await load()
-    } catch (e) { setCreateErr(e?.response?.data?.message || 'Error al crear devolucion') }
+    } catch (e) { setCreateErr(e?.message || 'Error al crear devolucion') }
   }
 
   // Inspect
@@ -432,7 +432,7 @@ export default function ReturnsPage() {
       })
       setOpenInspect(false)
       await load()
-    } catch (e) { setInspectErr(e?.response?.data?.message || 'Error al inspeccionar') }
+    } catch (e) { setInspectErr(e?.message || 'Error al inspeccionar') }
   }
 
   // Status actions
